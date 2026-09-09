@@ -54,6 +54,7 @@ Open **Mods** for:
 - **Widescreen:** makes races wider.
 - **Presentation FPS:** makes motion smoother on high refresh screens.
 - **BS Deluxe:** adds the Satellaview machines, leagues, and tracks.
+- **DLSS5:** enables neural rendering with Vulkan presentation.
 
 When the Widescreen mod is on, its aspect setting wins over the normal Display aspect setting.
 

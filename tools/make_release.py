@@ -19,8 +19,8 @@ p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--build", default="build-release")
 p.add_argument("--mingw", default="C:/msys64/mingw64")
 p.add_argument("--output", default="release-stage", help="Parent for a fresh versioned staging directory")
-p.add_argument("--include-bs-deluxe", action="store_true",
-               help="Include locally imported Deluxe data; requires a private GitHub repository")
+p.add_argument("--include-bs-deluxe", action="store_true", default=True,
+               help="Compatibility flag: all releases include locally imported BS Deluxe data")
 a = p.parse_args()
 if a.include_bs_deluxe:
     gh = shutil.which("gh") or "C:/Program Files/GitHub CLI/gh.exe"

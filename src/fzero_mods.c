@@ -9,49 +9,50 @@ static char error_text[128];
 static const char *const aspects[] = {"16:9", "21:9", "32:9", "Fit"};
 static const char *const rates[] = {"Auto", "60", "90", "120", "144", "165", "240", "360"};
 #define COPY(field, value) snprintf(field, sizeof(field), "%s", value)
-static const char *const packages[] = {"fzero-widescreen", "fzero-presentation-fps", "bs-deluxe"};
-static const char *const features[] = {"widescreen", "presentation-fps", "bs-deluxe"};
-static const char *const names[] = {"Widescreen", "Presentation FPS", "BS Deluxe"};
+static const char *const packages[] = {"fzero-widescreen", "fzero-presentation-fps", "bs-deluxe", "fzero-dlss5"};
+static const char *const features[] = {"widescreen", "presentation-fps", "bs-deluxe", "dlss5"};
+static const char *const names[] = {"Widescreen", "Presentation FPS", "BS Deluxe", "DLSS5"};
 static const char *const descriptions[] = {
   "Expand the race view and anchor the HUD at its outer edges.",
   "Choose the presentation rate independently of widescreen and game speed.",
-  "Full BS Deluxe: original and BS courses, eight vehicles, alternate cups and Practice ghosts. Uses separate saves."
+  "Full BS Deluxe: original and BS courses, eight vehicles, alternate cups and Practice ghosts. Uses separate saves.",
+  "DLSS5 neural rendering with Vulkan presentation. Uses the installed NVIDIA neural rendering runtime."
 };
-static int count(void *ctx) { (void)ctx; return 3; }
+static int count(void *ctx) { (void)ctx; return 4; }
 static int identity(const char *package, const char *feature) {
-  if (package && feature) for (int i = 0; i < 3; ++i)
+  if (package && feature) for (int i = 0; i < 4; ++i)
     if (!strcmp(package, packages[i]) && !strcmp(feature, features[i])) return i + 1;
   return 0;
 }
 static int package_get(void *ctx, int index, RecompLauncherCModPackage *out) {
   (void)ctx;
-  if (index < 0 || index > 2 || !out) return 0;
+  if (index < 0 || index > 3 || !out) return 0;
   memset(out, 0, sizeof(*out));
   COPY(out->id, packages[index]); COPY(out->version, "1");
   COPY(out->name, names[index]); COPY(out->author, index == 2 ? "GuyPerfect, PowerPanda, Porthor, Catador" : "FZeroSNESRecomp contributors");
   COPY(out->description, descriptions[index]);
-  out->enabled = index == 2 ? video->bs_deluxe : index ? video->fps_enabled : video->enhanced;
+  out->enabled = index == 3 ? video->dlss : index == 2 ? video->bs_deluxe : index ? video->fps_enabled : video->enhanced;
   return 1;
 }
 static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
   (void)ctx;
-  if (index < 0 || index > 2 || !out) return 0;
+  if (index < 0 || index > 3 || !out) return 0;
   memset(out, 0, sizeof(*out));
   COPY(out->id, features[index]); COPY(out->package_id, packages[index]);
   COPY(out->package_name, names[index]); COPY(out->package_version, "1");
   COPY(out->name, names[index]); COPY(out->group, index == 2 ? "Content" : "Presentation");
   COPY(out->author, index == 2 ? "GuyPerfect, PowerPanda, Porthor, Catador" : "FZeroSNESRecomp contributors");
   COPY(out->description, descriptions[index]);
-  out->enabled = index == 2 ? video->bs_deluxe : index ? video->fps_enabled : video->enhanced;
+  out->enabled = index == 3 ? video->dlss : index == 2 ? video->bs_deluxe : index ? video->fps_enabled : video->enhanced;
   COPY(out->status, out->enabled ? "Enabled" : "Disabled");
-  out->option_count = index == 2 ? 0 : 1;
+  out->option_count = index >= 2 ? 0 : 1;
   return 1;
 }
 static int option_get(void *ctx, const char *package, const char *feature, int index,
                       RecompLauncherCModOption *out) {
   (void)ctx;
   int kind = identity(package, feature);
-  if (!kind || kind == 3 || index != 0 || !out) return 0;
+  if (!kind || kind >= 3 || index != 0 || !out) return 0;
   memset(out, 0, sizeof(*out)); out->type = RECOMP_MOD_OPTION_CHOICE; out->step = 1;
   if (kind == 1) {
     COPY(out->id, "aspect"); COPY(out->label, "Aspect ratio");
@@ -82,7 +83,11 @@ static int choice_get(void *ctx, const char *package, const char *feature,
 static int enable(void *ctx, const char *package, const char *feature, int enabled) {
   (void)ctx;
   if (!identity(package, feature)) return 0;
-  if (identity(package, feature) == 3) video->bs_deluxe = enabled != 0;
+  if (identity(package, feature) == 4) {
+    video->dlss = enabled != 0;
+    if (video->dlss) video->vulkan = true;
+  }
+  else if (identity(package, feature) == 3) video->bs_deluxe = enabled != 0;
   else if (identity(package, feature) == 2) video->fps_enabled = enabled != 0;
   else {
     video->enhanced = enabled != 0;

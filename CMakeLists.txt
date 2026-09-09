@@ -77,7 +77,18 @@ list(REMOVE_ITEM SNESRECOMP_RUNNER_SOURCES
     "${SNESRECOMP_ROOT}/runner/src/keybinds.c"
     "${SNESRECOMP_ROOT}/runner/src/host_report.c")
 
-set(FZERO_DELUXE_GEN_DIR "" CACHE PATH "Private generated BS Deluxe native sources")
+set(FZERO_DELUXE_GEN_DIR "${CMAKE_SOURCE_DIR}/captures/bs-deluxe/gen" CACHE PATH
+    "Required private generated BS Deluxe native sources")
+set(FZERO_DELUXE_MODS_DIR "${CMAKE_SOURCE_DIR}/build-deluxe/mods" CACHE PATH
+    "Required imported BS Deluxe payload and credits")
+if(NOT FZERO_DELUXE_GEN_DIR)
+    message(FATAL_ERROR "Every F-Zero game build must include BS Deluxe. Set FZERO_DELUXE_GEN_DIR to its generated sources.")
+endif()
+foreach(deluxe_file bs-deluxe.dat bs-deluxe-import.json BS-Deluxe-credits.txt)
+    if(NOT EXISTS "${FZERO_DELUXE_MODS_DIR}/${deluxe_file}")
+        message(FATAL_ERROR "BS Deluxe is required: missing ${FZERO_DELUXE_MODS_DIR}/${deluxe_file}. Import BS Deluxe or set FZERO_DELUXE_MODS_DIR.")
+    endif()
+endforeach()
 if(FZERO_DELUXE_GEN_DIR)
     file(GLOB DELUXE_SOURCES CONFIGURE_DEPENDS "${FZERO_DELUXE_GEN_DIR}/*.c")
     if(NOT DELUXE_SOURCES OR NOT EXISTS "${FZERO_DELUXE_GEN_DIR}/deluxe_namespace.h")
@@ -112,6 +123,7 @@ add_executable(FZeroSNESRecomp
     "${RECOMP_UI_ROOT}/src/third_party/gl_core_3_1.c"
     ${FZERO_GEN_SOURCES}
     src/sdl_main.c
+    src/fzero_dlss.c
     src/fzero_mods.c
     src/fzero_runtime.c)
 
@@ -120,6 +132,14 @@ function(configure_fzero_target target)
     if(FZERO_DELUXE_GEN_DIR)
         target_sources(${target} PRIVATE $<TARGET_OBJECTS:fzero_deluxe_native>)
         target_compile_definitions(${target} PRIVATE FZERO_HAS_DELUXE=1)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${target}>/mods"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${FZERO_DELUXE_MODS_DIR}/bs-deluxe.dat"
+                "${FZERO_DELUXE_MODS_DIR}/bs-deluxe-import.json"
+                "${FZERO_DELUXE_MODS_DIR}/BS-Deluxe-credits.txt"
+                "$<TARGET_FILE_DIR:${target}>/mods"
+            VERBATIM)
     endif()
     target_sources(${target} PRIVATE src/fzero_renderer.c)
     target_link_libraries(${target} PRIVATE fzero_video)
@@ -149,6 +169,7 @@ snesrecomp_target_glsl_shader(FZeroSNESRecomp)
 snesrecomp_target_sdl(FZeroSNESRecomp)
 target_link_libraries(FZeroSNESRecomp PRIVATE OpenGL::GL)
 recomp_target_launcher_ui(FZeroSNESRecomp CONSOLE snes)
+configure_file(tools/dlss_worker.py dlss_worker.py COPYONLY)
 add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/img/boxart.tga"

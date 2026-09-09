@@ -21,6 +21,8 @@ typedef struct FzeroVideoSettings {
   unsigned fps; /* 0 = display refresh (Auto). */
   bool fps_enabled;
   bool bs_deluxe; /* Launch-time content selection. */
+  bool vulkan;
+  bool dlss;
 } FzeroVideoSettings;
 
 typedef struct FzeroViewport {

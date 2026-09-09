@@ -7,6 +7,7 @@
 #include "fzero_mods.h"
 #include "fzero_deluxe.h"
 #include "fzero_replay.h"
+#include "fzero_dlss.h"
 
 #include "common_rtl.h"
 #include "cpu_trace.h"
@@ -704,7 +705,11 @@ int main(int argc, char **argv) {
 #else
   const Uint32 kHighDpiFlag = SDL_WINDOW_ALLOW_HIGHDPI;
 #endif
-  bool use_gl_renderer = launcher_settings.shader_path[0] != 0;
+  const char *output_method = getenv("FZERO_OUTPUT_METHOD");
+  bool use_vulkan = output_method ? !strcmp(output_method, "Vulkan") : g_video.vulkan;
+  bool use_gl_renderer = !use_vulkan && launcher_settings.shader_path[0] != 0;
+  if (use_vulkan && launcher_settings.shader_path[0])
+    fprintf(stderr, "[fzero] Vulkan selected; OpenGL shader preset is inactive\n");
   if (use_gl_renderer) fzero_gl_prepare_window();
   SDL_Window *window = snesrecomp_sdl_create_window(
       kWindowTitle, 768, 576,
@@ -720,9 +725,20 @@ int main(int argc, char **argv) {
     if (!fzero_gl_init(&gl_renderer, window, launcher_settings.shader_path))
       Die("Unable to initialize the OpenGL shader renderer");
   } else {
-    renderer = snesrecomp_sdl_create_renderer(window, false, false);
-    if (!renderer) renderer = snesrecomp_sdl_create_renderer(window, true, false);
+    if (use_vulkan) {
+#if SNESRECOMP_SDL3
+      renderer = SDL_CreateRenderer(window, "vulkan");
+      if (renderer) SDL_SetRenderVSync(renderer, 0);
+#else
+      Die("Vulkan presentation requires an SDL3 build");
+#endif
+    } else {
+      renderer = snesrecomp_sdl_create_renderer(window, false, false);
+      if (!renderer) renderer = snesrecomp_sdl_create_renderer(window, true, false);
+    }
+    if (!renderer) fprintf(stderr, "[fzero] Renderer initialization: %s\n", SDL_GetError());
     if (!renderer) Die("Unable to create the game renderer");
+    fprintf(stderr, "[fzero] Presentation driver: %s\n", snesrecomp_sdl_renderer_name(renderer));
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
                                 SDL_TEXTUREACCESS_STREAMING, FZERO_MAX_WIDTH,
                                 kFrameHeight);
@@ -736,6 +752,12 @@ int main(int argc, char **argv) {
   }
 
   static uint8_t pixels[FZERO_MAX_WIDTH * kFrameHeight * kBytesPerPixel];
+  const char *dlss_env = getenv("FZERO_DLSS");
+  bool dlss_enabled = use_vulkan && (dlss_env ? !strcmp(dlss_env, "1") : g_video.dlss) && FzeroDlssStart();
+  SDL_Texture *dlss_texture = NULL;
+  SDL_Texture *dlss_original_texture = NULL;
+  bool dlss_compare = getenv("FZERO_DLSS_COMPARE") && !strcmp(getenv("FZERO_DLSS_COMPARE"), "1");
+  int dlss_texture_width = 0, dlss_texture_height = 0;
   int drawable_width = 768, drawable_height = 576;
   if (use_gl_renderer)
     snesrecomp_sdl_get_drawable_size(window, &drawable_width, &drawable_height);
@@ -814,6 +836,21 @@ int main(int argc, char **argv) {
          * right member for each major. */
         const SDL_Keycode key = SNESRECOMP_SDL_EVENT_KEY(event);
         const Uint16 mod = (Uint16)SNESRECOMP_SDL_EVENT_MOD(event);
+        if ((mod & KMOD_CTRL) && key == SDLK_F8 && use_vulkan) {
+          dlss_enabled = !dlss_enabled;
+          if (dlss_enabled) dlss_enabled = FzeroDlssStart();
+          else FzeroDlssStop();
+          g_video.dlss = dlss_enabled;
+          FzeroVideoSave(&g_video, kVideoConfig);
+          FzeroDlssReset();
+          fprintf(stderr, "[dlss] %s\n", dlss_enabled ? "enabled" : "disabled");
+          continue;
+        }
+        if ((mod & KMOD_CTRL) && key == SDLK_F9 && use_vulkan) {
+          dlss_compare = !dlss_compare;
+          next_display_check = 0;
+          continue;
+        }
         if ((mod & KMOD_CTRL) && (key == SDLK_F6 || key == SDLK_F7)) {
           if (key == SDLK_F6) {
             if (!g_video.enhanced) { g_video.enhanced = true; g_video.aspect = FZERO_ASPECT_16_9; }
@@ -893,6 +930,12 @@ int main(int argc, char **argv) {
     if (suspended) { SDL_Delay(10); continue; }
     double now = monotonic_seconds();
     if (now >= next_display_check) {
+      if (use_vulkan && !state_feedback_until) {
+        char title[192];
+        snprintf(title, sizeof(title), "F-Zero - Vulkan - DLSS5: %s%s",
+                 FzeroDlssStatus(), dlss_enabled && dlss_compare ? " - Left: Original | Right: DLSS5" : "");
+        SDL_SetWindowTitle(window, title);
+      }
       double next_hz = g_video.fps_enabled ? FzeroPresentationHz(g_video.fps, display_refresh(window)) : FZERO_SIMULATION_HZ;
       if (next_hz != hz) {
         hz = next_hz;
@@ -902,6 +945,7 @@ int main(int argc, char **argv) {
       next_display_check = now + 0.25;
     }
     if (g_reset_presentation_clock) {
+      FzeroDlssReset();
       missed_presentations += clock.missed_presentations;
       FzeroClockReset(&clock, now, hz);
       g_reset_presentation_clock = false;
@@ -918,6 +962,7 @@ int main(int argc, char **argv) {
         snesrecomp_sdl_get_render_output_size(renderer, &drawable_width, &drawable_height);
       FzeroViewport next = FzeroCalculateViewport(&g_video, drawable_width, drawable_height);
       if (next.width != viewport.width || next.aspect != viewport.aspect) {
+        FzeroDlssReset();
         viewport = next;
         FzeroSetViewport(viewport);
         logical_width = viewport.width;
@@ -948,13 +993,65 @@ int main(int argc, char **argv) {
                         drawable_width, drawable_height);
       } else {
         SDL_Rect source = {0, 0, logical_width, kFrameHeight};
+        SDL_Texture *present_texture = texture;
         SDL_UpdateTexture(texture, &source, pixels,
                           logical_width * kBytesPerPixel);
+        if (dlss_enabled) {
+          int nw = 0, nh = 0;
+          const uint32_t *neural = FzeroDlssFrame((const uint32_t *)pixels, logical_width,
+                                                 kFrameHeight, viewport.aspect, &nw, &nh);
+          if (neural) {
+            if (nw != dlss_texture_width || nh != dlss_texture_height) {
+              SDL_DestroyTexture(dlss_texture);
+              SDL_DestroyTexture(dlss_original_texture);
+              dlss_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                                SDL_TEXTUREACCESS_STREAMING, nw, nh);
+              dlss_original_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                                         SDL_TEXTUREACCESS_STREAMING, nw, nh);
+              dlss_texture_width = nw; dlss_texture_height = nh;
+              if (dlss_texture) {
+                snesrecomp_sdl_set_texture_opaque(dlss_texture);
+                snesrecomp_sdl_set_texture_linear(dlss_texture, g_config.linear_filtering);
+              }
+              if (dlss_original_texture) {
+                snesrecomp_sdl_set_texture_opaque(dlss_original_texture);
+                snesrecomp_sdl_set_texture_linear(dlss_original_texture, g_config.linear_filtering);
+              }
+            }
+            if (dlss_texture) {
+              SDL_UpdateTexture(dlss_texture, NULL, neural, nw * 4);
+              if (dlss_compare && dlss_original_texture)
+                SDL_UpdateTexture(dlss_original_texture, NULL, FzeroDlssOriginal(), nw * 4);
+              present_texture = dlss_texture;
+              source = (SDL_Rect){0, 0, nw, nh};
+            }
+          }
+        }
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         FzeroRect rect = FzeroDestination(viewport, drawable_width, drawable_height);
         SDL_Rect destination = {rect.x, rect.y, rect.w, rect.h};
-        snesrecomp_sdl_render_texture(renderer, texture, &source, &destination);
+        snesrecomp_sdl_render_texture(renderer, present_texture, &source, &destination);
+        if (dlss_compare && dlss_enabled && present_texture == dlss_texture && dlss_original_texture) {
+          SDL_Rect left_source = source;
+          SDL_Rect left_destination = destination;
+          left_source.w /= 2;
+          left_destination.w = (int)((int64_t)destination.w * left_source.w / source.w);
+          snesrecomp_sdl_render_texture(renderer, dlss_original_texture, &left_source, &left_destination);
+        }
+#if SNESRECOMP_SDL3
+        const char *capture_path = getenv("FZERO_PRESENT_CAPTURE");
+        const char *capture_frame = getenv("FZERO_PRESENT_CAPTURE_FRAME");
+        static bool captured_present;
+        if (!captured_present && capture_path && capture_frame && frames >= strtol(capture_frame, NULL, 10)) {
+          SDL_Surface *surface = SDL_RenderReadPixels(renderer, NULL);
+          if (surface) {
+            SDL_SaveBMP(surface, capture_path);
+            SDL_DestroySurface(surface);
+          }
+          captured_present = true;
+        }
+#endif
         SDL_RenderPresent(renderer);
       }
       FzeroClockPresentationDone(&clock, monotonic_seconds());
@@ -977,6 +1074,9 @@ int main(int argc, char **argv) {
     if (dump) fclose(dump);
   }
   RtlWriteSram();
+  FzeroDlssStop();
+  SDL_DestroyTexture(dlss_texture);
+  SDL_DestroyTexture(dlss_original_texture);
   debug_server_shutdown();
   snesrecomp_sdl_pause_audio_device(audio, true);
 #if SNESRECOMP_SDL3

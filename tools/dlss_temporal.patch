@@ -1,0 +1,140 @@
+diff --git a/native/dlss5nr_bridge.cpp b/native/dlss5nr_bridge.cpp
+index 488d836..e7d9a0b 100644
+--- a/native/dlss5nr_bridge.cpp
++++ b/native/dlss5nr_bridge.cpp
+@@ -134,6 +134,9 @@ static UINT64 g_mvec_total_bytes = 0;
+ static int g_feature_style = -999;
+ static int g_feature_preset = -999;
+ static int g_feature_motion = -1;
++// Central-region mean displacement (pixels), mean absolute displacement,
++// nonzero fraction, and whether this evaluation supplied measured flow.
++static float g_motion_stats[5]{};
+ 
+ static void SetError(const char* fmt, ...) {
+     char buf[4096];
+@@ -711,7 +714,11 @@ static void ShutdownUnlocked() {
+ extern "C" {
+ 
+ __declspec(dllexport) const char* __cdecl dlss5nr_version() {
+-    return "0.3.0-cpu-staging-nvof";
++    return "0.3.0-fzero-temporal-r8-1";
++}
++__declspec(dllexport) void __cdecl dlss5nr_motion_stats(float* out) {
++    std::lock_guard<std::mutex> guard(g_mutex);
++    if (out) memcpy(out, g_motion_stats, sizeof(g_motion_stats));
+ }
+ 
+ __declspec(dllexport) const char* __cdecl dlss5nr_gpu_name() {
+@@ -763,6 +770,7 @@ __declspec(dllexport) int __cdecl dlss5nr_process(
+     if (width > 16384 || height > 16384) { SetError("Image dimensions are unreasonably large"); CopyError(err, err_cap); return 0; }
+ 
+     const bool use_motion_vectors = temporal != 0;
++    memset(g_motion_stats, 0, sizeof(g_motion_stats));
+     if (!use_motion_vectors) {
+         // Still-image mode owns no temporal history or OFA resources. This also
+         // releases OFA VRAM when a workflow switches from temporal back to still.
+@@ -787,6 +795,26 @@ __declspec(dllexport) int __cdecl dlss5nr_process(
+             CopyError(err, err_cap);
+             return 0;
+         }
++        if (flow.has_flow) {
++            double sx = 0, sy = 0, magnitude = 0, nonzero = 0, count = 0;
++            for (uint32_t y = flow.height / 4; y < flow.height * 3 / 4; ++y) {
++                for (uint32_t x = flow.width / 4; x < flow.width * 3 / 4; ++x) {
++                    size_t i = (static_cast<size_t>(y) * flow.width + x) * 2;
++                    float dx = flow.xy[i] / 32.0f, dy = flow.xy[i + 1] / 32.0f;
++                    sx += dx; sy += dy;
++                    magnitude += std::abs(dx) + std::abs(dy);
++                    nonzero += dx != 0 || dy != 0;
++                    ++count;
++                }
++            }
++            if (count) {
++                g_motion_stats[0] = static_cast<float>(sx / count);
++                g_motion_stats[1] = static_cast<float>(sy / count);
++                g_motion_stats[2] = static_cast<float>(magnitude / count);
++                g_motion_stats[3] = static_cast<float>(nonzero / count);
++            }
++            g_motion_stats[4] = 1;
++        }
+     }
+ 
+     SetCommonParams(style, preset, intensity, tone, structure, skin, automask, reset ? 1 : 0, use_motion_vectors);
+diff --git a/native/nvof_flow.cpp b/native/nvof_flow.cpp
+index 6ad0cc4..7e7d4a8 100644
+--- a/native/nvof_flow.cpp
++++ b/native/nvof_flow.cpp
+@@ -34,7 +34,7 @@ using NvOfStatus = long;
+ static constexpr NvOfStatus kOfSuccess = 0;
+ static constexpr NvOfStatus kOfRaised = 0x7FFFFFFF;
+ static constexpr uint32_t kOfApiVersion = 0x20; // public 2.0 ABI layout
+-static constexpr uint32_t kGrid = 2;            // 2x2 flow cells: good quality / cost balance
++static constexpr uint32_t kGrid = 2;            // 2x2 flow cells.
+ static constexpr uint32_t kPerf = 20;           // NV_OF_PERF_LEVEL_FAST
+ 
+ struct NvOfInitParams {
+@@ -105,7 +105,7 @@ struct OfaState {
+ 
+     LUID adapter_luid{};
+     bool have_luid = false;
+-    std::vector<uint8_t> luma_bgra;
++    std::vector<uint8_t> luma;
+ };
+ 
+ static OfaState g_ofa;
+@@ -205,7 +205,7 @@ static void CloseSessionInternal() {
+     g_ofa.current = 0;
+     g_ofa.primed = false;
+     g_ofa.have_luid = false;
+-    g_ofa.luma_bgra.clear();
++    g_ofa.luma.clear();
+ }
+ 
+ static bool EnsureFunctionTable(std::string& error) {
+@@ -308,8 +308,10 @@ static bool OpenSession(IDXGIAdapter1* adapter, uint32_t width, uint32_t height,
+     g_ofa.have_luid = true;
+ 
+     const UINT io_bind = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+-    g_ofa.src[0] = MakeTexture(g_ofa.device.Get(), width, height, DXGI_FORMAT_B8G8R8A8_UNORM, D3D11_USAGE_DEFAULT, io_bind, 0);
+-    g_ofa.src[1] = MakeTexture(g_ofa.device.Get(), width, height, DXGI_FORMAT_B8G8R8A8_UNORM, D3D11_USAGE_DEFAULT, io_bind, 0);
++    // The BGRA preprocessing path fails at Execute on the tested Ampere
++    // driver. R8 is an advertised NVOF input format and holds our luma directly.
++    g_ofa.src[0] = MakeTexture(g_ofa.device.Get(), width, height, DXGI_FORMAT_R8_UNORM, D3D11_USAGE_DEFAULT, io_bind, 0);
++    g_ofa.src[1] = MakeTexture(g_ofa.device.Get(), width, height, DXGI_FORMAT_R8_UNORM, D3D11_USAGE_DEFAULT, io_bind, 0);
+     g_ofa.flow = MakeTexture(g_ofa.device.Get(), g_ofa.flow_width, g_ofa.flow_height, DXGI_FORMAT_R16G16_SINT, D3D11_USAGE_DEFAULT, io_bind, 0);
+     g_ofa.flow_staging = MakeTexture(g_ofa.device.Get(), g_ofa.flow_width, g_ofa.flow_height, DXGI_FORMAT_R16G16_SINT, D3D11_USAGE_STAGING, 0, D3D11_CPU_ACCESS_READ);
+     if (!g_ofa.src[0] || !g_ofa.src[1] || !g_ofa.flow || !g_ofa.flow_staging) {
+@@ -372,13 +374,13 @@ static bool OpenSession(IDXGIAdapter1* adapter, uint32_t width, uint32_t height,
+ 
+     g_ofa.current = 0;
+     g_ofa.primed = false;
+-    g_ofa.luma_bgra.resize(static_cast<size_t>(width) * height * 4);
++    g_ofa.luma.resize(static_cast<size_t>(width) * height);
+     return true;
+ }
+ 
+ static void UploadLuma(const float* rgb) {
+     const size_t pixels = static_cast<size_t>(g_ofa.width) * g_ofa.height;
+-    if (g_ofa.luma_bgra.size() != pixels * 4) g_ofa.luma_bgra.resize(pixels * 4);
++    if (g_ofa.luma.size() != pixels) g_ofa.luma.resize(pixels);
+ 
+     for (size_t i = 0; i < pixels; ++i) {
+         const float r = std::clamp(rgb[i * 3 + 0], 0.0f, 1.0f);
+@@ -386,15 +388,12 @@ static void UploadLuma(const float* rgb) {
+         const float b = std::clamp(rgb[i * 3 + 2], 0.0f, 1.0f);
+         const float y = std::clamp(0.2126f * r + 0.7152f * g + 0.0722f * b, 0.0f, 1.0f);
+         const uint8_t v = static_cast<uint8_t>(std::lround(y * 255.0f));
+-        g_ofa.luma_bgra[i * 4 + 0] = v;
+-        g_ofa.luma_bgra[i * 4 + 1] = v;
+-        g_ofa.luma_bgra[i * 4 + 2] = v;
+-        g_ofa.luma_bgra[i * 4 + 3] = 255;
++        g_ofa.luma[i] = v;
+     }
+ 
+     g_ofa.context->UpdateSubresource(
+         g_ofa.src[g_ofa.current].Get(), 0, nullptr,
+-        g_ofa.luma_bgra.data(), g_ofa.width * 4, 0);
++        g_ofa.luma.data(), g_ofa.width, 0);
+ }
+ 
+ } // namespace

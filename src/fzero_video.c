@@ -82,7 +82,12 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
   bool has_fps_toggle = false;
   while (fgets(line, sizeof(line), f)) {
     if (sscanf(line, " %63[^= \t] = %63s", key, value) != 2) continue;
-    if (!strcmp(key, "EnhancedRenderer")) {
+    if (!strcmp(key, "Vulkan") || !strcmp(key, "DLSS5")) {
+      if (!strcmp(value, "0") || !strcmp(value, "1")) {
+        if (!strcmp(key, "Vulkan")) s->vulkan = value[0] == '1';
+        else s->dlss = value[0] == '1';
+      } else valid = false;
+    } else if (!strcmp(key, "EnhancedRenderer")) {
       if (!strcmp(value, "0") || !strcmp(value, "1")) s->enhanced = value[0] == '1';
       else valid = false;
     } else if (!strcmp(key, "PresentationEnabled")) {
@@ -112,8 +117,8 @@ bool FzeroVideoSave(const FzeroVideoSettings *s, const char *path) {
   if (snprintf(temporary, sizeof(temporary), "%s.tmp", path) >= (int)sizeof(temporary)) return false;
   FILE *f = fopen(temporary, "w");
   if (!f) return false;
-  bool ok = fprintf(f, "[FZeroVideo]\nEnhancedRenderer=%d\nAspect=%s\nPresentationEnabled=%d\nPresentationFPS=%u\nBSDeluxe=%d\n",
-                    s->enhanced, FzeroAspectName(s->aspect), s->fps_enabled, s->fps, s->bs_deluxe) > 0;
+  bool ok = fprintf(f, "[FZeroVideo]\nEnhancedRenderer=%d\nAspect=%s\nPresentationEnabled=%d\nPresentationFPS=%u\nBSDeluxe=%d\nVulkan=%d\nDLSS5=%d\n",
+                    s->enhanced, FzeroAspectName(s->aspect), s->fps_enabled, s->fps, s->bs_deluxe, s->vulkan, s->dlss) > 0;
   if (fclose(f)) ok = false;
   if (ok) {
 #ifdef _WIN32

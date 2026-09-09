@@ -8,7 +8,14 @@ int main(void) {
   const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini");
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
-  CHECK(p->package_count(NULL) == 3 && p->feature_count(NULL) == 3);
+  CHECK(p->package_count(NULL) == 4 && p->feature_count(NULL) == 4);
+  RecompLauncherCModFeature vk;
+  CHECK(p->feature_get(NULL, 3, &vk) && vk.option_count == 0 && !strcmp(vk.name, "DLSS5"));
+  CHECK(p->feature_enable(NULL, vk.package_id, vk.id, 1));
+  CHECK(s.vulkan && s.dlss);
+  CHECK(!p->feature_option_get(NULL, vk.package_id, vk.id, 0, &option));
+  CHECK(s.dlss && !s.enhanced && !s.fps_enabled);
+  CHECK(!p->feature_set_option(NULL, vk.package_id, vk.id, "dlss5", "invalid"));
   RecompLauncherCModFeature deluxe;
   CHECK(p->feature_get(NULL, 2, &deluxe) && deluxe.option_count == 0);
   CHECK(p->feature_enable(NULL, deluxe.package_id, deluxe.id, 1));
@@ -27,6 +34,9 @@ int main(void) {
   CHECK(p->feature_option_get(NULL, f.package_id, f.id, 0, &option) && !strcmp(option.id, "fps"));
   CHECK(p->commit(NULL, NULL) && FzeroVideoLoad(&loaded, "test-mods.ini"));
   CHECK(loaded.enhanced && !loaded.fps_enabled && loaded.fps == 144 && loaded.bs_deluxe);
+  CHECK(loaded.vulkan && loaded.dlss);
+  CHECK(p->feature_enable(NULL, vk.package_id, vk.id, 0));
+  CHECK(!s.dlss && s.vulkan);
   CHECK(p->feature_enable(NULL, deluxe.package_id, deluxe.id, 0));
   CHECK(!s.bs_deluxe && s.enhanced && !s.fps_enabled);
   remove("test-mods.ini");

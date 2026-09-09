@@ -19,7 +19,7 @@ OUT="$REPO/release-linux"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_RUN=0
 DO_PACKAGE=1
-INCLUDE_BS=0
+INCLUDE_BS=1
 BS_GEN="$REPO/captures/bs-deluxe/gen"
 BS_MODS="$REPO/build-release/mods"
 
@@ -56,7 +56,7 @@ if [ "$INCLUDE_BS" = "1" ]; then
   [ -f "$BS_GEN/deluxe_namespace.h" ] || { echo "missing BS native gen dir: $BS_GEN" >&2; exit 1; }
   [ -f "$BS_MODS/bs-deluxe.dat" ] || { echo "missing BS Deluxe payload: $BS_MODS/bs-deluxe.dat" >&2; exit 1; }
   [ -f "$REPO/patches/bs-deluxe-usa.ips" ] || { echo "missing tracked BS patch: patches/bs-deluxe-usa.ips" >&2; exit 1; }
-  FLAGS+=( -DFZERO_DELUXE_GEN_DIR="$BS_GEN" )
+  FLAGS+=( -DFZERO_DELUXE_GEN_DIR="$BS_GEN" -DFZERO_DELUXE_MODS_DIR="$BS_MODS" )
 fi
 
 [ -f "$REPO/snesrecomp/runner/runner.cmake" ] || {
