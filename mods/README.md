@@ -1,10 +1,13 @@
 # Add more courses to F-Zero
 
-MAX League and Community Grand Prix are included. Enable or disable each pack
-in **Mods**; every enabled pack adds its cups automatically. Bundled packs have
+Community Grand Prix is included. Enable or disable it in **Mods**; every
+enabled pack adds its cups automatically. Bundled packs have
 only an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
 buttons. Imported cups appear after the original leagues.
+
+The `fzero-55` build has **11 cups / 55 courses** with BS Deluxe enabled.
+MAX League's files are retained, but its mod and cups are hidden and disabled.
 
 For additional packs, put extracted `.ips` or `.bps` files in
 **`mods/track-packs` beside the game**, along with their manifest and layout
@@ -26,9 +29,8 @@ including its boost behavior.
 donor vehicles: any one patch supplies the
 same **six new cups / 30 courses**, and installing all three adds them once.
 CGP's original and Satellaview courses are omitted because the native leagues
-already provide them. MAX's five courses are distinct and remain available.
-With BS Deluxe, MAX and CGP installed, the game has **12 cups / 60 courses**
-and the existing eight-car roster. CGP's replacement vehicles, boost rules,
+already provide them. MAX's five courses are distinct but parked in this build.
+BS Deluxe and CGP preserve the existing eight-car roster. CGP's replacement vehicles, boost rules,
 Legend difficulty and MSU soundtrack are not imported by this course adapter.
 No MSU/PCM audio files are installed or enabled by these packs.
 
@@ -96,3 +98,9 @@ table separately. Exclude existing native courses explicitly in the manifest.
 Compare normalized geometry against other packs before claiming duplicates;
 names alone cannot distinguish a revision from another track. Accept multiple
 donor hashes under one pack ID only after comparing every declared resource.
+
+A shipped `<pack-id>.hidden` file containing `1` parks a pack: it remains in
+the catalog with its assets and record identities intact, but is omitted from
+Mods and kept off regardless of old settings. This branch ships
+`max-league.hidden`. Removing that marker or changing it to `0` makes the
+pack visible again; its enable setting can then be changed normally.

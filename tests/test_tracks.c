@@ -58,6 +58,7 @@ int main(void) {
     /* Bundled patches use the same catalog with an empty user directory. */
     CHECK(!CHDIR(root));MKDIR("assets");MKDIR("assets/track-packs");MKDIR("user");
     remove("user/bundled.disabled");remove("user/bundled.path");remove("user/override.ips");
+    remove("assets/track-packs/bundled.hidden");
     write_file("user/library.disabled","1\n",2);
     manifest("assets/track-packs/bundled.ini","bundled");
     remove("assets/track-packs/included.ips");
@@ -80,6 +81,17 @@ int main(void) {
     bundled=cp_catalog_find(FzeroTracksCatalog(),"bundled");
     CHECK(!FzeroTracksAvailable(bundled));
     CHECK(!strcmp(FzeroTracksPatch(bundled),"assets/track-packs/bundled.ips"));
+    /* A hidden shipped pack stays present but old enabled settings cannot
+     * activate it or expose it as an available cup. */
+    write_file("assets/track-packs/bundled.hidden","1\n",2);
+    write_file("user/bundled.disabled","0\n",2);
+    CHECK(FzeroTracksInit("user",true));FzeroTracksDiscover((const uint8_t *)"abc",3);
+    bundled=cp_catalog_find(FzeroTracksCatalog(),"bundled");
+    CHECK(bundled && FzeroTracksHidden(bundled) && FzeroTracksBundled(bundled));
+    CHECK(!FzeroTracksEnabled(bundled) && !FzeroTracksAvailable(bundled));
+    CHECK(!FzeroTracksEnable(bundled,true));
+    CHECK(FzeroTracksSave());
+    CHECK(!remove("assets/track-packs/bundled.hidden"));
     CHECK(!CHDIR(".."));
     puts("User/bundled discovery, per-pack toggles, obsolete settings and duplicate quarantine passed");return 0;
 }

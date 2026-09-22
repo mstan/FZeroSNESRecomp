@@ -27,6 +27,7 @@ def main():
         assert hashlib.sha256((registry / name).read_bytes()).hexdigest() == digest
     assert (registry / "MAX-League-credits.txt").is_file()
     assert (registry / "CGP-credits.txt").is_file()
+    hidden = {p.stem for p in registry.glob("*.hidden") if p.read_text(encoding="utf-8").strip() == "1"}
     assert not any(p.suffix.lower() in (".msu", ".pcm", ".sfc", ".smc") for p in registry.rglob("*"))
     user = out / "mods/track-packs"
     user.mkdir(parents=True)
@@ -37,9 +38,11 @@ def main():
     menu_route = "320-326:8,440-446:8,560-566:8,650-652:64"
     results = {}
 
-    def run(name, enabled, cups=None, cup="", deluxe=True):
-        for pack in ("max-league", "cgp"):
-            (user / f"{pack}.disabled").write_text("0\n" if pack in enabled else "1\n", encoding="utf-8")
+    def run(name, enabled, cups=None, cup="", deluxe=True, configure=True):
+        if configure:
+            for pack in ("max-league", "cgp"):
+                (user / f"{pack}.disabled").write_text("0\n" if pack in enabled else "1\n", encoding="utf-8")
+        enabled = enabled - hidden
         folder = out / name
         folder.mkdir()
         frames = 700 if cups else 1600
@@ -64,22 +67,24 @@ def main():
         print(name, "PASS", flush=True)
 
     both = {"max-league", "cgp"}
-    run("fresh", both, cups=12)
+    cup_count = 11 if "max-league" in hidden else 12
+    run("fresh", both, cups=cup_count, configure=False)
     (user / "library.disabled").write_text("1\n", encoding="utf-8")
-    run("old-setting", both, cups=12)
-    run("max-only", {"max-league"}, cups=6)
+    run("old-setting", both, cups=cup_count)
+    run("max-only", {"max-league"}, cups=None if "max-league" in hidden else 6)
     run("cgp-only", {"cgp"}, cups=11)
     run("native-bs", set(), cup="bs-deluxe/knight")
     run("native-stock", set(), cup="retail/knight", deluxe=False)
-    run("stock-packs", both, cups=10, deluxe=False)
-    run("max-race", both, cup="max-league/max")
+    run("stock-packs", both, cups=cup_count-2, deluxe=False)
+    if "max-league" not in hidden:
+        run("max-race", both, cup="max-league/max")
     run("cgp-race", both, cup="cgp/cgp-1")
     for name in expected:
         shutil.copy2(registry / name, user / ("duplicate-" + name))
-    run("duplicates", both, cups=12)
+    run("duplicates", both, cups=cup_count)
     assert stock.read_bytes() == original
     (out / "validation.json").write_text(json.dumps({"stock_unchanged": True,
-        "bundled_sha256": expected, "cases": results}, indent=2) + "\n", encoding="utf-8")
+        "bundled_sha256": expected, "hidden": sorted(hidden), "cases": results}, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

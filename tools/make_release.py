@@ -19,6 +19,8 @@ p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--build", default="build-release")
 p.add_argument("--mingw", default="C:/msys64/mingw64")
 p.add_argument("--output", default="release-stage", help="Parent for a fresh versioned staging directory")
+p.add_argument("--label", default="", help="Optional local build label, such as fzero-55")
+p.add_argument("--exe", default="FZeroSNESRecomp.exe", help="Desktop executable filename in the build directory")
 p.add_argument("--deluxe-mods", type=Path, default=ROOT / "captures/bs-deluxe/mods",
                help="Imported Deluxe directory; its credits and provenance ship with the build")
 a = p.parse_args()
@@ -37,8 +39,19 @@ a = p.parse_args()
 version = (ROOT / "VERSION").read_text().strip()
 if not re.fullmatch(r"\d+\.\d+\.\d+", version):
     raise SystemExit("Invalid VERSION")
+if a.label and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*", a.label):
+    raise SystemExit("Invalid release label")
+if Path(a.exe).name != a.exe or not a.exe.lower().endswith(".exe"):
+    raise SystemExit("Expected an executable filename")
 build, mingw = ROOT / a.build, Path(a.mingw)
-exe = build / "FZeroSNESRecomp.exe"
+cache = {}
+for line in (build / "CMakeCache.txt").read_text(encoding="utf-8").splitlines():
+    match = re.match(r"([^:#/][^:]*):[^=]+=(.*)", line)
+    if match:
+        cache[match[1]] = match[2]
+dependency_roots = {"snesrecomp": Path(cache.get("SNESRECOMP_ROOT", ROOT / "snesrecomp")),
+                    "recomp-ui": Path(cache.get("RECOMP_UI_ROOT", ROOT / "recomp-ui"))}
+exe = build / a.exe
 image = exe.read_bytes()
 if version.encode() not in image:
     raise SystemExit("Executable does not contain the release version")
@@ -53,13 +66,14 @@ if bytes.fromhex(metadata["target_sha256"]) not in image:
     raise SystemExit("Embedded BS Deluxe payload is not the expected version")
 if hashlib.sha256((deluxe_mods / "bs-deluxe.dat").read_bytes()).hexdigest() != metadata["delta_sha256"]:
     raise SystemExit("Deluxe payload digest does not match import metadata")
-for source in (ROOT / "src/gen").glob("*.c"):
-    if "rtl_aot_node_denied(" in source.read_text():
+for source in Path(cache.get("FZERO_GEN_DIR", ROOT / "src/gen")).glob("*.c"):
+    if "rtl_aot_node_denied(" in source.read_text(encoding="utf-8"):
         raise SystemExit("Regenerate without the AOT deny gate before packaging")
-name = f"FZeroSNESRecomp-{version}-windows-x64"
+release_version = version + ("-" + a.label if a.label else "")
+name = f"FZeroSNESRecomp-{release_version}-windows-x64"
 stage = ROOT / a.output / name
 stage.mkdir(parents=True, exist_ok=False)
-shutil.copy2(exe, stage / exe.name)
+shutil.copy2(exe, stage / "FZeroSNESRecomp.exe")
 # Build trees can contain privately imported shaders; never redistribute them.
 shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns("shaders"))
 shutil.copytree(ROOT / "assets/shaders", stage / "assets/shaders")
@@ -91,7 +105,7 @@ for filename in ("README.md", "PARSE_MANIFEST.md"):
     shutil.copy2(ROOT / "mods" / filename, stage / "mods/track-packs" / filename)
 shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
 (stage / "README.txt").write_text(
-    f"FZeroSNESRecomp {version} - Windows x64\n\n"
+    f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own\n"
     "F-Zero (USA) ROM in the launcher. No ROM is included.\n\n"
     "Settings > Display contains aspect choices and shader presets including\n"
@@ -118,9 +132,10 @@ shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK
     "from its authors: GuyPerfect, Porthor, and PowerPanda. The SNES patch is\n"
     "at patches/bs-deluxe-usa.ips for your own ROM, and\n"
     "mods/BS-Deluxe-credits.txt lists machines, leagues and alternate controls.\n\n"
-    "MAX League (5 courses) and Community Grand Prix (30 new courses) are\n"
-    "bundled as IPS patches with attribution under assets/track-packs.\n"
-    "Enable or disable each pack directly in Mods; no MSU audio is included.\n"
+    "Community Grand Prix adds 30 courses for 55 total with BS Deluxe.\n"
+    "Enable or disable CGP directly in Mods. MAX League is retained but\n"
+    "hidden and disabled in this branch. Bundled IPS patches and attribution\n"
+    "are under assets/track-packs; no MSU audio is included.\n"
     "Other IPS/BPS course packs go in mods/track-packs; each enabled pack adds\n"
     "its cups to the in-game Grand Prix menu. See mods/README.md.\n\n"
     "F7 or Select+R opens the save-state menu: 12 slots with thumbnails,\n"
@@ -139,7 +154,7 @@ shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK
     "See README.md and CHANGELOG.md for more details.\n",
     encoding="utf-8")
 
-pending, seen = [stage / exe.name], set()
+pending, seen = [stage / "FZeroSNESRecomp.exe"], set()
 system = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32"
 while pending:
     binary = pending.pop()
@@ -162,9 +177,9 @@ while pending:
 notices = stage / "licenses"
 notices.mkdir()
 for label, source in {
-    "snesrecomp": ROOT / "snesrecomp/LICENSE",
-    "recomp-ui": ROOT / "recomp-ui/LICENSE",
-    "imgui": ROOT / "recomp-ui/src/third_party/imgui/LICENSE.txt",
+    "snesrecomp": dependency_roots["snesrecomp"] / "LICENSE",
+    "recomp-ui": dependency_roots["recomp-ui"] / "LICENSE",
+    "imgui": dependency_roots["recomp-ui"] / "src/third_party/imgui/LICENSE.txt",
 }.items():
     shutil.copy2(source, notices / (label + ".txt"))
 for package in ("gcc-libs", "libiconv", "libwinpthread", "winpthreads", "SDL3", "crt", "headers"):
@@ -195,10 +210,13 @@ git = shutil.which("git")
 if git is None:
     raise SystemExit("Git is required to record release source and dependency pins")
 commit = subprocess.check_output([git, "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-pins = {name: subprocess.check_output([git, "rev-parse", "HEAD"],
-                                     cwd=ROOT / name, text=True).strip()
-        for name in ("snesrecomp", "recomp-ui")}
-manifest = {"version": version, "commit": commit, "dependencies": pins, "files": {}}
+pins = {name: subprocess.check_output([git, "rev-parse", "HEAD"], cwd=root, text=True).strip()
+        for name, root in dependency_roots.items()}
+for name, pin in pins.items():
+    recorded = subprocess.check_output([git, "ls-tree", "HEAD", name], cwd=ROOT, text=True).split()
+    if len(recorded) < 3 or recorded[2] != pin:
+        raise SystemExit(f"Build dependency {name} does not match committed submodule pin")
+manifest = {"version": version, "label": a.label, "commit": commit, "dependencies": pins, "files": {}}
 for path in sorted(stage.rglob("*")):
     if path.is_file():
         if (path.suffix.lower() in (".sfc", ".smc", ".srm", ".sav", ".bin", ".c", ".pcm", ".msu")

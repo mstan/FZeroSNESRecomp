@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55 - local branch build
+
+- Bundle CGP's 30 new courses alongside the 15 original and 10 BS courses:
+  55 tracks in 11 cups, with the canonical eight-car roster and rendering.
+- Add enabled packs directly to the in-game league menu. Bundled packs use
+  one checkbox; no master Track Library mod or file picker is needed.
+- Preserve MAX League's files and implementation, but hide and disable it.
+- Retain additive IPS/BPS discovery, stable cup records and contributor tools.
+- Exclude the CGP MSU soundtrack. This Windows build is local and unpublished.
+
 ## 1.8.3 - 2026-09-21
 
 - Add a default-off Diagnostics mod for troubleshooting performance. Enable

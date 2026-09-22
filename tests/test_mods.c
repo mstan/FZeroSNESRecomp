@@ -13,9 +13,15 @@ int main(void) {
   unsigned packs = 0;
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
-    packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1");
+    packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
   CHECK(p->package_count(NULL) == 5 + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
+  const CpPack *max = cp_catalog_find(catalog,"max-league");
+  if (max && FzeroTracksHidden(max)) {
+    CHECK(!FzeroTracksEnabled(max) && !FzeroTracksEnable(max,true));
+    CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
+    CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
+  }
   for (int i = 5; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;

@@ -2,6 +2,9 @@
 
 A native PC build of *F-Zero* for SNES.
 
+This local `fzero-55` branch includes Community Grand Prix: **55 tracks in
+11 cups** with BS Deluxe. MAX League is preserved but hidden and disabled.
+
 You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 
 <p align="center">
@@ -25,7 +28,7 @@ You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 - Rewind: step back through the last few seconds and drop back in.
 - Gamepad support through SDL.
 - Optional BS F-Zero Deluxe content.
-- Experimental [additive track packs](docs/ADDITIVE_TRACK_PACKS.md) with bundled MAX League and Community Grand Prix courses, plus support for additional IPS/BPS packs (this branch).
+- Experimental [additive track packs](docs/ADDITIVE_TRACK_PACKS.md) with bundled Community Grand Prix courses and support for additional IPS/BPS packs. MAX remains bundled but hidden in this branch.
 - Optional MSU-1 music packs for stock F-Zero and BS Deluxe (bring your own patch and audio).
 
 ## Download And Play
@@ -68,7 +71,7 @@ Open **Mods** for:
 - **Diagnostics:** optional local performance reports for troubleshooting; off by default. See [how to capture a report](docs/PERFORMANCE_DIAGNOSTICS.md).
   Start at 2x. Above 4x can cause severe slowdown; use at your own risk.
 - **BS Deluxe:** adds the Satellaview machines, leagues, and tracks.
-- **MAX League / Community Grand Prix (prototype):** bundled course packs, each with its own toggle. Every enabled track pack adds its cups to the in-game leagues. See [installation and manifest instructions](mods/README.md).
+- **Community Grand Prix (prototype):** a bundled course pack with one enable checkbox. Every enabled track pack adds its cups to the in-game leagues. See [installation and manifest instructions](mods/README.md).
 
 When the Widescreen mod is on, its aspect setting wins over the normal Display aspect setting.
 

@@ -17,6 +17,7 @@ static char root_path[CP_PATH], error_text[256];
 static char patches[CP_PACKS][CP_PATH];
 static bool disabled[CP_PACKS];
 static bool bundled[CP_PACKS];
+static bool hidden[CP_PACKS];
 static char diagnostics[CP_PACKS][256];
 static unsigned diagnostic_count;
 static char ambiguous[CP_PACKS][CP_ID];
@@ -38,6 +39,7 @@ static int index_of(const CpPack *p) {
 }
 const char *FzeroTracksPatch(const CpPack *p) { int i = index_of(p); return i < 0 ? "" : patches[i]; }
 bool FzeroTracksBundled(const CpPack *p) { int i = index_of(p); return i >= 0 && bundled[i]; }
+bool FzeroTracksHidden(const CpPack *p) { int i = index_of(p); return i >= 0 && hidden[i]; }
 static bool builtin(const CpPack *p) { return !strcmp(p->adapter, "retail") || !strcmp(p->adapter, "bs-deluxe"); }
 bool FzeroTracksAvailable(const CpPack *p) {
     if (!p) return false;
@@ -49,9 +51,9 @@ bool FzeroTracksAvailable(const CpPack *p) {
     if (!f) return false;
     fclose(f); return true;
 }
-bool FzeroTracksEnabled(const CpPack *p) { int i = index_of(p); return i >= 0 && !disabled[i]; }
+bool FzeroTracksEnabled(const CpPack *p) { int i = index_of(p); return i >= 0 && !hidden[i] && !disabled[i]; }
 bool FzeroTracksEnable(const CpPack *p, bool enabled) {
-    int i = index_of(p); if (i < 0 || builtin(p)) return false;
+    int i = index_of(p); if (i < 0 || builtin(p) || hidden[i]) return false;
     disabled[i] = !enabled; return true;
 }
 static bool path_for(char *out, size_t cap, const char *id, const char *suffix) {
@@ -167,6 +169,7 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
     cp_catalog_free(&catalog); memset(patches, 0, sizeof(patches));
     memset(disabled, 0, sizeof(disabled));
     memset(bundled, 0, sizeof(bundled));
+    memset(hidden, 0, sizeof(hidden));
     error_text[0] = 0; diagnostic_count = ambiguous_count = 0; has_deluxe = deluxe_available;
     if (!root || !*root || strlen(root) >= sizeof(root_path)-CP_ID-16) return fail("Track library path is too long");
     strcpy(root_path, root);
@@ -198,6 +201,11 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
         }
         char flag[8] = {0}; path_for(path, sizeof(path), catalog.packs[i]->id, ".disabled");
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
+        snprintf(path,sizeof(path),"assets/track-packs/%s.hidden",catalog.packs[i]->id);
+        if (read_line(path,flag,sizeof(flag)) && !strcmp(flag,"1")) {
+            hidden[i] = true;
+            disabled[i] = true;
+        }
     }
     return catalog.count >= 2;
 }

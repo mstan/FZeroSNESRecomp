@@ -295,7 +295,10 @@ file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.layout"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.ips"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.bps"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/*.hidden"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.txt")
+set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
+    ${FZERO_COURSE_REGISTRY} "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md")
 add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/track-packs"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

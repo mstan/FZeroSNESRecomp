@@ -1,12 +1,19 @@
 # Additive course library prototype
 
+The local `fzero-55` release parks MAX League with a shipped
+`assets/track-packs/max-league.hidden` marker. Its implementation, manifest,
+patch and records are retained; it is hidden in Mods and held off, including
+when old settings enabled it. BS Deluxe plus CGP defaults to **11 cups / 55
+courses**. Remove the marker or set it to `0` to expose MAX again.
+
 The game imports course resources into the canonical F-Zero/BS Deluxe engine.
 It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
 enables/disables individual packs; there is no master mod or cup dropdown.
 
 With BS Deluxe enabled the menu contains Knight, Queen, King, BS-1, BS-2, then
-installed imported cups. MAX adds one cup; CGP adds six. Together this is
-12 cups and 60 courses. The original four cars and four BS cars remain in the native vehicle menu.
+installed imported cups. CGP adds six. MAX adds one more when unhidden and
+enabled, bringing the total to 12 cups and 60 courses. The original four cars
+and four BS cars remain in the native vehicle menu.
 Additional manifests append additional cups. With Deluxe disabled, imports
 join the original three leagues and four-car roster. With all imported packs
 disabled or unavailable, the normal game menus remain active. Obsolete
@@ -84,10 +91,11 @@ including refresh timing needed for deterministic replay.
 ## Build and validation
 
 Worktrees started from FZeroSNESRecomp `1686df4` and snesrecomp `bb37c87` on
-`experiment/additive-track-packs`. Build with `SNESRECOMP_ROOT` pointing at the
+`experiment/additive-track-packs`, now preserved on local `fzero-55` branches.
+The game pins framework commit `16cbe24`. Build with `SNESRECOMP_ROOT` pointing at the
 paired framework worktree until its content-pack support is integrated. The
 normal generated stock and Deluxe modules are still required, as on main.
-The current local desktop executable is `build/FZeroSNESRecompLibrary.exe`;
+The current local desktop executable is `build/FZeroSNESRecomp55.exe`;
 `FZERO_DESKTOP_NAME` leaves the normal output name unchanged in ordinary builds.
 
 ROM-free checks cover patch syntax/checksums, alternate verified hashes,
@@ -103,9 +111,9 @@ python tests/validate_bundled_tracks.py --build build --stock path/to/fzero.sfc 
   --out captures/bundled-qualification-new
 ```
 
-This checks the bundled IPS digests and attribution files, all four pack-toggle
-combinations, stock/BS gameplay, both imported packs, duplicate user copies and
-obsolete master settings. Bundled `<pack-id>.ips` or `.bps` companions appear
+This checks the bundled IPS digests and attribution files, pack toggles,
+hidden-pack enforcement, stock/BS gameplay, active imported packs, duplicate
+user copies and obsolete master settings. Bundled `<pack-id>.ips` or `.bps` companions appear
 as checkbox-only mods before ROM selection; hashes are verified on Play.
 
 Private qualification (requires the owner's original ROM and patch archive):

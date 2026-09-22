@@ -6,14 +6,14 @@
 #define COPY(field, value) snprintf(field, sizeof(field), "%s", value)
 static const CpPack *external(unsigned index) {
     const CpCatalog *c = FzeroTracksCatalog();
-    for (unsigned i = 0; i < c->count; ++i) if (!strcmp(c->packs[i]->adapter, "fzero-course-v1")) {
+    for (unsigned i = 0; i < c->count; ++i) if (!strcmp(c->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(c->packs[i])) {
         if (!index--) return c->packs[i];
     }
     return NULL;
 }
 static const CpPack *find(const char *id) {
     const CpPack *p = id ? cp_catalog_find(FzeroTracksCatalog(), id) : NULL;
-    return p && !strcmp(p->adapter, "fzero-course-v1") ? p : NULL;
+    return p && !strcmp(p->adapter, "fzero-course-v1") && !FzeroTracksHidden(p) ? p : NULL;
 }
 static int count(void *ctx) { (void)ctx; unsigned n = 0; while (external(n)) ++n; return (int)n; }
 static int feature_get(void *ctx, int i, RecompLauncherCModFeature *out) {
