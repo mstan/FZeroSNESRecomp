@@ -895,7 +895,7 @@ static void update_state_feedback(SDL_Window *window, Uint64 *feedback_until) {
  * The save-state browser and rewind are bound through the launcher's Controls
  * page, which writes config.ini's [KeyMap] the same way the framework desktop
  * host reads it. The defaults match what recomp-ui shows: F7 opens the
- * browser, F8 opens rewind.
+ * browser, R opens rewind.
  *
  * These win over the F-key quick slots. F1..F12 (and Shift+F1..F12 to save)
  * are the older, undiscoverable way of doing this and are on their way out;
@@ -1562,7 +1562,7 @@ int main(int argc, char **argv) {
   g_config.linear_filtering = launcher_settings.linear_filter != 0;
   /* After the launcher, which may have just rewritten [KeyMap]. */
   g_hotkey_menu = resolve_hotkey("SaveStateMenu", "F7");
-  g_hotkey_rewind = resolve_hotkey("Rewind", "F8");
+  g_hotkey_rewind = resolve_hotkey("Rewind", "R");
   configure_rewind(&launcher_settings);
   size_t rom_size = 0;
   uint8_t *rom = read_rom(rom_path, &rom_size);

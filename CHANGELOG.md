@@ -2,7 +2,9 @@
 
 ## 1.8.3-fzero-55 - local branch build
 
-- Enable rewind by default for fresh installations; F8 opens the filmstrip.
+- Use F-Zero-specific keyboard defaults: R for rewind, D/C for L/R shoulders.
+  Launcher Reset to Defaults uses the same bindings; other games are unchanged.
+- Enable rewind by default for fresh installations; R opens the filmstrip.
   Existing saved preferences remain respected.
 
 - Bundle CGP's 30 new courses alongside the 15 original and 10 BS courses:

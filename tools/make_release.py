@@ -141,15 +141,16 @@ shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK
     "F7 or Select+R opens the save-state menu: 12 slots with thumbnails,\n"
     "A loads, X saves, B or Escape backs out. Stock and BS Deluxe keep\n"
     "separate slots and a state from the other one is refused, not loaded.\n\n"
-    "F8 or Select+L opens rewind, which is enabled by default. Disable it\n"
+    "R or Select+L opens rewind, which is enabled by default. Disable it\n"
     "or adjust its depth and interval in the launcher's Settings. Left and\n"
     "Right scrub, A or Enter jumps there, B or Escape leaves.\n"
     "Both keys are rebindable on the launcher's Controls page.\n\n"
     "Arrows: steer; Z: accelerate; X: A; Enter: Start.\n"
+    "D: left shoulder; C: right shoulder (F-Zero keyboard defaults).\n"
     "Ctrl+F6: aspect; Ctrl+F7: enable/cycle FPS; Alt+Enter: fullscreen.\n"
     "P: pause; Ctrl+R: reset.\n"
-    "Shift+F1..F12 save and F1..F12 load a slot directly. F7 and F8\n"
-    "belong to the menu and to rewind unless you rebind them.\n\n"
+    "Shift+F1..F12 save and F1..F12 load a slot directly. F7 belongs\n"
+    "to the save-state menu unless rebound; F8 is a normal quick slot.\n\n"
     "See README.md and CHANGELOG.md for more details.\n",
     encoding="utf-8")
 

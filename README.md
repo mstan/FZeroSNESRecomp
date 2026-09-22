@@ -140,7 +140,7 @@ apart without loading them.
 
 ### Rewind
 
-Press **F8**, or hold **Select + L** on a gamepad, to open the rewind
+Press **R**, or hold **Select + L** on a gamepad, to open the rewind
 filmstrip. It shows the recent past as a strip of frames:
 
 - **Left / Right** scrub back and forward. Hold a direction to keep scrubbing.
@@ -165,11 +165,14 @@ Both keys are rebindable in the launcher's **Controls** page, as
 executable and take effect the next time you start the game. The rewind
 switch, depth and interval are remembered in the same file.
 
+F-Zero's keyboard shoulder defaults are **D = L** and **C = R**. These and
+the rewind binding apply only to F-Zero; saved custom bindings remain respected.
+**Ctrl+R** still resets the game.
+
 The quick-slot keys - **F1**-**F12** to load a slot, **Shift + F1**-**F12**
-to save one - still work. Where a binding above uses a key (F7 and F8 by
-default), that binding wins and the quick slot behind it is unavailable; both
-slots are still reachable from the menu. Rebinding SaveStateMenu or Rewind to
-another key hands the F-key straight back.
+to save one - still work. **F7** is reserved for the save-state browser by
+default; its slot is available through that browser. **F8** is now a normal
+quick-slot key. Rebinding the browser elsewhere frees F7 as well.
 
 ### Where states are kept
 

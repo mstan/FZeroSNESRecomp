@@ -189,6 +189,14 @@ add_executable(FZeroSNESRecomp
     src/fzero_gamepad.c
     src/fzero_runtime.c)
 
+# Defaults scoped to this game target: the shared stores and launcher retain
+# C/V and F8 for other games. F-Zero does not use the generic R renderer hotkey.
+target_compile_definitions(FZeroSNESRecomp PRIVATE
+    RECOMP_DEFAULT_KEY_L=SDL_SCANCODE_D
+    RECOMP_DEFAULT_KEY_R=SDL_SCANCODE_C
+    RECOMP_UI_DEFAULT_REWIND_KEY="R"
+    RECOMP_UI_DEFAULT_RENDERER_KEY="")
+
 function(configure_fzero_target target)
     target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c src/fzero_course_hooks.c src/fzero_course_menu.c src/fzero_course_saves.c)
     target_link_libraries(${target} PRIVATE fzero_tracks)

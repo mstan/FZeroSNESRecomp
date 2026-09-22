@@ -92,8 +92,9 @@ including refresh timing needed for deterministic replay.
 
 Worktrees started from FZeroSNESRecomp `1686df4` and snesrecomp `bb37c87` on
 `experiment/additive-track-packs`, now preserved on local `fzero-55` branches.
-The game pins framework commit `16cbe24`. Build with `SNESRECOMP_ROOT` pointing at the
-paired framework worktree until its content-pack support is integrated. The
+The game pins its paired framework and launcher commits. Build with
+`SNESRECOMP_ROOT` and `RECOMP_UI_ROOT` pointing at the corresponding local
+worktrees until their changes are integrated. The
 normal generated stock and Deluxe modules are still required, as on main.
 The current local desktop executable is `build/FZeroSNESRecomp55.exe`;
 `FZERO_DESKTOP_NAME` leaves the normal output name unchanged in ordinary builds.

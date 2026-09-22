@@ -24,7 +24,7 @@ scaffold, and a state machine copied 25 times cannot inherit a fix.
 | | Keyboard | Gamepad |
 | --- | --- | --- |
 | Save-state browser | `[KeyMap] SaveStateMenu`, default **F7** | **Select + R** |
-| Rewind filmstrip | `[KeyMap] Rewind`, default **F8** | **Select + L** |
+| Rewind filmstrip | `[KeyMap] Rewind`, default **R** | **Select + L** |
 
 Both keys come from `config.ini` next to the executable, which is the file the
 launcher's Controls page edits (`game.config_path`). `src/fzero_hotkeys.c`
@@ -49,6 +49,11 @@ Hotkeys are matched **before** the F-key quick slots, with an exact modifier
 comparison, so `Shift+F7` still saves slot 7 while plain `F7` opens the
 browser. The quick slots remain supported; where a hotkey claims a key the
 hotkey wins, and rebinding it returns the key.
+
+F-Zero uses D/C for keyboard L/R shoulders. Its desktop CMake target supplies
+these defaults to the runtime and launcher stores, including Reset to Defaults,
+and overrides the launcher's rewind label to R. Other hosts retain C/V and F8.
+Saved custom bindings take precedence. Ctrl+R remains reset.
 
 The pad gestures both take two buttons on purpose. One ordinary button pressed
 mid-race is not a gesture, it is a boost.
