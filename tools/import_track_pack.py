@@ -1,7 +1,7 @@
 """Install a recognized user-owned patch into the additive course directory.
 
 The game recognizes loose IPS/BPS files itself. This optional convenience tool
-also extracts MAX's ZIP and validates inputs without installing patched ROMs.
+also finds patches in ZIP archives and validates inputs without installing ROMs.
 """
 import argparse
 from pathlib import Path
@@ -26,7 +26,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--stock", type=Path, required=True)
     source = p.add_mutually_exclusive_group(required=True)
-    source.add_argument("--archive", type=Path)
+    source.add_argument("--archive", type=Path, action="append", help="ZIP archive; repeat for multiple archives")
     source.add_argument("--patch", type=Path)
     p.add_argument("--variant", choices=("classic", "modern"))
     p.add_argument("--library", type=Path, required=True)
@@ -37,12 +37,21 @@ def main():
             raise ValueError("Oversized patch")
         install(stock, a.patch.read_bytes(), a.library)
     else:
-        with zipfile.ZipFile(a.archive) as archive:
-            for variant in (a.variant,) if a.variant else ("classic", "modern"):
-                entry = archive.getinfo(f"MAX_League_{variant.title()}.ips")
-                if entry.file_size > 32 * 1024 * 1024:
-                    raise ValueError("Oversized archive member")
-                install(stock, archive.read(entry), a.library)
+        for path in a.archive:
+            with zipfile.ZipFile(path) as archive:
+                entries = [entry for entry in archive.infolist()
+                           if not entry.is_dir() and Path(entry.filename).suffix.lower() in (".ips", ".bps")]
+                if a.variant:
+                    entries = [entry for entry in entries if Path(entry.filename).name.lower() ==
+                               f"max_league_{a.variant}.ips"]
+                if not entries:
+                    raise ValueError(f"No matching IPS/BPS patch in {path}")
+                if len(entries) > 256:
+                    raise ValueError("Too many patches in archive")
+                for entry in entries:
+                    if entry.file_size > 32 * 1024 * 1024:
+                        raise ValueError("Oversized archive member")
+                    install(stock, archive.read(entry), a.library)
 
 
 if __name__ == "__main__":

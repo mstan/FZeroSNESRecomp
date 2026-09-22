@@ -11,6 +11,11 @@ The game fingerprints the verified result of each loose IPS/BPS against the
 registry and neighboring manifests. MAX Classic and Modern are registered as
 equivalent course donors. Their normalized course hashes were compared;
 accepting equivalent revisions must never depend on their filenames or titles.
+CGP P1/P2/P3 are another verified equivalence group. Their 55 resource slots
+are identical across variants, but the manifest exposes only the 30 new
+courses. Slots 0-14 are retail and 15-24 are BS; they do not create extra cups.
+The new courses follow the donor's GP permutation, not numeric resource order.
+No new CGP course matches MAX's normalized tile pool/block/grid resources.
 
 To validate and emit known metadata explicitly:
 
@@ -122,13 +127,24 @@ checked-in MAX layout; never assume another FZEdit version shares its offsets.
 | `opponents` | Three class-dependent opponent parameters |
 | `shortcuts` | Pointer24 to at most 16 rectangle-crossing records of 17 bytes; signed-negative 16-bit sentinel terminates |
 
+Optional `palette_cycles` is a table of pointer16 entries in the table's own
+bank. Each points to a bounded list of little-endian palette offsets, ended
+by a signed-negative 16-bit word. Offsets must be distinct multiples of 16
+from `0x20` through `0xf0`. Each selects eight colors in the road palette;
+the shared HUD and vehicle colors cannot be addressed. An empty list
+explicitly disables native road cycling. With this field absent the previous
+native behavior and course hash are preserved, so existing MAX records keep
+their namespace. A specified cycle list becomes part of the course hash.
+
 AI segment marker zero terminates, 255 marks the finish-closing segment.
 Checkpoint arrays are bounded to avoid overlap in native WRAM. A layout does
 not carry a program, native dispatch address, hook PC or general memory-write
 instruction. The game supplies one shared set of canonical loader bindings.
 
-This decoder covers the MAX/FZEdit resource representation, not every F-Zero
-hack. MAX has no mine list; that absence is part of this adapter's current
-qualification. Hacks with additional hazards, physics, vehicles or custom
+This decoder covers the MAX/CGP FZEdit resource representation, not every
+F-Zero hack. These donors disable the separate native mine-list loader;
+terrain-encoded mines can still animate and modify road cells during a race.
+Compare initial loaded geometry before racing, or compare a mutation with
+the actual donor. Hacks with additional hazards, physics, vehicles or custom
 scripted events need explicit support. A successful structural parse cannot
 prove those semantic features are compatible.

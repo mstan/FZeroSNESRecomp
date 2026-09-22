@@ -44,8 +44,8 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
   const char *keys[] = {"count",     "pools",    "settings",      "palettes",     "maps",
                         "graphics",  "paths",    "names",         "sky_graphics", "sky_back",
                         "sky_front", "minimaps", "map_positions", "terrain",      "gradients",
-                        "opponents", "shortcuts"};
-  uint32_t vals[17] = {0}, seen = 0;
+                        "opponents", "shortcuts", "palette_cycles"};
+  uint32_t vals[18] = {0}, seen = 0;
   bool format = false, ok = true;
   char line[160];
   while (ok && fgets(line, sizeof(line), f)) {
@@ -71,9 +71,9 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
       continue;
     }
     unsigned i;
-    for (i = 0; i < 17 && strcmp(line, keys[i]); ++i) {
+    for (i = 0; i < 18 && strcmp(line, keys[i]); ++i) {
     }
-    if (i == 17 || (seen & (1u << i)) || !*v) {
+    if (i == 18 || (seen & (1u << i)) || !*v) {
       ok = false;
       break;
     }
@@ -89,13 +89,49 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
   if (ferror(f))
     ok = false;
   fclose(f);
-  if (!ok || !format || seen != 0x1ffff)
+  if (!ok || !format || (seen & 0x1ffff) != 0x1ffff ||
+      ((seen & (1u << 17)) && !vals[17]))
     return fail(error, cap, "Invalid course extraction manifest");
   FzeroCourseLayout l = {vals[0],  vals[1],  vals[2],  vals[3],  vals[4],  vals[5],
                          vals[6],  vals[7],  vals[8],  vals[9],  vals[10], vals[11],
-                         vals[12], vals[13], vals[14], vals[15], vals[16]};
+                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17]};
   *out = l;
   return true;
+}
+/* Each entry rotates one eight-color road palette. Never touch the shared
+ * vehicle/HUD palette. The donor's palette program is not executed. */
+static bool palette_cycles(const uint8_t *r, size_t n, const FzeroCourseLayout *l,
+                           unsigned i, FzeroCourse *c) {
+  if (!l->palette_cycles)
+    return true;
+  const uint8_t *p = table(r, n, l->palette_cycles, i, 2);
+  if (!p)
+    return false;
+  uint32_t address = (l->palette_cycles & 0xff0000) | u16(p);
+  unsigned seen = 0;
+  c->has_palette_cycles = 1;
+  for (unsigned j = 0; j <= sizeof(c->palette_cycles); ++j) {
+    p = span(r, n, address + j * 2, 2);
+    if (!p)
+      return false;
+    unsigned offset = u16(p);
+    if (offset & 0x8000)
+      return true;
+    if (j == sizeof(c->palette_cycles) || offset < 0x20 || offset > 0xf0 || (offset & 15) ||
+        (seen & (1u << (offset >> 4))))
+      return false;
+    seen |= 1u << (offset >> 4);
+    c->palette_cycles[c->palette_cycle_count++] = (uint8_t)(offset - 0x20);
+  }
+  return false;
+}
+void FzeroCourseCyclePalette(const FzeroCourse *c, uint8_t palette[0xe0]) {
+  for (unsigned i = 0; i < c->palette_cycle_count; ++i) {
+    uint8_t *p = palette + c->palette_cycles[i];
+    unsigned last = u16(p + 14);
+    memmove(p + 2, p, 14);
+    w16(p, last);
+  }
 }
 static bool layout_data(const uint8_t *r, size_t n, const uint8_t *entry, uint8_t *out, size_t cap,
                         bool grid, uint16_t *length) {
@@ -268,8 +304,18 @@ bool FzeroCourseExtract(const uint8_t *r, size_t n, const FzeroCourseLayout *l, 
         ok = false;
     }
   }
+  if (ok)
+    ok = palette_cycles(r, n, l, i, c);
   if (ok) {
     sha256_compute((const uint8_t *)c, offsetof(FzeroCourse, hash), c->hash);
+    if (c->has_palette_cycles) {
+      uint8_t extended[32 + 16];
+      memcpy(extended, c->hash, 32);
+      extended[32] = c->has_palette_cycles;
+      extended[33] = c->palette_cycle_count;
+      memcpy(extended + 34, c->palette_cycles, 14);
+      sha256_compute(extended, sizeof(extended), c->hash);
+    }
     *out = *c;
   }
   free(c);

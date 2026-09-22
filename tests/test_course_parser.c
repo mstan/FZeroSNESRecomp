@@ -87,6 +87,36 @@ int main(void) {
   CHECK(c->path[0] == 100 && c->path[2] == 108 && c->path[0x202] == 192);
   CHECK(c->has_pit && c->pit_checkpoint == 0); /* Checkpoint zero is a valid pit. */
   *previous = *c;
+  unsigned cycles = allocate(2), entries = allocate(8);
+  l.palette_cycles = addr(cycles);
+  word(cycles, addr(entries) & 65535);
+  word(entries, 0x20);
+  word(entries + 2, 0xf0);
+  word(entries + 4, 0xffff);
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(c->has_palette_cycles && c->palette_cycle_count == 2);
+  CHECK(memcmp(c->hash, previous->hash, 32));
+  uint8_t colors[0xe0], before[0xe0];
+  for (unsigned i = 0; i < sizeof(colors); ++i)
+    before[i] = colors[i] = (uint8_t)i;
+  FzeroCourseCyclePalette(c, colors);
+  CHECK(colors[0] == 14 && colors[1] == 15 && colors[2] == 0);
+  CHECK(colors[0xd0] == 0xde && colors[0xd2] == 0xd0);
+  CHECK(!memcmp(colors + 0x10, before + 0x10, 0xc0));
+  *previous = *c;
+  word(entries, 0x10); /* Shared HUD/car palette is forbidden. */
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  word(entries, 0x21);
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  word(entries, 0xf0); /* Duplicates would rotate twice. */
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  word(entries, 0x20);
+  word(entries + 4, 0x100);
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  word(entries + 4, 0xffff);
+  word(cycles, 0x1234); /* RAM/MMIO pointer. */
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  word(cycles, addr(entries) & 65535);
   CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 1, c, error, sizeof(error)));
   word(maps + 3, 0xffff);
   CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));

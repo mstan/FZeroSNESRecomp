@@ -10,6 +10,7 @@ typedef struct FzeroCourseLayout {
   uint32_t pools, settings, palettes, maps, graphics, paths, names;
   uint32_t sky_graphics, sky_back, sky_front, minimaps, map_positions;
   uint32_t terrain, gradients, opponents, shortcuts;
+  uint32_t palette_cycles; /* Optional same-bank pointer16 table. */
 } FzeroCourseLayout;
 typedef struct FzeroCourse {
   uint8_t pool[0x2400], blocks[0x2200], grid[0x9000];
@@ -23,7 +24,10 @@ typedef struct FzeroCourse {
   uint8_t opponents[3], shortcuts[17 * 16 + 2];
   uint16_t block_size, grid_size;
   uint8_t hash[32];
+  /* Extensions follow the legacy hash region, preserving existing pack keys. */
+  uint8_t has_palette_cycles, palette_cycle_count, palette_cycles[14];
 } FzeroCourse;
 bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error, size_t cap);
 bool FzeroCourseExtract(const uint8_t *rom, size_t size, const FzeroCourseLayout *layout,
                         unsigned index, FzeroCourse *out, char *error, size_t cap);
+void FzeroCourseCyclePalette(const FzeroCourse *course, uint8_t palette[0xe0]);

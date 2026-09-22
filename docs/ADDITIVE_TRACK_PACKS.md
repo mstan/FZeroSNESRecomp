@@ -5,7 +5,8 @@ It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
 only enables/disables the library and individual packs; it has no cup dropdown.
 
 With BS Deluxe enabled the menu contains Knight, Queen, King, BS-1, BS-2, then
-MAX. The original four cars and four BS cars remain in the native vehicle menu.
+installed imported cups. MAX adds one cup; CGP adds six. Together this is
+12 cups and 60 courses. The original four cars and four BS cars remain in the native vehicle menu.
 Additional manifests append additional cups. With Deluxe disabled, imports
 join the original three leagues and four-car roster. With the library disabled
 or no usable patches installed, the normal game menus remain active.
@@ -32,6 +33,20 @@ python tools/import_track_pack.py --stock path/to/fzero.sfc `
 
 No MAX patch, patched ROM, decoded resource binary or generated native source
 is committed. MAX League is by PowerPanda and Zephyrum25.
+
+CGP's three patches are equivalent course donors, so any one is sufficient.
+The manifest excludes its 15 retail and 10 BS courses and retains the original
+race order for its 30 new courses. None match MAX geometry. Its custom palette
+cycles use one bounded typed resource and a common engine callback; no
+CGP-specific executable hooks or running donor code are installed. The original
+MAX hash region remains unchanged, preserving existing imported record keys.
+The ZIP installer accepts repeated `--archive` arguments and scans nested
+IPS/BPS entries; it does not copy MSU audio or other archive contents.
+
+CGP is by Worthy MF, Fennor Virastar and its contributors; full credits and
+the release description are on the [author's release page](https://romhackplaza.org/romhacks/f-zero-community-grand-prix-cgp-super-nintendo-romhack/).
+The course adapter retains the common roster and rules, rather than the
+donor's alternative vehicles, health-based boosts or Legend difficulty.
 
 ## Runtime design
 
@@ -64,7 +79,7 @@ Worktrees started from FZeroSNESRecomp `1686df4` and snesrecomp `bb37c87` on
 `experiment/additive-track-packs`. Build with `SNESRECOMP_ROOT` pointing at the
 paired framework worktree until its content-pack support is integrated. The
 normal generated stock and Deluxe modules are still required, as on main.
-The local desktop executable is `build/FZeroSNESRecompTracks.exe`;
+The current local desktop executable is `build/FZeroSNESRecompLibrary.exe`;
 `FZERO_DESKTOP_NAME` leaves the normal output name unchanged in ordinary builds.
 
 ROM-free checks cover patch syntax/checksums, alternate verified hashes,
@@ -90,9 +105,35 @@ one-course cup using injected completed-result states. That boundary test is
 not a claim of manually driving every lap or qualifying all finish-line and
 hazard behavior.
 
+CGP qualification is reproducible with:
+
+```powershell
+python tests/validate_cgp.py --build build --stock path/to/fzero.sfc `
+  --archive "path/to/F-Zero CGP P1.zip" --archive "path/to/F-Zero CGP P2.zip" `
+  --archive "path/to/F-Zero CGP P3.zip" --max-archive "path/to/F-Zero MAX League.zip" `
+  --out captures/cgp-qualification-new
+```
+
+The suite compares all 55 extracted resource hashes across all three variants,
+checks the 30-course manifest and MAX geometry, loads every imported course,
+and compares loaded tile pools/blocks/grids with extraction. For road cells
+changed by mine explosions, it compares the initial road before driving.
+It exercises all six cup transitions, native leagues, MAX, stock engine,
+snapshot replay/reset, single-variant installs, BPS, disabling/removal, and
+identical record namespaces across variant changes. Inputs and evidence remain
+private under `captures`; no patches or decoded assets are committed.
+
+The local CGP run passed 52 integration cases (`captures/cgp-q3`) and all
+12 normal CTests. A separate donor interpreter run corroborated Port Town III's
+loaded blocks/grid, checkpoint coordinates and computed heading array, including
+the eight bytes rewritten by a mine explosion. Rebuilding the extractor from
+the prior committed source confirmed all five MAX hashes remain unchanged.
+These checks do not claim full manual completion of every course or every
+hazard interaction. The MSU soundtrack remains outside this prototype.
+
 ## Current limits
 
-The decoder supports the MAX/FZEdit resource representation, not every hack.
+The decoder supports the MAX/CGP FZEdit resource representation, not every hack.
 An unfamiliar binary format or donor-only hazard/event needs a new typed
 adapter and qualification. Structural parsing alone cannot prove playability.
 The current GP adapter accepts one to five tracks per cup. Imported Practice

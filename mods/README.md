@@ -14,6 +14,24 @@ MAX League by PowerPanda and Zephyrum25 is recognized automatically. Either
 Classic or Modern supplies the same five courses. Installing both adds MAX
 once. Races use the common game's rules, including its boost behavior.
 
+**Community Grand Prix (CGP) 1.0** is also recognized. P1, P2 and P3 contain
+identical courses with different donor vehicles: any one patch supplies the
+same **six new cups / 30 courses**, and installing all three adds them once.
+CGP's original and Satellaview courses are omitted because the native leagues
+already provide them. MAX's five courses are distinct and remain available.
+With BS Deluxe, MAX and CGP installed, the game has **12 cups / 60 courses**
+and the existing eight-car roster. CGP's replacement vehicles, boost rules,
+Legend difficulty and MSU soundtrack are not imported by this course adapter.
+
+To install from ZIP archives without extracting the soundtrack, use the
+optional tool (the game itself expects loose patches):
+
+```powershell
+python tools/import_track_pack.py --stock path/to/fzero.sfc `
+  --archive "path/to/F-Zero CGP P1.zip" --archive "path/to/F-Zero CGP P2.zip" `
+  --archive "path/to/F-Zero CGP P3.zip" --library build/mods/track-packs
+```
+
 Other compatible packs supply three files:
 
 ```
@@ -60,3 +78,8 @@ records. Do not execute the donor cartridge, patch the running engine with a
 donor's bytes, add another launcher cup selector, or silently substitute a
 different course when data is missing. Structural parsing is only one part
 of qualification; record gameplay evidence and unresolved features explicitly.
+For compilations, inventory the donor's resource slots and its race-order
+table separately. Exclude existing native courses explicitly in the manifest.
+Compare normalized geometry against other packs before claiming duplicates;
+names alone cannot distinguish a revision from another track. Accept multiple
+donor hashes under one pack ID only after comparing every declared resource.
