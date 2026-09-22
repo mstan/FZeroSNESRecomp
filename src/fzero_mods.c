@@ -1,4 +1,5 @@
 #include "fzero_mods.h"
+#include "fzero_tracks_mods.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,13 +20,14 @@ static const char *const descriptions[] = {
   "Render the track at higher resolution with smoother scanline geometry. Works independently of widescreen and presentation FPS.",
   "Record hardware, active video settings and frame timings in the diagnostics folder beside the game (beside the AppImage on Linux). Off by default. Enable, play through a slowdown, then attach the newest performance JSONL file to your report. Logs stay on your machine; no ROM or save data is included."
 };
-static int count(void *ctx) { (void)ctx; return 5; }
+static int count(void *ctx) { (void)ctx; return 5 + FzeroTrackModsProvider()->feature_count(ctx); }
 static int identity(const char *package, const char *feature) {
   if (package && feature) for (int i = 0; i < 5; ++i)
     if (!strcmp(package, packages[i]) && !strcmp(feature, features[i])) return i + 1;
   return 0;
 }
 static int package_get(void *ctx, int index, RecompLauncherCModPackage *out) {
+  if (index >= 5) return FzeroTrackModsProvider()->package_get(ctx, index-5, out);
   (void)ctx;
   if (index < 0 || index > 4 || !out) return 0;
   memset(out, 0, sizeof(*out));
@@ -36,6 +38,7 @@ static int package_get(void *ctx, int index, RecompLauncherCModPackage *out) {
   return 1;
 }
 static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
+  if (index >= 5) return FzeroTrackModsProvider()->feature_get(ctx, index-5, out);
   (void)ctx;
   if (index < 0 || index > 4 || !out) return 0;
   memset(out, 0, sizeof(*out));
@@ -58,6 +61,7 @@ static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
 }
 static int option_get(void *ctx, const char *package, const char *feature, int index,
                       RecompLauncherCModOption *out) {
+  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_option_get(ctx, package, feature, index, out);
   (void)ctx;
   int kind = identity(package, feature);
   if (!kind || kind == 3 || kind == 5 || index != 0 || !out) return 0;
@@ -87,6 +91,7 @@ static int option_get(void *ctx, const char *package, const char *feature, int i
 }
 static int choice_get(void *ctx, const char *package, const char *feature,
                       const char *option, int index, RecompLauncherCModChoice *out) {
+  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_choice_get(ctx, package, feature, option, index, out);
   (void)ctx;
   if (!identity(package, feature) || !option || !out || index < 0) return 0;
   const char *value = NULL;
@@ -98,6 +103,7 @@ static int choice_get(void *ctx, const char *package, const char *feature,
   return 1;
 }
 static int enable(void *ctx, const char *package, const char *feature, int enabled) {
+  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_enable(ctx, package, feature, enabled);
   (void)ctx;
   if (!identity(package, feature)) return 0;
   if (identity(package, feature) == 5) video->diagnostics = enabled != 0;
@@ -112,6 +118,7 @@ static int enable(void *ctx, const char *package, const char *feature, int enabl
 }
 static int set_option(void *ctx, const char *package, const char *feature,
                       const char *option, const char *value) {
+  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_set_option(ctx, package, feature, option, value);
   (void)ctx;
   if (!identity(package, feature) || !option || !value) return 0;
   if (identity(package, feature) == 1 && !strcmp(option, "aspect")) {
@@ -130,10 +137,11 @@ static int set_option(void *ctx, const char *package, const char *feature,
 static int commit(void *ctx, const char *image) {
   (void)ctx; (void)image;
   error_text[0] = 0;
+  if (!FzeroTrackModsProvider()->commit(ctx, image)) return 0;
   if (FzeroVideoSave(video, config_path)) return 1;
   COPY(error_text, "Unable to save fzero-video.ini"); return 0;
 }
-static const char *last_error(void *ctx) { (void)ctx; return error_text; }
+static const char *last_error(void *ctx) { (void)ctx; return *error_text ? error_text : FzeroTrackModsProvider()->last_error(ctx); }
 
 const RecompLauncherCModProvider *FzeroModsProvider(FzeroVideoSettings *settings, const char *path) {
   static RecompLauncherCModProvider provider;
@@ -144,5 +152,11 @@ const RecompLauncherCModProvider *FzeroModsProvider(FzeroVideoSettings *settings
   provider.feature_option_get = option_get; provider.feature_choice_get = choice_get;
   provider.feature_enable = enable; provider.feature_set_option = set_option;
   provider.commit = commit; provider.last_error = last_error;
+  const RecompLauncherCModProvider *tracks = FzeroTrackModsProvider();
+  provider.feature_resource_count = tracks->feature_resource_count;
+  provider.feature_resource_get = tracks->feature_resource_get;
+  provider.feature_resource_set_path = tracks->feature_resource_set_path;
+  provider.catalog_diagnostic_count = tracks->catalog_diagnostic_count;
+  provider.catalog_diagnostic_get = tracks->catalog_diagnostic_get;
   return &provider;
 }

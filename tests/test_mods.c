@@ -1,14 +1,16 @@
 #include "fzero_mods.h"
+#include "fzero_tracks.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
 int main(void) {
+  CHECK(FzeroTracksInit("test-mod-tracks", true));
   FzeroVideoSettings s, loaded; FzeroVideoStock(&s); /* start from nothing enabled to test each toggle */
   const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini");
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
-  CHECK(p->package_count(NULL) == 5 && p->feature_count(NULL) == 5);
+  CHECK(p->package_count(NULL) == 6 && p->feature_count(NULL) == 6);
   RecompLauncherCModFeature diag;
   CHECK(p->feature_get(NULL, 4, &diag) && !diag.enabled && diag.option_count == 0);
   CHECK(!p->feature_option_get(NULL, diag.package_id, diag.id, 0, &option));

@@ -20,6 +20,9 @@ assets/img/*
 !assets/img/boxart.tga
 !assets/shaders/
 !assets/shaders/**
+!assets/track-packs/
+!assets/track-packs/*.ini
+/track-packs/
 /tier2_coverage.json
 /tier2_*.json
 /tier2_*.jsonl

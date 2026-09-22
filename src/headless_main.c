@@ -10,6 +10,7 @@
 
 #include "fzero_runtime.h"
 #include "fzero_deluxe.h"
+#include "fzero_tracks.h"
 #include "fzero_msu.h"
 #include "fzero_state_mode.h"
 #include "fzero_replay.h"
@@ -288,13 +289,21 @@ int main(int argc, char **argv) {
     return 2;
   }
 
+  const char *track_root = getenv("FZERO_TRACK_PACKS");
+  if (!FzeroTracksInit(track_root ? track_root : "track-packs",
+#ifdef FZERO_HAS_DELUXE
+                       true
+#else
+                       false
+#endif
+                       )) { fprintf(stderr, "%s\n", FzeroTracksError()); free(rom); return 2; }
   const char *deluxe_data = getenv("FZERO_DELUXE_DATA");
-  if (!FzeroDeluxePrepare(&rom, &rom_size, deluxe_data && *deluxe_data, deluxe_data)) {
-    fprintf(stderr, "[bs-deluxe] %s\n", FzeroDeluxeError());
+  if (!FzeroTracksPrepare(&rom, &rom_size, deluxe_data && *deluxe_data, deluxe_data)) {
+    fprintf(stderr, "[content] %s %s\n", FzeroTracksError(), FzeroDeluxeError());
     free(rom);
     return 2;
   }
-  if (!FzeroMsuPrepare(&rom, &rom_size, getenv("SNESRECOMP_MSU1"), argv[1])) {
+  if (!FzeroTracksActive() && !FzeroMsuPrepare(&rom, &rom_size, getenv("SNESRECOMP_MSU1"), argv[1])) {
     fprintf(stderr, "[fzero-msu1] %s\n", FzeroMsuError());
     free(rom);
     return 2;
@@ -307,7 +316,7 @@ int main(int argc, char **argv) {
   }
   const char *save_root = getenv("SNESRECOMP_SAVE_ROOT");
   if (save_root && save_root[0]) RtlSetSaveRoot(save_root);
-  if (!FzeroDeluxeSelectSaveRoot()) {
+  if (!FzeroTracksSelectSaveRoot()) {
     fprintf(stderr, "%s\n", FzeroDeluxeError());
     free(rom);
     return 3;

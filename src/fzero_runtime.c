@@ -20,6 +20,7 @@
 #include "fzero_runtime.h"
 #include "fzero_renderer.h"
 #include "fzero_deluxe.h"
+#include "fzero_tracks.h"
 #include "fzero_hdma.h"
 #include "fzero_state_mode.h"
 #include "fzero_msu.h"
@@ -205,6 +206,8 @@ static bool run_main_slice(uint64_t deadline) {
 }
 
 static void run_one_frame(void) {
+  RtlSetPadState(0, FzeroTracksMenuInput(g_snes->input1_currentState, g_ram));
+  const uint32_t previous_scene = g_ram[0x54] | (uint32_t)g_ram[0x55] << 8 | (uint32_t)g_ram[0x56] << 16;
   if (!s_initialized) {
     uint64_t reset_master = g_cpu.master_cycles;
     cpu_state_init(&g_cpu, g_ram);
@@ -316,6 +319,7 @@ static void run_one_frame(void) {
   if (!s_host_frames) s_frame_hdmaen = g_snesrecomp_last_hdmaen;
   s_next_frame_master += kMasterClocksPerFrame;
   s_host_frames++;
+  FzeroTracksMenuTick(g_ram, previous_scene);
 
 #if SNESRECOMP_TRACE
   if (s_host_frames <= 16 || (s_host_frames % 600u) == 0) {
@@ -400,7 +404,7 @@ void FzeroDrawPpuFrame(void) {
   SimpleHdma channels[8];
   FzeroHdma bus_channels[8] = {0};
   FzeroHdmaBus bus = {.read = hdma_read_bus, .write = hdma_write_bus};
-  const bool deluxe_hdma = FzeroDeluxeActive();
+  const bool deluxe_hdma = FzeroDeluxeActive() || FzeroTracksActive();
   bool active[8] = {false};
   uint8_t cpu_ppu_registers[PPU_SAVESTATE_REGS_SIZE];
   uint16_t cpu_oam[0x100];
@@ -524,8 +528,9 @@ void FzeroDrawPpuFrame(void) {
 
 static void session_reset(void) {
   FzeroRendererReset();
+  uint8_t menu_state[2] = {0}; FzeroTracksMenuState(menu_state, true);
   s_wide_projection_accepts = 0;
-  interp_bridge_set_pre_opcode_hook(0x00dcc6, widened_projection);
+  interp_bridge_set_pre_opcode_hook(0x00dcc6, FzeroTracksActive() ? NULL : widened_projection);
   /* The runtime's own baseline is stock, not the shipped defaults: a host that
    * offers video settings calls FzeroSetViewport with them, and one that does
    * not (headless captures, tools) must stay at 4:3 unless FZERO_ASPECT opts
@@ -571,6 +576,7 @@ static size_t s_state_guard_len;
 static size_t s_state_guard_cap;
 
 FzeroStateMode FzeroStateModeCurrent(void) {
+  if (FzeroTracksActive()) return kFzeroStateModeTrackPack;
   if (FzeroMsuActive()) return FzeroDeluxeActive() ? kFzeroStateModeDeluxeMsu : kFzeroStateModeStockMsu;
   return FzeroDeluxeActive() ? kFzeroStateModeDeluxe : kFzeroStateModeStock;
 }
@@ -609,6 +615,7 @@ static void fzero_state_save_extra(SaveLoadInfo *sli) {
   state.magic = kFzeroStateMagic;
   state.version = kFzeroStateVersion;
   state.mode = (uint8_t)FzeroStateModeCurrent();
+  FzeroTracksMenuState(state.reserved, false);
   state.cpu = g_cpu;
   /* Never persist an address-space-dependent host pointer. */
   state.cpu.ram = NULL;
@@ -634,6 +641,10 @@ static void fzero_state_save_extra(SaveLoadInfo *sli) {
          sizeof(state.frame_dma_channels));
   memcpy(state.irq_events, s_irq_events, sizeof(state.irq_events));
   sli->func(sli, &state, sizeof(state));
+  if (FzeroTracksActive()) {
+    uint8_t hash[32]; memcpy(hash, FzeroTracksActiveHash(), 32);
+    sli->func(sli, hash, sizeof(hash));
+  }
 }
 
 static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
@@ -645,12 +656,17 @@ static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
                            state.version == kFzeroStateVersion;
   if (!s_loaded_runtime_state) return;
 
+  uint8_t content_hash[32] = {0};
+  if (state.mode == kFzeroStateModeTrackPack) sli->func(sli, content_hash, sizeof(content_hash));
+  bool content_matches = state.mode != kFzeroStateModeTrackPack ||
+      (FzeroTracksActive() && !memcmp(content_hash, FzeroTracksActiveHash(), 32));
+
   /* Cartridge check. The two modes keep their slots in different directories
    * under different prefixes, so a crossing file has been moved there by hand
    * — but a Deluxe state resumed on the stock ROM restores registers and RAM
    * for code that is not in the cartridge, which is a crash, not a glitch.
    * Refuse instead, and let fzero_on_state_loaded put the machine back. */
-  if (!FzeroStateModeCompatible((FzeroStateMode)state.mode,
+  if (!content_matches || !FzeroStateModeCompatible((FzeroStateMode)state.mode,
                                 FzeroStateModeCurrent())) {
     fprintf(stderr,
             "[fzero-state] refused: snapshot is %s, this session is %s\n",
@@ -661,6 +677,7 @@ static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
     return;
   }
 
+  FzeroTracksMenuState(state.reserved, true);
   g_cpu = state.cpu;
   g_cpu.ram = g_ram;
   s_resume_pc = state.resume_pc;
@@ -693,7 +710,9 @@ static const FzeroStateTrailer kFzeroStateTrailer = {
     kFzeroStateMagic, kFzeroStateVersion};
 
 int FzeroStateFileMode(const char *path, FzeroStateMode *out) {
-  return FzeroStateProbeFile(path, &kFzeroStateTrailer, out);
+  FzeroStateTrailer layout = kFzeroStateTrailer;
+  if (FzeroTracksActive()) layout.size += 32;
+  return FzeroStateProbeFile(path, &layout, out);
 }
 
 int FzeroStateFileAcceptable(const char *path) {
@@ -703,7 +722,15 @@ int FzeroStateFileAcceptable(const char *path) {
    * file is truncated or from another game, and the engine would apply the
    * guest blob before anything noticed. */
   if (!FzeroStateFileMode(path, &mode)) return 0;
-  return FzeroStateModeCompatible(mode, FzeroStateModeCurrent());
+  if (!FzeroStateModeCompatible(mode, FzeroStateModeCurrent())) return 0;
+  if (FzeroTracksActive()) {
+    FILE *f = fopen(path, "rb"); uint8_t hash[32];
+    if (!f) return 0;
+    int ok = !fseek(f, -32, SEEK_END) && fread(hash, 1, 32, f) == 32 &&
+             !memcmp(hash, FzeroTracksActiveHash(), 32);
+    fclose(f); return ok;
+  }
+  return 1;
 }
 
 void FzeroStateGuardArm(void) {
@@ -793,6 +820,11 @@ static const RtlGameInfo kFzeroGameInfo = {
 
 const RtlGameInfo *FzeroGameInfo(void) {
   static RtlGameInfo deluxe;
+  if (FzeroTracksActive()) {
+    deluxe = kFzeroGameInfo;
+    deluxe.title = FzeroTracksActiveId(); deluxe.save_name_prefix = "fzero-pack";
+    return &deluxe;
+  }
   if (!FzeroDeluxeActive() && !FzeroMsuActive()) return &kFzeroGameInfo;
   deluxe = kFzeroGameInfo;
   if (FzeroDeluxeActive()) {

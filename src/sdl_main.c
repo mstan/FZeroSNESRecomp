@@ -6,6 +6,7 @@
 #include "fzero_runtime.h"
 #include "fzero_mods.h"
 #include "fzero_deluxe.h"
+#include "fzero_tracks.h"
 #include "fzero_hotkeys.h"
 #include "fzero_gamepad.h"
 #include "fzero_msu.h"
@@ -1525,6 +1526,14 @@ int main(int argc, char **argv) {
     g_video.bs_deluxe = false;
   }
 #endif
+  const char *track_root = getenv("FZERO_TRACK_PACKS");
+  if (!FzeroTracksInit(track_root ? track_root : "track-packs",
+#ifdef FZERO_HAS_DELUXE
+                       true
+#else
+                       false
+#endif
+                       )) { fprintf(stderr, "%s\n", FzeroTracksError()); return 2; }
   /* Exe-anchored, like fzero-video.ini: config.ini belongs next to the
    * executable so a launch from any working directory finds the same
    * settings and the same key bindings. */
@@ -1571,8 +1580,13 @@ int main(int argc, char **argv) {
    * does not verify; say so on stderr and run the stock cartridge for this
    * session. The user's settings file is left alone, so fixing the build or
    * removing the override brings Deluxe back without touching it. */
-  if (!FzeroDeluxePrepare(&rom, &rom_size, g_video.bs_deluxe,
+  if (!FzeroTracksPrepare(&rom, &rom_size, g_video.bs_deluxe,
                           deluxe_override ? deluxe_override : deluxe_path)) {
+    if (*FzeroTracksSelection()) {
+      SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Track pack unavailable", FzeroTracksError(), NULL);
+      fprintf(stderr, "[content] %s %s\n", FzeroTracksError(), FzeroDeluxeError());
+      free(rom); return 2;
+    }
     fprintf(stderr, "[bs-deluxe] %s starting stock\n", FzeroDeluxeError());
     g_video.bs_deluxe = false;
   }
@@ -1580,7 +1594,7 @@ int main(int argc, char **argv) {
   if (!msu_pack || !*msu_pack)
     msu_pack = launcher_settings.msu1_enabled ?
         (launcher_settings.msu1_dir[0] ? launcher_settings.msu1_dir : "auto") : "";
-  if (!FzeroMsuPrepare(&rom, &rom_size, msu_pack, rom_path)) {
+  if (!FzeroTracksActive() && !FzeroMsuPrepare(&rom, &rom_size, msu_pack, rom_path)) {
     fprintf(stderr, "[fzero-msu1] %s Starting with original audio.\n", FzeroMsuError());
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "MSU-1 pack not loaded", FzeroMsuError(), NULL);
   }
@@ -1624,7 +1638,7 @@ int main(int argc, char **argv) {
   }
   const char *save_root = getenv("SNESRECOMP_SAVE_ROOT");
   if (save_root && *save_root) RtlSetSaveRoot(save_root);
-  if (!FzeroDeluxeSelectSaveRoot()) Die(FzeroDeluxeError());
+  if (!FzeroTracksSelectSaveRoot()) Die(FzeroDeluxeError());
   if (!FzeroMsuSelectSaveRoot()) Die(FzeroMsuError());
   RtlReadSram();
   /* After the machine exists: the ring's slots are whole-machine snapshots

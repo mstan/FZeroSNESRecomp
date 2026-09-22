@@ -25,6 +25,7 @@ You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 - Rewind: step back through the last few seconds and drop back in.
 - Gamepad support through SDL.
 - Optional BS F-Zero Deluxe content.
+- Experimental [additive track library](docs/ADDITIVE_TRACK_PACKS.md) with user-supplied MAX League IPS/BPS patches (this branch).
 - Optional MSU-1 music packs for stock F-Zero and BS Deluxe (bring your own patch and audio).
 
 ## Download And Play

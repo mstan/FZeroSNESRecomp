@@ -4,6 +4,15 @@ project(FZeroSNESRecomp VERSION ${FZERO_VERSION} LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 
 include(CTest)
+set(SNESRECOMP_ROOT "${CMAKE_SOURCE_DIR}/snesrecomp" CACHE PATH "Framework checkout")
+add_library(fzero_tracks STATIC src/fzero_tracks.c
+    "${SNESRECOMP_ROOT}/runner/src/content_pack.c"
+    "${SNESRECOMP_ROOT}/runner/src/content_patch.c"
+    "${SNESRECOMP_ROOT}/runner/src/sha256.c")
+target_include_directories(fzero_tracks PUBLIC "${CMAKE_SOURCE_DIR}/src" "${SNESRECOMP_ROOT}/runner/src")
+if(NOT MSVC)
+    target_compile_options(fzero_tracks PRIVATE -Wall -Wextra -Werror)
+endif()
 option(FZERO_BUILD_GAME "Build game hosts (requires privately generated ROM sources)" ON)
 add_library(fzero_video STATIC src/fzero_video.c src/fzero_mode7.c src/fzero_replay.c src/fzero_hdma.c)
 target_include_directories(fzero_video PUBLIC "${CMAKE_SOURCE_DIR}/src")
@@ -12,6 +21,9 @@ if(NOT MSVC)
     target_link_libraries(fzero_video PUBLIC m)
 endif()
 if(BUILD_TESTING)
+    add_executable(fzero_tracks_tests tests/test_tracks.c)
+    target_link_libraries(fzero_tracks_tests PRIVATE fzero_tracks)
+    add_test(NAME fzero_tracks COMMAND fzero_tracks_tests "${CMAKE_SOURCE_DIR}/assets/track-packs")
     add_executable(fzero_hdma_tests tests/test_hdma.c)
     target_link_libraries(fzero_hdma_tests PRIVATE fzero_video)
     add_test(NAME fzero_hdma COMMAND fzero_hdma_tests)
@@ -62,9 +74,9 @@ target_include_directories(FZeroRendererBenchmark PRIVATE ${SNESRECOMP_RUNNER_IN
 target_link_libraries(FZeroRendererBenchmark PRIVATE fzero_video)
 if(BUILD_TESTING)
     add_executable(fzero_renderer_tests tests/test_renderer.c src/fzero_renderer.c)
-    add_executable(fzero_mods_tests tests/test_mods.c src/fzero_mods.c)
+    add_executable(fzero_mods_tests tests/test_mods.c src/fzero_mods.c src/fzero_tracks_mods.c)
     target_include_directories(fzero_mods_tests PRIVATE "${RECOMP_UI_ROOT}/src")
-    target_link_libraries(fzero_mods_tests PRIVATE fzero_video)
+    target_link_libraries(fzero_mods_tests PRIVATE fzero_video fzero_tracks)
     if(NOT MSVC)
         target_compile_options(fzero_mods_tests PRIVATE -Wall -Wextra -Werror)
     endif()
@@ -163,12 +175,14 @@ add_executable(FZeroSNESRecomp
     src/sdl_main.c
     src/fzero_diagnostics.c
     src/fzero_mods.c
+    src/fzero_tracks_mods.c
     src/fzero_hotkeys.c
     src/fzero_gamepad.c
     src/fzero_runtime.c)
 
 function(configure_fzero_target target)
-    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_state_mode.c src/fzero_msu.c)
+    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c)
+    target_link_libraries(${target} PRIVATE fzero_tracks)
     if(FZERO_DELUXE_GEN_DIR)
         target_sources(${target} PRIVATE $<TARGET_OBJECTS:fzero_deluxe_native>
                                          "${FZERO_DELUXE_PAYLOAD_SOURCE}")
@@ -263,3 +277,12 @@ if(BUILD_TESTING AND FZERO_DELUXE_GEN_DIR)
     add_test(NAME fzero_deluxe COMMAND fzero_deluxe_tests
              WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()
+
+# Metadata only: user patch paths, selections and saves are never staged over.
+add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/track-packs"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/assets/track-packs/max-league-classic.ini"
+        "${CMAKE_SOURCE_DIR}/assets/track-packs/max-league-modern.ini"
+        "$<TARGET_FILE_DIR:FZeroSNESRecomp>/track-packs/"
+    VERBATIM)

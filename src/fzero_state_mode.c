@@ -14,6 +14,7 @@ const char *FzeroStateModeName(FzeroStateMode mode) {
     case kFzeroStateModeDeluxe: return "BS F-Zero Deluxe";
     case kFzeroStateModeStockMsu: return "stock + MSU-1";
     case kFzeroStateModeDeluxeMsu: return "BS F-Zero Deluxe + MSU-1";
+    case kFzeroStateModeTrackPack: return "track pack";
     default: return "untagged";
   }
 }
@@ -32,7 +33,7 @@ static uint32_t read_u32le(const uint8_t *p) {
 static int accept(uint32_t magic, uint32_t version, uint8_t tag,
                   const FzeroStateTrailer *layout, FzeroStateMode *out) {
   if (magic != layout->magic || version != layout->version) return 0;
-  if (tag < kFzeroStateModeStock || tag > kFzeroStateModeDeluxeMsu)
+  if (tag < kFzeroStateModeStock || tag > kFzeroStateModeTrackPack)
     tag = kFzeroStateModeUnknown;
   if (out) *out = (FzeroStateMode)tag;
   return 1;
