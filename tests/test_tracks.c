@@ -6,9 +6,12 @@
 #ifdef _WIN32
 #include <direct.h>
 #define MKDIR(p) _mkdir(p)
+#define CHDIR(p) _chdir(p)
 #else
 #include <sys/stat.h>
+#include <unistd.h>
 #define MKDIR(p) mkdir(p,0755)
+#define CHDIR(p) chdir(p)
 #endif
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"%d: %s (%s)\n",__LINE__,#x,FzeroTracksError());exit(1); } } while (0)
 static void write_file(const char *path,const void *bytes,size_t n) {
@@ -25,7 +28,7 @@ int main(void) {
     const char *root="test-course-discovery";MKDIR(root);
     remove("test-course-discovery/duplicate.ini");remove("test-course-discovery/a.disabled");
     remove("test-course-discovery/library.disabled");remove("test-course-discovery/a.path");
-    remove("test-course-discovery/b.path");
+    remove("test-course-discovery/b.path");remove("test-course-discovery/b.disabled");
     manifest("test-course-discovery/a.ini","a");manifest("test-course-discovery/b.ini","b");
     write_file("test-course-discovery/arbitrary-name.IPS","PATCHEOF",8);
     write_file("test-course-discovery/broken.bps","BPS1bad!",8);
@@ -44,8 +47,33 @@ int main(void) {
     CHECK(!cp_catalog_find(FzeroTracksCatalog(),"a"));CHECK(cp_catalog_find(FzeroTracksCatalog(),"b"));
     CHECK(FzeroTracksAvailable(cp_catalog_find(FzeroTracksCatalog(),"retail")));
     CHECK(!FzeroTracksAvailable(cp_catalog_find(FzeroTracksCatalog(),"bs-deluxe")));
-    FzeroTracksLibraryEnable(false);CHECK(FzeroTracksSave());
-    CHECK(FzeroTracksInit(root,true) && !FzeroTracksLibraryEnabled());
+    /* Retired master settings cannot hide an individually enabled pack. */
+    write_file("test-course-discovery/library.disabled","1\n",2);
+    CHECK(FzeroTracksInit(root,true));FzeroTracksDiscover((const uint8_t *)"abc",3);
+    b=cp_catalog_find(FzeroTracksCatalog(),"b");CHECK(FzeroTracksAvailable(b));
+    CHECK(FzeroTracksEnable(b,false) && FzeroTracksSave());
+    CHECK(FzeroTracksInit(root,true));FzeroTracksDiscover((const uint8_t *)"abc",3);
+    CHECK(!FzeroTracksAvailable(cp_catalog_find(FzeroTracksCatalog(),"b")));
     remove("test-course-discovery/duplicate.ini");
-    puts("Folder discovery, missing inputs, independent toggles and duplicate quarantine passed");return 0;
+    /* Bundled patches use the same catalog with an empty user directory. */
+    CHECK(!CHDIR(root));MKDIR("assets");MKDIR("assets/track-packs");MKDIR("user");
+    remove("user/bundled.disabled");remove("user/bundled.path");remove("user/override.ips");
+    write_file("user/library.disabled","1\n",2);
+    manifest("assets/track-packs/bundled.ini","bundled");
+    remove("assets/track-packs/included.ips");
+    write_file("assets/track-packs/bundled.ips","PATCHEOF",8);
+    CHECK(FzeroTracksInit("user",true));
+    const CpPack *bundled=cp_catalog_find(FzeroTracksCatalog(),"bundled");
+    /* The launcher can show the supplied input before selecting a ROM. */
+    CHECK(bundled && FzeroTracksAvailable(bundled));
+    CHECK(!strcmp(FzeroTracksPatch(bundled),"assets/track-packs/bundled.ips"));
+    FzeroTracksDiscover((const uint8_t *)"abc",3);
+    CHECK(!strcmp(FzeroTracksPatch(bundled),"assets/track-packs/bundled.ips"));
+    write_file("user/override.ips","PATCHEOF",8);FzeroTracksDiscover((const uint8_t *)"abc",3);
+    CHECK(!strcmp(FzeroTracksPatch(bundled),"user/override.ips"));
+    CHECK(FzeroTracksEnable(bundled,false) && FzeroTracksSave());
+    CHECK(FzeroTracksInit("user",true));FzeroTracksDiscover((const uint8_t *)"abc",3);
+    CHECK(!FzeroTracksAvailable(cp_catalog_find(FzeroTracksCatalog(),"bundled")));
+    CHECK(!CHDIR(".."));
+    puts("User/bundled discovery, per-pack toggles, obsolete settings and duplicate quarantine passed");return 0;
 }

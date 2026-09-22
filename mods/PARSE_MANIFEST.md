@@ -34,7 +34,8 @@ The game itself needs neither that tool nor an installed Python interpreter.
 
 1. Obtain the author's patch/readme and identify the exact required source
    ROM. Apply the patch to a fresh private source. Verify source and target
-   SHA-256 and BPS checksums. Keep the patch, ROM and decoded assets private.
+   SHA-256 and BPS checksums. Keep qualification ROMs and decoded assets private.
+   Preserve author attribution with any bundled patch.
 2. Identify the track format from editor documentation or the donor's loader.
    Trace pointers and consumers; a changed-byte list alone does not establish
    a resource's ownership. Compare donor data with WRAM/VRAM after an actual
@@ -77,8 +78,11 @@ The game itself needs neither that tool nor an installed Python interpreter.
 9. Submit descriptors, decoder changes if needed, tests and evidence. Record
    known limitations rather than filling gaps with guessed addresses. To add
    an `alternate_target_sha256`, prove all extracted resources match for the
-   declared courses and repeat relevant gameplay checks. No ROM-derived
-   binaries, patch payloads from this experiment or generated code in commits.
+   declared courses and repeat relevant gameplay checks. Never commit patched
+   ROMs, decoded resource binaries or generated code. MAX Classic and CGP P1
+   IPS files are explicitly bundled under `assets/track-packs` with attribution;
+   preserve their original bytes and verified manifest identities. Do not
+   include the archives' MSU/PCM soundtrack or redundant donor variants.
 
 ## Metadata format
 

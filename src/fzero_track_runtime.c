@@ -134,7 +134,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
   char error[256], path[CP_PATH];
   for (unsigned i = 0; i < cat->count; ++i) {
     const CpPack *p = cat->packs[i];
-    if (!FzeroTracksLibraryEnabled() || strcmp(p->adapter, "fzero-course-v1") ||
+    if (strcmp(p->adapter, "fzero-course-v1") ||
         !FzeroTracksAvailable(p))
       continue;
     uint8_t *donor = NULL;

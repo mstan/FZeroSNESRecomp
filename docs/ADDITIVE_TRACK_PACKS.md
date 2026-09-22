@@ -2,14 +2,15 @@
 
 The game imports course resources into the canonical F-Zero/BS Deluxe engine.
 It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
-only enables/disables the library and individual packs; it has no cup dropdown.
+enables/disables individual packs; there is no master mod or cup dropdown.
 
 With BS Deluxe enabled the menu contains Knight, Queen, King, BS-1, BS-2, then
 installed imported cups. MAX adds one cup; CGP adds six. Together this is
 12 cups and 60 courses. The original four cars and four BS cars remain in the native vehicle menu.
 Additional manifests append additional cups. With Deluxe disabled, imports
-join the original three leagues and four-car roster. With the library disabled
-or no usable patches installed, the normal game menus remain active.
+join the original three leagues and four-car roster. With all imported packs
+disabled or unavailable, the normal game menus remain active. Obsolete
+`library.disabled` settings are ignored; each pack controls its own cups.
 
 ## Installation and contribution
 
@@ -18,7 +19,10 @@ instructions for LLM contributors. [PARSE_MANIFEST.md](../mods/PARSE_MANIFEST.md
 documents the metadata format, typed resource layout, deterministic tools,
 unknown-patch workflow and gameplay qualification checklist.
 
-Drop IPS/BPS files into `mods/track-packs` beside the executable. Known MAX
+MAX Classic and CGP P1 IPS patches are bundled with attribution in
+`assets/track-packs`. They are discovered automatically alongside their
+manifests. Drop additional IPS/BPS files into `mods/track-packs` beside the
+executable. Matching user patches take precedence over bundled defaults. Known MAX
 Classic and Modern patches are recognized by verified output SHA-256 and
 contribute one identical five-course pack. User manifests and layouts live
 beside their patches; the shipped registry is read-only. New registry entries
@@ -31,8 +35,11 @@ python tools/import_track_pack.py --stock path/to/fzero.sfc `
   --archive "path/to/F-Zero MAX League.zip" --library build/mods/track-packs
 ```
 
-No MAX patch, patched ROM, decoded resource binary or generated native source
-is committed. MAX League is by PowerPanda and Zephyrum25.
+The bundled IPS patches are the original files from the supplied archives.
+No patched ROM, decoded resource binary, generated native source or MSU audio
+is committed. MAX League is by PowerPanda and Zephyrum25; its original readme
+is preserved as `assets/track-packs/MAX-League-credits.txt`. CGP attribution
+and patch provenance are in `assets/track-packs/CGP-credits.txt`.
 
 CGP's three patches are equivalent course donors, so any one is sufficient.
 The manifest excludes its 15 retail and 10 BS courses and retains the original
@@ -88,6 +95,18 @@ malformed resource bounds, a pit at checkpoint zero, clean record defaults,
 record isolation and corrupt-file preservation. Existing renderer, video,
 HDMA, gamepad and mod independence tests also run.
 
+Validate the staged bundled defaults with no user patches:
+
+```powershell
+python tests/validate_bundled_tracks.py --build build --stock path/to/fzero.sfc `
+  --out captures/bundled-qualification-new
+```
+
+This checks the bundled IPS digests and attribution files, all four pack-toggle
+combinations, stock/BS gameplay, both imported packs, duplicate user copies and
+obsolete master settings. Bundled `<pack-id>.ips` or `.bps` companions appear
+as supplied in the launcher before ROM selection; hashes are verified on Play.
+
 Private qualification (requires the owner's original ROM and patch archive):
 
 ```powershell
@@ -98,7 +117,7 @@ python tests/validate_track_packs.py --build build --stock path/to/fzero.sfc `
 All five MAX courses were loaded and driven in the common Deluxe engine.
 Stock, King and BS-1 gameplay, in-game sixth-cup navigation, IPS/BPS discovery,
 equivalent-patch deduplication, partial single-course installs, removal/restore
-and library disabling were checked. Save/load replays compare ten frames with
+and individual pack disabling were checked. Save/load replays compare ten frames with
 identical WRAM and master clock, and soft reset retains SRAM. The native GP
 transition routine was also exercised through all five course loads and a
 one-course cup using injected completed-result states. That boundary test is
@@ -121,7 +140,8 @@ changed by mine explosions, it compares the initial road before driving.
 It exercises all six cup transitions, native leagues, MAX, stock engine,
 snapshot replay/reset, single-variant installs, BPS, disabling/removal, and
 identical record namespaces across variant changes. Inputs and evidence remain
-private under `captures`; no patches or decoded assets are committed.
+private under `captures`; patched ROMs and decoded assets are not committed.
+The two bundled IPS files are the explicitly included distribution inputs.
 
 The local CGP run passed 52 integration cases (`captures/cgp-q3`) and all
 12 normal CTests. A separate donor interpreter run corroborated Port Town III's

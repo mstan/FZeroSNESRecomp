@@ -85,6 +85,11 @@ shutil.copy2(ROOT / "assets/README.md", stage / "assets/README.md")
 (stage / "mods").mkdir()
 for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
     shutil.copy2(deluxe_mods / filename, stage / "mods" / filename)
+(stage / "mods/track-packs").mkdir()
+for filename in ("README.md", "PARSE_MANIFEST.md"):
+    shutil.copy2(ROOT / "mods" / filename, stage / "mods" / filename)
+    shutil.copy2(ROOT / "mods" / filename, stage / "mods/track-packs" / filename)
+shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own\n"
@@ -113,6 +118,11 @@ for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
     "from its authors: GuyPerfect, Porthor, and PowerPanda. The SNES patch is\n"
     "at patches/bs-deluxe-usa.ips for your own ROM, and\n"
     "mods/BS-Deluxe-credits.txt lists machines, leagues and alternate controls.\n\n"
+    "MAX League (5 courses) and Community Grand Prix (30 new courses) are\n"
+    "bundled as IPS patches with attribution under assets/track-packs.\n"
+    "Enable or disable each pack directly in Mods; no MSU audio is included.\n"
+    "Other IPS/BPS course packs go in mods/track-packs; each enabled pack adds\n"
+    "its cups to the in-game Grand Prix menu. See mods/README.md.\n\n"
     "F7 or Select+R opens the save-state menu: 12 slots with thumbnails,\n"
     "A loads, X saves, B or Escape backs out. Stock and BS Deluxe keep\n"
     "separate slots and a state from the other one is refused, not loaded.\n\n"

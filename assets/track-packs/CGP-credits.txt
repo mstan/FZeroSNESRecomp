@@ -1,0 +1,21 @@
+F-Zero Community Grand Prix (CGP) 1.0
+
+Project leads: Worthy MF and Fennor Virastar
+Course contributors: Worthy MF, Fennor Virastar, fridaywitch, Zephyrum25,
+Moushikomi, Erik64 and Vulduv
+Programming: Fennor Virastar
+
+Complete project credits and original release:
+https://romhackplaza.org/romhacks/f-zero-community-grand-prix-cgp-super-nintendo-romhack/
+
+Bundled input: F-Zero CGP P1/F-Zero CGP P1.ips from F-Zero CGP P1.zip
+SHA-256: 4ad667cda0841eb15c849f49ea22e2254d7852475a4e9c168da00974c1dc0d8e
+The IPS is preserved byte-for-byte. P1, P2 and P3 provide identical course
+resources. This adapter imports the 30 new courses, omitting the 15 original
+and 10 Satellaview courses already provided by the native game. It preserves
+the native roster, rules, HUD and renderer. The donor's engine changes and
+MSU soundtrack are not imported. No MSU/PCM/audio files are bundled.
+
+Continue using your own original F-Zero (USA) ROM; the game extracts these
+courses automatically. The original archive's emulator/music setup steps
+are not required for this native course adapter.

@@ -1,0 +1,42 @@
+F-ZERO: MAX League
+(Mashups and Crossovers)
+By PowerPanda and Zephyrum25
+
+Contents: 	MAX_League_Classic.ips = Uses classic SNES-style boosting
+		MAX_League_Modern.ips = Uses F-Zero 99-style boosting
+
+----------------------------------------------------------------------------
+-=Overview=-
+
+F-Zero: MAX League is a collection of 5 tracks in the style of F-Zero 99's Secret tracks. Each of these tracks combines elements from 2-3 tracks out of the SNES and BSX F-Zero games, presenting a familiar feel, but with a challenging twist. The tracks are:
+
+1. SAND CITY - Mute City I crossed with Sand Ocean
+2. PORT CANYON - Port Town II crossed with Red Canyon I/II
+3. METAL FOREST - Metal Fort II crossed with Forest III
+4. DEATH STORM - Death Wind II crossed with Sand Storm II
+5. WHITE FIRE - Fire Field crossed with White Land I/II
+
+----------------------------------------------------------------------------
+-=Patching Instructions=-
+Patch this to an unmodified copy of F-Zero (USA)
+
+	No-Intro Name: F-Zero (USA)
+	(No-Intro version  20130701-030720)
+	ROM/File SHA-1: D3EFD32B68F1FE37A82DB9D9929B7CA7CC1A3AF4
+
+You can choose between the Classic version, which uses SNES original mechanics for boosting, and the Modern version, which uses a boosting system more similar to F-Zero 99, with your boost energy coming from your health.
+
+----------------------------------------------------------------------------
+-=The Future of this Hack=-
+We would love to see Mashups and Crossovers expanded. If you are interested in creating a track, contact PowerPanda. You must be willing to build the track in FZEdit. "I have a great idea, can you build it for me?" messages will be ignored.
+
+----------------------------------------------------------------------------
+-=CREDITS=-
+
+This hack was created using FZEdit, by Grego and Catador, and Tiled.
+AI and Animation Fixes on both versions were created by Alejandro and Fennor.
+The "Modern Version" code was created mainly by Fennor.
+The recreations of the lost media tracks, Forest III, Metal Fort I, and Metal Fort II, were taken from BS F-Zero Deluxe by GuyPerfect, Porthor, and PowerPanda
+
+Project Coordinator and Track Designer: PowerPanda
+Track Tiling, Palettes, and Pathing: Zephyrum25

@@ -10,8 +10,6 @@ const char *FzeroTracksError(void);
 const char *FzeroTracksRoot(void);
 void FzeroTracksReport(const char *message);
 void FzeroTracksDiscover(const uint8_t *stock, size_t size);
-bool FzeroTracksLibraryEnabled(void);
-void FzeroTracksLibraryEnable(bool enabled);
 const char *FzeroTracksPatch(const CpPack *pack);
 bool FzeroTracksAvailable(const CpPack *pack);
 bool FzeroTracksEnabled(const CpPack *pack);

@@ -21,9 +21,6 @@ static unsigned diagnostic_count;
 static char ambiguous[CP_PACKS][CP_ID];
 static unsigned ambiguous_count;
 static bool has_deluxe;
-static bool library_enabled = true;
-bool FzeroTracksLibraryEnabled(void) { return library_enabled; }
-void FzeroTracksLibraryEnable(bool enabled) { library_enabled=enabled; }
 const CpCatalog *FzeroTracksCatalog(void) { return &catalog; }
 const char *FzeroTracksError(void) { return error_text; }
 const char *FzeroTracksRoot(void) { return root_path; }
@@ -154,6 +151,16 @@ static void scan_manifests(const char *directory,bool fallback) {
     if(dir){struct dirent *entry;while((entry=readdir(dir)))load_manifest_at(directory,entry->d_name,fallback);closedir(dir);}
 #endif
 }
+static void select_companion_patch(const CpPack *pack, const char *directory) {
+    static const char *const suffixes[] = {".ips", ".bps"};
+    char path[CP_PATH];
+    for (unsigned i=0;i<sizeof(suffixes)/sizeof(suffixes[0]);++i) {
+        int n=snprintf(path,sizeof(path),"%s/%s%s",directory,pack->id,suffixes[i]);
+        if(n<0||n>=(int)sizeof(path))continue;
+        FILE *file=fopen(path,"rb");
+        if(file){fclose(file);strcpy(patches[index_of(pack)],path);return;}
+    }
+}
 bool FzeroTracksInit(const char *root, bool deluxe_available) {
     cp_catalog_free(&catalog); memset(patches, 0, sizeof(patches));
     memset(disabled, 0, sizeof(disabled));
@@ -177,11 +184,15 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
     for (unsigned i = 0; i < catalog.count; ++i) {
         path_for(path, sizeof(path), catalog.packs[i]->id, ".path");
         if (!read_line(path, patches[i], sizeof(patches[i]))) patches[i][0] = 0;
+        /* Show packaged inputs in the launcher even before a ROM is selected.
+         * Exact source/target verification still happens at discovery/Play. */
+        if (!builtin(catalog.packs[i]) && !patches[i][0]) {
+            select_companion_patch(catalog.packs[i],root_path);
+            if(!patches[i][0])select_companion_patch(catalog.packs[i],"assets/track-packs");
+        }
         char flag[8] = {0}; path_for(path, sizeof(path), catalog.packs[i]->id, ".disabled");
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
     }
-    char library_flag[8]={0};path_for(path,sizeof(path),"library",".disabled");
-    library_enabled=!(read_line(path,library_flag,sizeof(library_flag))&&!strcmp(library_flag,"1"));
     return catalog.count >= 2;
 }
 bool FzeroTracksSetPatch(const CpPack *p, const char *path) {
@@ -205,32 +216,39 @@ bool FzeroTracksSave(void) {
         if (!write_line(catalog.packs[i]->id, ".path", patches[i]) ||
             !write_line(catalog.packs[i]->id, ".disabled", disabled[i] ? "1" : "0")) return false;
     }
-    return write_line("library", ".disabled", library_enabled?"0":"1");
+    return true;
 }
 
 enum { MAX_PATCH_FILES=256 };
 static char patch_files[MAX_PATCH_FILES][CP_PATH];
 static unsigned patch_file_count;
-static void candidate(const char *name) {
+static void candidate(const char *directory, const char *name) {
     const char *ext=strrchr(name,'.');if(!ext)return;
     char suffix[8]={0};if(strlen(ext)>=sizeof(suffix))return;
     for(unsigned i=0;ext[i];++i)suffix[i]=ext[i]>='A'&&ext[i]<='Z'?ext[i]+32:ext[i];
     if(strcmp(suffix,".ips")&&strcmp(suffix,".bps")&&strcmp(suffix,".patch"))return;
     if(patch_file_count>=MAX_PATCH_FILES){FzeroTracksReport("Patch directory limit reached (256 files)");return;}
-    if(path_for(patch_files[patch_file_count],CP_PATH,name,""))++patch_file_count;
+    if(snprintf(patch_files[patch_file_count],CP_PATH,"%s/%s",directory,name)<CP_PATH)++patch_file_count;
 }
 static int compare_paths(const void *a,const void *b) { return strcmp(a,b); }
+static void scan_patches(const char *directory) {
+    unsigned first=patch_file_count;
+#ifdef _WIN32
+    char pattern[CP_PATH];WIN32_FIND_DATAA data;
+    if(snprintf(pattern,sizeof(pattern),"%s/*",directory)>=(int)sizeof(pattern))return;
+    HANDLE h=FindFirstFileA(pattern,&data);
+    if(h!=INVALID_HANDLE_VALUE){do{if(!(data.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))candidate(directory,data.cFileName);}while(FindNextFileA(h,&data));FindClose(h);}
+#else
+    DIR *dir=opendir(directory);if(dir){struct dirent *entry;while((entry=readdir(dir)))candidate(directory,entry->d_name);closedir(dir);}
+#endif
+    qsort(patch_files+first,patch_file_count-first,sizeof(patch_files[0]),compare_paths);
+}
 void FzeroTracksDiscover(const uint8_t *stock,size_t size) {
     patch_file_count=0;
-    if(!library_enabled)return;
-#ifdef _WIN32
-    char pattern[CP_PATH];WIN32_FIND_DATAA data;if(!path_for(pattern,sizeof(pattern),"*",""))return;
-    HANDLE h=FindFirstFileA(pattern,&data);
-    if(h!=INVALID_HANDLE_VALUE){do{if(!(data.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))candidate(data.cFileName);}while(FindNextFileA(h,&data));FindClose(h);}
-#else
-    DIR *dir=opendir(root_path);if(dir){struct dirent *entry;while((entry=readdir(dir)))candidate(entry->d_name);closedir(dir);}
-#endif
-    qsort(patch_files,patch_file_count,sizeof(patch_files[0]),compare_paths);
+    scan_patches(root_path);
+    /* Shared shipped inputs use the same verified manifest path as user packs.
+     * User inputs take precedence; only per-pack settings control activation. */
+    if(strcmp(root_path,"assets/track-packs"))scan_patches("assets/track-packs");
     uint8_t source_hash[32];sha256_compute(stock,size,source_hash);
     bool found[CP_PACKS]={0};
     for(unsigned f=0;f<patch_file_count;++f){

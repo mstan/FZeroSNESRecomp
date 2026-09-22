@@ -10,11 +10,25 @@ int main(void) {
   const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini");
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
-  CHECK(p->package_count(NULL) >= 6 && p->feature_count(NULL) == p->package_count(NULL));
-  RecompLauncherCModFeature library;
-  CHECK(p->feature_get(NULL, 5, &library));
-  CHECK(!strcmp(library.package_id, "track-library") && library.option_count == 0);
-  CHECK(!p->feature_option_get(NULL, library.package_id, library.id, 0, &option));
+  unsigned packs = 0;
+  const CpCatalog *catalog = FzeroTracksCatalog();
+  for (unsigned i = 0; i < catalog->count; ++i)
+    packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1");
+  CHECK(p->package_count(NULL) == 5 + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
+  for (int i = 5; i < p->feature_count(NULL); ++i) {
+    RecompLauncherCModFeature pack;
+    RecompLauncherCModPackage package;
+    CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
+    CHECK(strcmp(pack.package_id, "track-library") && !strcmp(pack.id, "tracks"));
+    CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == 0);
+    CHECK(!p->feature_option_get(NULL, pack.package_id, pack.id, 0, &option));
+    CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 0));
+    CHECK(p->feature_get(NULL, i, &pack) && !pack.enabled && !strcmp(pack.status, "Disabled"));
+    CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 1));
+    CHECK(p->feature_get(NULL, i, &pack) && pack.enabled);
+    CHECK(!s.enhanced && !s.bs_deluxe && !s.hd_mode7 && !s.fps_enabled);
+  }
   RecompLauncherCModFeature diag;
   CHECK(p->feature_get(NULL, 4, &diag) && !diag.enabled && diag.option_count == 0);
   CHECK(!p->feature_option_get(NULL, diag.package_id, diag.id, 0, &option));

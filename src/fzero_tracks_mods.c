@@ -15,29 +15,17 @@ static const CpPack *find(const char *id) {
     const CpPack *p = id ? cp_catalog_find(FzeroTracksCatalog(), id) : NULL;
     return p && !strcmp(p->adapter, "fzero-course-v1") ? p : NULL;
 }
-static bool library(const char *package, const char *feature) {
-    return package && feature && !strcmp(package, "track-library") && !strcmp(feature, "cups");
-}
-static int count(void *ctx) { (void)ctx; unsigned n = 0; while (external(n)) ++n; return (int)n+1; }
+static int count(void *ctx) { (void)ctx; unsigned n = 0; while (external(n)) ++n; return (int)n; }
 static int feature_get(void *ctx, int i, RecompLauncherCModFeature *out) {
     (void)ctx; if (!out || i < 0) return 0;
     memset(out, 0, sizeof(*out));
     COPY(out->group, "Track Packs"); COPY(out->package_version, "1");
-    if (!i) {
-        COPY(out->id, "cups"); COPY(out->package_id, "track-library");
-        COPY(out->name, "Track Library"); COPY(out->package_name, "Track Library");
-        COPY(out->author, "FZeroSNESRecomp contributors");
-        COPY(out->description, "Add installed course packs to the in-game Grand Prix league menu. Put IPS/BPS patches and their manifests in mods/track-packs. Known MAX League patches are recognized automatically. Existing cars, cups and rendering remain available.");
-        out->option_count = 0; out->enabled = FzeroTracksLibraryEnabled();
-        COPY(out->status, out->enabled ? "Choose all cups inside the game" : "Original game menus and content");
-        return 1;
-    }
-    const CpPack *p = external((unsigned)i-1); if (!p) return 0;
+    const CpPack *p = external((unsigned)i); if (!p) return 0;
     COPY(out->id, "tracks"); COPY(out->package_id, p->id); COPY(out->name, p->name);
     COPY(out->package_name, p->name); COPY(out->author, p->author);
-    snprintf(out->description, sizeof(out->description), "%u cup(s), %u course(s). Supply your own IPS or BPS patch. Course assets are extracted at launch and added to the game. Donor rules and executable code are not imported.", p->cup_count, p->track_count);
+    snprintf(out->description, sizeof(out->description), "%u cup(s), %u course(s). Enable this pack to add its cups to the in-game Grand Prix league list.", p->cup_count, p->track_count);
     out->enabled = FzeroTracksEnabled(p);
-    COPY(out->status, FzeroTracksAvailable(p) ? "Patch supplied; courses checked at launch" : "Drop the patch in mods/track-packs, or locate it here");
+    COPY(out->status, !out->enabled ? "Disabled" : FzeroTracksAvailable(p) ? "Enabled; patch checked on Play" : "Supply the patch to add these cups");
     return 1;
 }
 static int package_get(void *ctx, int i, RecompLauncherCModPackage *out) {
@@ -48,7 +36,6 @@ static int package_get(void *ctx, int i, RecompLauncherCModPackage *out) {
 }
 static int enable(void *ctx, const char *package, const char *feature, int enabled) {
     (void)ctx;
-    if (library(package, feature)) { FzeroTracksLibraryEnable(enabled != 0); return 1; }
     const CpPack *p = find(package);
     return p && feature && !strcmp(feature, "tracks") && FzeroTracksEnable(p, enabled != 0);
 }
@@ -58,8 +45,8 @@ static int resources(void *ctx, const char *package, const char *feature) {
 static int resource_get(void *ctx, const char *package, const char *feature, int i, RecompLauncherCModResource *out) {
     if (!out || i || !resources(ctx, package, feature)) return 0;
     const CpPack *p = find(package); memset(out, 0, sizeof(*out));
-    COPY(out->id, "patch"); COPY(out->label, "Your IPS or BPS patch"); COPY(out->path, FzeroTracksPatch(p));
-    COPY(out->description, "Extract the patch from its ZIP first. Each pack is parsed independently from a fresh copy of the original ROM.");
+    COPY(out->id, "patch"); COPY(out->label, "IPS or BPS patch"); COPY(out->path, FzeroTracksPatch(p));
+    COPY(out->description, "Bundled patches are selected automatically. For other packs, extract the IPS or BPS from its ZIP and select it here.");
     COPY(out->file_patterns, "*.ips,*.bps"); COPY(out->file_description, "ROM patches");
     COPY(out->status, *FzeroTracksPatch(p) ? "Selected; exact output verified on Play" : "Not supplied");
     return 1;
@@ -76,7 +63,7 @@ static int diagnostics(void *ctx) { (void)ctx; return (int)FzeroTracksDiagnostic
 static int diagnostic(void *ctx, int index, RecompLauncherCModDiagnostic *out) {
     (void)ctx; if (!out || index < 0 || (unsigned)index >= FzeroTracksDiagnosticCount()) return 0;
     memset(out, 0, sizeof(*out)); out->severity = RECOMP_MOD_DIAGNOSTIC_ERROR;
-    COPY(out->resource, "Track Library"); COPY(out->message, FzeroTracksDiagnostic((unsigned)index)); return 1;
+    COPY(out->resource, "Track Packs"); COPY(out->message, FzeroTracksDiagnostic((unsigned)index)); return 1;
 }
 const RecompLauncherCModProvider *FzeroTrackModsProvider(void) {
     static const RecompLauncherCModProvider provider = {

@@ -117,7 +117,9 @@ def main():
     (library / "classic.held").rename(library / "arbitrary.IPS")
     text=run("restored", frames=10);assert "extracted max-league" in text
     (library / "library.disabled").write_text("1\n")
-    text=run("disabled", "bs-deluxe/knight", frames=10);assert "extracted" not in text
+    text=run("old-master-ignored", frames=10);assert "extracted max-league" in text
+    (library / "max-league.disabled").write_text("1\n")
+    text=run("pack-disabled", "bs-deluxe/knight", frames=10);assert "extracted max-league" not in text
     assert stock_path.read_bytes() == original
     (out / "validation.json").write_text(json.dumps({"stock_unchanged": True,
         "stock_sha256": hashlib.sha256(source).hexdigest(), "cases": results}, indent=2)+"\n")

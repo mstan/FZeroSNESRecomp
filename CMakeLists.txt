@@ -289,8 +289,13 @@ if(BUILD_TESTING AND FZERO_DELUXE_GEN_DIR)
              WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()
 
-# Metadata only: user patch paths, manifests and saves are never staged over.
-file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/assets/track-packs/*.ini" "${CMAKE_SOURCE_DIR}/assets/track-packs/*.layout")
+# Shipped descriptors, patches and credits live separately from user inputs/settings.
+file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/*.ini"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/*.layout"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/*.ips"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/*.bps"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/*.txt")
 add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/track-packs"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

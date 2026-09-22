@@ -1,30 +1,39 @@
 # Add more courses to F-Zero
 
-Put extracted `.ips` or `.bps` files in **`mods/track-packs` beside the game**.
-Start the game, choose Grand Prix, then move through the league list with the
-direction buttons. Installed cups appear after the original leagues. You do
-not select a replacement cartridge or cup in the launcher.
+MAX League and Community Grand Prix are included. Enable or disable each pack
+in **Mods**; every enabled pack adds its cups automatically. Start the game,
+choose Grand Prix, then move through the league list with the direction
+buttons. Imported cups appear after the original leagues.
+
+For additional packs, put extracted `.ips` or `.bps` files in
+**`mods/track-packs` beside the game**, along with their manifest and layout
+when they are not already recognized. You still supply your own original ROM.
 
 With BS Deluxe enabled, its four extra cars and two extra leagues remain
 available alongside the original content and imported courses. With BS Deluxe
-off, imports join the original four-car game. Turn Track Library off in Mods
-to use the original menus; turn off other enhancements for stock presentation.
+off, imports join the original four-car game. Turn off the individual track
+packs to use the native league list; turn off BS Deluxe and other enhancements
+for the stock experience. There is no separate Track Library switch.
 
-MAX League by PowerPanda and Zephyrum25 is recognized automatically. Either
-Classic or Modern supplies the same five courses. Installing both adds MAX
-once. Races use the common game's rules, including its boost behavior.
+MAX League by PowerPanda and Zephyrum25 includes the Classic IPS and original
+credits in `assets/track-packs`. Classic and Modern supply the same five
+courses; installing both adds MAX once. Races use the common game's rules,
+including its boost behavior.
 
-**Community Grand Prix (CGP) 1.0** is also recognized. P1, P2 and P3 contain
-identical courses with different donor vehicles: any one patch supplies the
+**Community Grand Prix (CGP) 1.0** includes the P1 IPS and credits in
+`assets/track-packs`. P1, P2 and P3 contain identical courses with different
+donor vehicles: any one patch supplies the
 same **six new cups / 30 courses**, and installing all three adds them once.
 CGP's original and Satellaview courses are omitted because the native leagues
 already provide them. MAX's five courses are distinct and remain available.
 With BS Deluxe, MAX and CGP installed, the game has **12 cups / 60 courses**
 and the existing eight-car roster. CGP's replacement vehicles, boost rules,
 Legend difficulty and MSU soundtrack are not imported by this course adapter.
+No MSU/PCM audio files are installed or enabled by these packs.
 
-To install from ZIP archives without extracting the soundtrack, use the
-optional tool (the game itself expects loose patches):
+MAX and CGP need no separate download. To import additional or equivalent
+patches from ZIP archives without extracting the soundtrack, use the optional
+tool (the game itself expects loose patches):
 
 ```powershell
 python tools/import_track_pack.py --stock path/to/fzero.sfc `
@@ -43,7 +52,9 @@ mods/track-packs/
 
 The manifest supplies stable pack, cup and course identities and exact ROM
 hashes. The layout describes course resources. Filenames of patches do not
-matter. Patches are applied separately to your original ROM in memory. The
+matter. Bundled defaults remain in `assets/track-packs`; user patches and
+settings remain in `mods/track-packs`, and matching user patches take precedence.
+Patches are applied separately to your original ROM in memory. The
 game imports course data and discards the donor's replacement engine code.
 Your original ROM is never modified.
 
