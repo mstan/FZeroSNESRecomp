@@ -21,6 +21,7 @@
 #include "fzero_renderer.h"
 #include "fzero_deluxe.h"
 #include "fzero_tracks.h"
+#include "fzero_course_runtime.h"
 #include "fzero_hdma.h"
 #include "fzero_state_mode.h"
 #include "fzero_msu.h"
@@ -358,6 +359,8 @@ void FzeroPresent(double alpha) {
           s_hd_pixels, s_hd_capacity, s_viewport, alpha, s_hd_scale);
   if (!s_hd_ready && s_viewport.enhanced && s_output_pixels)
     FzeroRendererDraw((uint32_t *)s_output_pixels, s_viewport, alpha);
+  if(s_hd_ready)FzeroTracksOverlay(s_hd_pixels,s_viewport.width*s_hd_scale,224*s_hd_scale,s_viewport.width*s_hd_scale*4);
+  else if(s_output_pixels)FzeroTracksOverlay((uint32_t *)s_output_pixels,s_viewport.width,224,s_output_pitch);
 }
 void FzeroSetDeferredPresentation(bool deferred) { s_deferred_presentation = deferred; }
 
@@ -519,6 +522,7 @@ void FzeroDrawPpuFrame(void) {
         memcpy(s_output_pixels + y * s_output_pitch, s_stock_pixels + y * 256, 256 * 4);
     PpuBeginDrawing(g_ppu, s_output_pixels, s_output_pitch, kPpuRenderFlags_NewRenderer);
   }
+  if(!s_viewport.enhanced)FzeroTracksOverlay((uint32_t *)s_output_pixels,256,224,s_output_pitch);
 
   memcpy(g_ppu, cpu_ppu_registers, sizeof(cpu_ppu_registers));
   memcpy(g_ppu->oam, cpu_oam, sizeof(cpu_oam));
@@ -528,9 +532,11 @@ void FzeroDrawPpuFrame(void) {
 
 static void session_reset(void) {
   FzeroRendererReset();
-  uint8_t menu_state[2] = {0}; FzeroTracksMenuState(menu_state, true);
+  FzeroTracksMenuReset();
   s_wide_projection_accepts = 0;
-  interp_bridge_set_pre_opcode_hook(0x00dcc6, FzeroTracksActive() ? NULL : widened_projection);
+  interp_bridge_set_pre_opcode_hook(0, NULL);
+  interp_bridge_set_pre_opcode_hook(0x00dcc6, widened_projection);
+  FzeroTracksInstallHooks();
   /* The runtime's own baseline is stock, not the shipped defaults: a host that
    * offers video settings calls FzeroSetViewport with them, and one that does
    * not (headless captures, tools) must stay at 4:3 unless FZERO_ASPECT opts
@@ -610,6 +616,7 @@ typedef struct FzeroRuntimeState {
 } FzeroRuntimeState;
 
 static void fzero_state_save_extra(SaveLoadInfo *sli) {
+  if (FzeroTracksActive()) RtlSaveExecutionState(sli);
   FzeroRuntimeState state;
   memset(&state, 0, sizeof(state));
   state.magic = kFzeroStateMagic;
@@ -644,12 +651,16 @@ static void fzero_state_save_extra(SaveLoadInfo *sli) {
   if (FzeroTracksActive()) {
     uint8_t hash[32]; memcpy(hash, FzeroTracksActiveHash(), 32);
     sli->func(sli, hash, sizeof(hash));
+    FzeroTracksSaveState(sli, false);
   }
 }
 
 static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
   FzeroRuntimeState state;
   (void)version;
+  if (FzeroTracksActive() && !RtlLoadExecutionState(sli)) {
+    s_loaded_runtime_state = false; s_state_mode_refused = true; return;
+  }
   memset(&state, 0, sizeof(state));
   sli->func(sli, &state, sizeof(state));
   s_loaded_runtime_state = state.magic == kFzeroStateMagic &&
@@ -676,6 +687,8 @@ static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
     s_state_mode_refused = true;
     return;
   }
+
+  if(state.mode == kFzeroStateModeTrackPack)FzeroTracksSaveState(sli, true);
 
   FzeroTracksMenuState(state.reserved, true);
   g_cpu = state.cpu;
@@ -711,7 +724,7 @@ static const FzeroStateTrailer kFzeroStateTrailer = {
 
 int FzeroStateFileMode(const char *path, FzeroStateMode *out) {
   FzeroStateTrailer layout = kFzeroStateTrailer;
-  if (FzeroTracksActive()) layout.size += 32;
+  if (FzeroTracksActive()) layout.size += 32 + FzeroTracksSaveStateSize();
   return FzeroStateProbeFile(path, &layout, out);
 }
 
@@ -726,7 +739,7 @@ int FzeroStateFileAcceptable(const char *path) {
   if (FzeroTracksActive()) {
     FILE *f = fopen(path, "rb"); uint8_t hash[32];
     if (!f) return 0;
-    int ok = !fseek(f, -32, SEEK_END) && fread(hash, 1, 32, f) == 32 &&
+    int ok = !fseek(f, -(long)(32 + FzeroTracksSaveStateSize()), SEEK_END) && fread(hash, 1, 32, f) == 32 &&
              !memcmp(hash, FzeroTracksActiveHash(), 32);
     fclose(f); return ok;
   }
@@ -804,6 +817,7 @@ static void fzero_on_state_loaded(uint32_t version) {
   interp_bridge_set_master_deadline(0);
   s_loaded_runtime_state = false;
   FzeroMsuRestoreAudio(g_ram);
+  if (FzeroTracksActive()) RtlApplyExecutionState();
 }
 
 static const RtlGameInfo kFzeroGameInfo = {
@@ -822,7 +836,7 @@ const RtlGameInfo *FzeroGameInfo(void) {
   static RtlGameInfo deluxe;
   if (FzeroTracksActive()) {
     deluxe = kFzeroGameInfo;
-    deluxe.title = FzeroTracksActiveId(); deluxe.save_name_prefix = "fzero-pack";
+    deluxe.title = FzeroTracksActiveId(); deluxe.save_name_prefix = "fzero-library";
     return &deluxe;
   }
   if (!FzeroDeluxeActive() && !FzeroMsuActive()) return &kFzeroGameInfo;

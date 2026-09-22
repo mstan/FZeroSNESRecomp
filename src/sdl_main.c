@@ -7,6 +7,7 @@
 #include "fzero_mods.h"
 #include "fzero_deluxe.h"
 #include "fzero_tracks.h"
+#include "fzero_course_runtime.h"
 #include "fzero_hotkeys.h"
 #include "fzero_gamepad.h"
 #include "fzero_msu.h"
@@ -1527,7 +1528,7 @@ int main(int argc, char **argv) {
   }
 #endif
   const char *track_root = getenv("FZERO_TRACK_PACKS");
-  if (!FzeroTracksInit(track_root ? track_root : "track-packs",
+  if (!FzeroTracksInit(track_root ? track_root : "mods/track-packs",
 #ifdef FZERO_HAS_DELUXE
                        true
 #else
@@ -1582,13 +1583,9 @@ int main(int argc, char **argv) {
    * removing the override brings Deluxe back without touching it. */
   if (!FzeroTracksPrepare(&rom, &rom_size, g_video.bs_deluxe,
                           deluxe_override ? deluxe_override : deluxe_path)) {
-    if (*FzeroTracksSelection()) {
-      SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Track pack unavailable", FzeroTracksError(), NULL);
-      fprintf(stderr, "[content] %s %s\n", FzeroTracksError(), FzeroDeluxeError());
-      free(rom); return 2;
-    }
     fprintf(stderr, "[bs-deluxe] %s starting stock\n", FzeroDeluxeError());
     g_video.bs_deluxe = false;
+    if (!FzeroTracksPrepare(&rom, &rom_size, false, NULL)) { free(rom); return 2; }
   }
   const char *msu_pack = getenv("SNESRECOMP_MSU1");
   if (!msu_pack || !*msu_pack)
@@ -1909,6 +1906,7 @@ int main(int argc, char **argv) {
             break;
           case SDLK_r:
             if (mod & KMOD_CTRL) {
+              FzeroTracksSavesFinish();
               RtlReset(1);
               FzeroGameInfo()->session_reset();
               FzeroSetViewport(viewport);
@@ -2138,6 +2136,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Unable to write WRAM capture\n");
     if (dump) fclose(dump);
   }
+  FzeroTracksSavesFinish();
   RtlWriteSram();
   FzeroSetMode7Hd(0, NULL, 0);
   free(hd_pixels);

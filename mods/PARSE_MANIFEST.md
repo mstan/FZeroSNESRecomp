@@ -1,0 +1,134 @@
+# Qualify a course manifest
+
+This is the contributor workflow for the `fzero-course-v1` adapter. It is also
+the analysis checklist for an LLM handling a submitted patch. Save findings in
+the owning issue and put validated, ROM-free descriptors in
+`assets/track-packs` (known registry) or `mods/track-packs` (local pack).
+
+## Automatic path
+
+The game fingerprints the verified result of each loose IPS/BPS against the
+registry and neighboring manifests. MAX Classic and Modern are registered as
+equivalent course donors. Their normalized course hashes were compared;
+accepting equivalent revisions must never depend on their filenames or titles.
+
+To validate and emit known metadata explicitly:
+
+```powershell
+python tools/parse_track_pack.py --stock path/to/fzero.sfc `
+  --patch path/to/patch.ips --out mods/track-packs
+```
+
+The tool uses `build/FZeroInspectCourses.exe` (override `--inspector` on other
+platforms). It creates a temporary private patched image, parses it with the
+same C extractor as the game, deletes the temporary image and writes only
+`.ini` and `.layout`. It refuses to overwrite different existing metadata.
+The game itself needs neither that tool nor an installed Python interpreter.
+
+## New revision or unknown format
+
+1. Obtain the author's patch/readme and identify the exact required source
+   ROM. Apply the patch to a fresh private source. Verify source and target
+   SHA-256 and BPS checksums. Keep the patch, ROM and decoded assets private.
+2. Identify the track format from editor documentation or the donor's loader.
+   Trace pointers and consumers; a changed-byte list alone does not establish
+   a resource's ownership. Compare donor data with WRAM/VRAM after an actual
+   load. Inspect any code changes for course features the common adapter
+   cannot express. Do not add arbitrary executable ranges to a manifest.
+3. If it matches the typed format below, supply its pointer-table addresses.
+   Otherwise implement a separately versioned resource decoder and tests.
+   Preserve the canonical engine contract. If a course depends on unsupported
+   behavior, report it and leave that pack unavailable until implemented.
+4. Choose stable lowercase pack/cup/course IDs. Do not reuse another pack's ID
+   to replace it. Within a cup, manifest track order is race order. Source
+   indices select courses from the donor, not slots in the canonical game.
+5. Run structural extraction. For a new one-cup descriptor, for example:
+
+   ```powershell
+   python tools/parse_track_pack.py --stock path/to/fzero.sfc `
+     --patch path/to/custom.bps --layout reviewed.layout `
+     --id custom-author-pack --name "Custom Cup" --author "Course Author" `
+     --course "first|First Course|0" --course "second|Second Course|3" `
+     --out mods/track-packs
+   ```
+
+   This creates metadata after structural parsing; it does not certify playability.
+   Multiple cups can be expressed by extending the manifest with unique `cup`
+   entries and assigning each track to one of them. Current GP cups contain
+   one to five entries. Pack limits are 32 cups and 128 course entries.
+6. Qualify **every** course in the common stock and/or Deluxe engine. Check
+   road/collision alignment, start position, checkpoints, finish line, laps,
+   AI paths, pits, jumps, magnetic/rough/void terrain, hazards, minimap, palette,
+   sky and course-name intro. Check the full cup's results and transition to
+   the next course, including a one-course cup and the final course.
+7. Check original Knight/Queen/King and both BS leagues with the pack present;
+   all enabled cars must remain selectable. Check 4:3, widescreen and HD,
+   especially HUD grouping and opponents near both side edges. Confirm the
+   canonical visibility hook remains installed.
+8. Check valid IPS and equivalent BPS, partial installs, unrelated invalid
+   files, duplicate IDs, disabled packs, removal/restoration, catalog changes,
+   save/load, reset and record isolation. Never allow imported times to become
+   original times. Inspect snapshots' catalog identity checks.
+9. Submit descriptors, decoder changes if needed, tests and evidence. Record
+   known limitations rather than filling gaps with guessed addresses. To add
+   an `alternate_target_sha256`, prove all extracted resources match for the
+   declared courses and repeat relevant gameplay checks. No ROM-derived
+   binaries, patch payloads from this experiment or generated code in commits.
+
+## Metadata format
+
+See `assets/track-packs/max-league.ini` for a complete working example:
+
+```
+format=1
+id=stable-pack-id
+name=Display Name
+author=Author
+adapter=fzero-course-v1
+source_sha256=<64 hex digits>
+target_sha256=<64 hex digits>
+cup=stable-cup-id|Display Cup|0
+track=stable-course-id|Display Course|stable-cup-id|0
+```
+
+Optional repeated `alternate_target_sha256` entries accept at most eight
+additional exact images. Unknown fields, duplicate IDs and missing cup
+references are errors. Source/target hashes describe the unheadered images.
+
+## Typed FZEdit layout, version 1
+
+`format=fzero-course-1` and decimal `count` are followed by the 16 required
+table fields below. Addresses are hexadecimal 24-bit **CPU LoROM addresses**,
+not file offsets. High-bank ROM aliases are supported. RAM/MMIO and out-of-image
+reads are rejected. All table integers are little-endian. Compare with the
+checked-in MAX layout; never assume another FZEdit version shares its offsets.
+
+| Field | Per-course entry and decoded meaning |
+| --- | --- |
+| `pools` | 24-bit pointer to 0x2400 bytes of track tile pool |
+| `settings` | One byte, canonical environment/variation flags |
+| `palettes` | 24-bit pointer to 0xe0 track palette bytes; common car/HUD palettes stay native |
+| `maps` | Two 5-byte records (pointer24 + row count16); block rows of 16 bytes and packed grid rows of 16 bytes expanded to 18 |
+| `graphics` | Pointer24 to 256 tiles, each palette-prefix byte plus 32 packed-nibble bytes; expands to 0x4000 Mode 7 pixels |
+| `paths` | Pointer24 to 9-byte segment records and six same-bank array pointers per segment; signed deltas expand checkpoint coordinates and four AI parameter arrays |
+| `names` | Pointer24 to a bounded, zero-terminated native encoded intro string |
+| `sky_graphics` | Pointer24 to 0x2000 bytes of sky graphics |
+| `sky_back` | Pointer24 to 0x700 bytes of back-layer tilemap |
+| `sky_front` | Pointer24 to 0x540 bytes of front-layer tilemap |
+| `minimaps` | Bank plus bank-relative offset; add 0x8000 to resolve the pointer, then read 0x200 bytes |
+| `map_positions` | Two packed 16-bit native minimap sprite adjustments, not plain screen x/y |
+| `terrain` | Pointer24 to four 256-byte tile behavior tables |
+| `gradients` | One byte selecting the native sky gradient |
+| `opponents` | Three class-dependent opponent parameters |
+| `shortcuts` | Pointer24 to at most 16 rectangle-crossing records of 17 bytes; signed-negative 16-bit sentinel terminates |
+
+AI segment marker zero terminates, 255 marks the finish-closing segment.
+Checkpoint arrays are bounded to avoid overlap in native WRAM. A layout does
+not carry a program, native dispatch address, hook PC or general memory-write
+instruction. The game supplies one shared set of canonical loader bindings.
+
+This decoder covers the MAX/FZEdit resource representation, not every F-Zero
+hack. MAX has no mine list; that absence is part of this adapter's current
+qualification. Hacks with additional hazards, physics, vehicles or custom
+scripted events need explicit support. A successful structural parse cannot
+prove those semantic features are compatible.

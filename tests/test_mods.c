@@ -10,7 +10,11 @@ int main(void) {
   const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini");
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
-  CHECK(p->package_count(NULL) == 6 && p->feature_count(NULL) == 6);
+  CHECK(p->package_count(NULL) >= 6 && p->feature_count(NULL) == p->package_count(NULL));
+  RecompLauncherCModFeature library;
+  CHECK(p->feature_get(NULL, 5, &library));
+  CHECK(!strcmp(library.package_id, "track-library") && library.option_count == 0);
+  CHECK(!p->feature_option_get(NULL, library.package_id, library.id, 0, &option));
   RecompLauncherCModFeature diag;
   CHECK(p->feature_get(NULL, 4, &diag) && !diag.enabled && diag.option_count == 0);
   CHECK(!p->feature_option_get(NULL, diag.package_id, diag.id, 0, &option));

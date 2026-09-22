@@ -81,3 +81,6 @@ ghidra/*
 *.rep/
 *.lock
 *.lock~
+
+# User-owned course payloads and local configuration.
+/mods/track-packs/

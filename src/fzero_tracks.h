@@ -3,22 +3,21 @@
 #include <stdbool.h>
 
 /* The catalog is independent of the running cartridge. Registering a pack
- * never patches another pack or changes a saved selection's identity. */
+ * never patches another pack or replaces a built-in identity. */
 bool FzeroTracksInit(const char *root, bool deluxe_available);
 const CpCatalog *FzeroTracksCatalog(void);
 const char *FzeroTracksError(void);
-const char *FzeroTracksSelection(void);
+const char *FzeroTracksRoot(void);
+void FzeroTracksReport(const char *message);
+void FzeroTracksDiscover(const uint8_t *stock, size_t size);
+bool FzeroTracksLibraryEnabled(void);
+void FzeroTracksLibraryEnable(bool enabled);
 const char *FzeroTracksPatch(const CpPack *pack);
 bool FzeroTracksAvailable(const CpPack *pack);
 bool FzeroTracksEnabled(const CpPack *pack);
 bool FzeroTracksEnable(const CpPack *pack, bool enabled);
 bool FzeroTracksSetPatch(const CpPack *pack, const char *path);
-bool FzeroTracksSelect(const char *key);
 bool FzeroTracksSave(void);
-unsigned FzeroTracksCupCount(void);
-const CpCup *FzeroTracksCupAt(unsigned index, const CpPack **pack);
-const CpCup *FzeroTracksSelected(const CpPack **pack);
-bool FzeroTracksValidate(const uint8_t *stock, size_t size);
 /* Diagnostics are catalog-wide: bad files never disappear silently. */
 unsigned FzeroTracksDiagnosticCount(void);
 const char *FzeroTracksDiagnostic(unsigned index);

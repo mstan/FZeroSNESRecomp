@@ -11,6 +11,7 @@
 #include "fzero_runtime.h"
 #include "fzero_deluxe.h"
 #include "fzero_tracks.h"
+#include "fzero_course_runtime.h"
 #include "fzero_msu.h"
 #include "fzero_state_mode.h"
 #include "fzero_replay.h"
@@ -290,7 +291,7 @@ int main(int argc, char **argv) {
   }
 
   const char *track_root = getenv("FZERO_TRACK_PACKS");
-  if (!FzeroTracksInit(track_root ? track_root : "track-packs",
+  if (!FzeroTracksInit(track_root ? track_root : "mods/track-packs",
 #ifdef FZERO_HAS_DELUXE
                        true
 #else
@@ -375,8 +376,21 @@ int main(int argc, char **argv) {
   const char *lifecycle = getenv("FZERO_LIFECYCLE_TEST");
   static uint8_t replay_expected[0x20000];
   uint64_t replay_master = 0;
+  const char *progress_test = getenv("FZERO_LIBRARY_PROGRESS_TEST");
+  long next_completed_result = 1450;
+
 
   for (long frame = 0; frame < frame_limit; frame++) {
+    /* Private integration check: inject a completed results state, then let
+     * the unmodified GP transition routine advance/load/finish the cup.
+     * This tests queue boundaries, not driving or finish-line detection. */
+    if(progress_test && FzeroTracksActive() && frame>=next_completed_result &&
+       g_ram[0x54]==2 && g_ram[0x55]==3) {
+      fprintf(stderr,"library-progress: completed result ordinal=%u at frame=%ld\n",g_ram[0x53],frame);
+      g_ram[0x54]=3;g_ram[0x55]=1;g_ram[0x56]=4;g_ram[0x60]=0;
+      next_completed_result=frame+1000;
+    }
+
     if (lifecycle && frame == 1500) {
       RtlEnsureSaveDir();
       char path[1024]; RtlSaveSlotPath(11, path, sizeof(path));
@@ -389,8 +403,14 @@ int main(int argc, char **argv) {
       memcpy(replay_expected, g_ram, sizeof(replay_expected));
       replay_master = g_cpu.master_cycles;
       if (!RtlLoadSnapshot(path)) { fputs("lifecycle: load failed\n", stderr); return 8; }
-    }
-    if (lifecycle && frame == 1510) {
+      /* Compare identical replay paths. The normal host loop drains audio;
+       * the speculative pass above does not, so comparing against that loop
+       * also measured audio-service scheduling instead of snapshot fidelity. */
+      for (long n = frame; n < frame + 10; ++n) {
+        (void)RtlRunFrame(scripted_input(input_spans, input_span_count, n));
+        if (g_fail || !FzeroLastLleResult()) return 8;
+        FzeroDrawPpuFrame();
+      }
       if (memcmp(replay_expected, g_ram, sizeof(replay_expected)) || replay_master != g_cpu.master_cycles) {
         fputs("lifecycle: resimulation differs after load\n", stderr);
         int reported = 0;
@@ -404,9 +424,11 @@ int main(int argc, char **argv) {
         return 8;
       }
       fputs("lifecycle: save/load ten-frame resimulation identical (RAM and master clock)\n", stderr);
+      if (!RtlLoadSnapshot(path)) return 8;
     }
     if (lifecycle && frame == 1800) {
       uint64_t before_reset = g_cpu.master_cycles;
+      FzeroTracksSavesFinish();
       RtlReset(1); FzeroGameInfo()->session_reset();
       FzeroSetViewport(FzeroCalculateViewport(&replay_video, drawable_width, drawable_height));
       FzeroBeginDrawing(pixels, (size_t)frame_width * 4u);
@@ -488,5 +510,6 @@ int main(int argc, char **argv) {
           (unsigned long long)stats.audio_active_frames, stats.audio_peak,
           (unsigned long long)stats.audio_underruns);
   free(rom);
+  FzeroTracksSavesFinish();
   return qualified && output_ok ? 0 : 8;
 }

@@ -16,7 +16,6 @@ import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from import_track_pack import install
 from inspect_bs_deluxe import apply_ips
 
 
@@ -50,57 +49,78 @@ def main():
     out.mkdir(parents=True, exist_ok=False)
     original = stock_path.read_bytes()
     source = original[512:] if len(original) == 0x80200 else original
-    library = out / "library"
+    library = out / "library"; library.mkdir()
+    registry = out / "assets/track-packs"; registry.mkdir(parents=True)
+    for ext in ("ini", "layout"):
+        (registry / f"max-league.{ext}").write_bytes((ROOT / f"assets/track-packs/max-league.{ext}").read_bytes())
     with zipfile.ZipFile(a.archive) as archive:
-        for variant in ("classic", "modern"):
-            patch = archive.read(f"MAX_League_{variant.title()}.ips")
-            # Exercise an equivalent BPS against the same pinned Modern hash.
-            if variant == "modern":
-                patch = literal_bps(source, apply_ips(source, patch))
-            install(source, patch, ROOT / f"assets/track-packs/max-league-{variant}.ini", library)
+        classic = archive.read("MAX_League_Classic.ips")
+        modern = literal_bps(source, apply_ips(source, archive.read("MAX_League_Modern.ips")))
+    (library / "arbitrary.IPS").write_bytes(classic)
+    (library / "equivalent.bps").write_bytes(modern)
+    (library / "corrupt.ips").write_bytes(b"PATCHbad")
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("FZERO_", "SNESRECOMP_", "SDL_", "LNG_"))}
-    env.update(FZERO_TRACK_PACKS=str(library), SNESRECOMP_SAVE_ROOT="saves")
+    env.update(FZERO_TRACK_PACKS=str(library), FZERO_DELUXE_DATA="embedded", FZERO_ASPECT="21:9")
     route = "320-326:8,440-446:8,560-566:8,730-736:8,790-796:8,1160-1599:1"
     results = {}
-    def run(name, cup, frames=1600, expected=0):
-        folder = out / name
-        folder.mkdir()
+    def run(name, cup="max-league/max", frames=1600, **overrides):
+        folder = out / name; folder.mkdir()
         run_env = dict(env, FZERO_CUP=cup, SNESRECOMP_INPUT_SCRIPT=route,
-                       SNESRECOMP_FRAME_DUMP="frame.ppm", SNESRECOMP_WRAM_DUMP="ram.bin")
+                       SNESRECOMP_FRAME_DUMP=str(folder / "frame.ppm"),
+                       SNESRECOMP_WRAM_DUMP=str(folder / "ram.bin"),
+                       SNESRECOMP_SAVE_ROOT=f"{name}/saves")
+        run_env.update(overrides)
         with (folder / "run.log").open("w") as log:
             result = subprocess.run([str(build / "FZeroSNESRecompHeadless.exe"), str(stock_path), str(frames)],
-                                    cwd=folder, env=run_env, stdout=log, stderr=log, timeout=45)
+                                    cwd=out, env=run_env, stdout=log, stderr=log, timeout=300)
         text = (folder / "run.log").read_text()
-        assert result.returncode == expected, text[-3000:]
-        if expected == 0:
-            assert "fzero_native: PASS" in text
-            if frames == 1600:
-                ram = (folder / "ram.bin").read_bytes()
-                assert ram[0x54:0x56] == b"\x02\x03", (cup, ram[0x54:0x57].hex())
-            if cup.startswith("max-"):
-                assert "isolated interpreter program" in text
+        assert result.returncode == 0 and "fzero_native: PASS" in text, text[-4000:]
+        if frames == 1600:
+            ram = (folder / "ram.bin").read_bytes()
+            assert ram[0x54:0x56] == b"\x02\x03", (name, ram[0x54:0x57].hex())
+        if "FZERO_LIFECYCLE_TEST" in overrides:
+            assert "resimulation identical" in text and "soft reset, SRAM retained" in text
         results[name] = {"cup": cup, "frames": frames, "exit": result.returncode}
         print(name, "PASS", flush=True)
-    run("classic-ips", "max-league-classic/max")
-    run("modern-bps", "max-league-modern/max")
-    run("retail-king", "retail/king")
-    run("bs-one", "bs-deluxe/bs-1")
-    # Missing packs must not break unrelated content or silently rebind a key.
-    classic = library / "max-league-classic.patch"
-    payload = classic.read_bytes()
-    classic.rename(library / "held.patch")
-    run("missing-selected", "max-league-classic/max", 10, 2)
-    run("missing-unrelated", "max-league-modern/max", 10)
-    classic.write_bytes(payload[:-1] + bytes([payload[-1] ^ 1]))
-    run("corrupt-selected", "max-league-classic/max", 10, 2)
-    run("corrupt-unrelated", "retail/knight", 10)
-    classic.write_bytes(payload)
-    run("restored", "max-league-classic/max", 10)
+        return text
+    for i in range(5):
+        text = run(f"course{i}", FZERO_TEST_COURSE=str(i))
+        assert text.count("extracted max-league:")==1 and "donor code discarded" in text
+    run("lifecycle", frames=1850, FZERO_LIFECYCLE_TEST="1")
+    text=run("progress", frames=6900, FZERO_LIBRARY_PROGRESS_TEST="1")
+    assert all(f"ordinal={i} setting=" in text for i in range(5))
+    assert text.count("completed result ordinal=")==5
+    run("stock", "retail/knight", FZERO_DELUXE_DATA="")
+    run("king", "bs-deluxe/king")
+    run("bs1", "bs-deluxe/bs-1")
+    text = run("menu", cup="", frames=700,
+               SNESRECOMP_INPUT_SCRIPT="320-326:8,440-446:8,560-566:8,650-652:64")
+    assert "menu 6/6: MAX League" in text
+    # Two independent, one-course manifests can coexist with the full donor pack.
+    template=(registry / "max-league.ini").read_text()
+    for ident,track in [("solo-a",0),("solo-b",4)]:
+        lines=[line for line in template.splitlines() if not line.startswith(("id=","name=","cup=","track="))]
+        lines += [f"id={ident}",f"name={ident}",f"cup=solo|{ident}|0",f"track=only|Only Course|solo|{track}"]
+        (library / f"{ident}.ini").write_text("\n".join(lines)+"\n")
+        (library / f"{ident}.layout").write_bytes((registry / "max-league.layout").read_bytes())
+    run("solo", "solo-b/solo")
+    text=run("solo-progress", "solo-b/solo", frames=2800, FZERO_LIBRARY_PROGRESS_TEST="1")
+    assert text.count("completed result ordinal=")==1 and "ordinal=1 setting=" not in text
+    (library / "solo-a.ini").rename(library / "solo-a.held")
+    run("partial", "solo-b/solo", frames=10)
+    (library / "arbitrary.IPS").rename(library / "classic.held")
+    run("bps", frames=10)
+    (library / "equivalent.bps").rename(library / "modern.held")
+    text=run("absent", "bs-deluxe/knight", frames=10)
+    assert "extracted" not in text
+    (library / "classic.held").rename(library / "arbitrary.IPS")
+    text=run("restored", frames=10);assert "extracted max-league" in text
+    (library / "library.disabled").write_text("1\n")
+    text=run("disabled", "bs-deluxe/knight", frames=10);assert "extracted" not in text
     assert stock_path.read_bytes() == original
-    (out / "validation.json").write_text(json.dumps({
-        "stock_unchanged": True, "stock_sha256": hashlib.sha256(source).hexdigest(),
-        "cases": results}, indent=2) + "\n")
+    (out / "validation.json").write_text(json.dumps({"stock_unchanged": True,
+        "stock_sha256": hashlib.sha256(source).hexdigest(), "cases": results}, indent=2)+"\n")
 
 
 if __name__ == "__main__":

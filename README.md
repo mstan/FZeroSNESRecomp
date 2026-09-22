@@ -68,6 +68,7 @@ Open **Mods** for:
 - **Diagnostics:** optional local performance reports for troubleshooting; off by default. See [how to capture a report](docs/PERFORMANCE_DIAGNOSTICS.md).
   Start at 2x. Above 4x can cause severe slowdown; use at your own risk.
 - **BS Deluxe:** adds the Satellaview machines, leagues, and tracks.
+- **Track Library (prototype):** adds user-supplied course packs to the in-game leagues. See [installation and manifest instructions](mods/README.md).
 
 When the Widescreen mod is on, its aspect setting wins over the normal Display aspect setting.
 

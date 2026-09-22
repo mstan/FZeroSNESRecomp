@@ -61,7 +61,7 @@ static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
 }
 static int option_get(void *ctx, const char *package, const char *feature, int index,
                       RecompLauncherCModOption *out) {
-  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_option_get(ctx, package, feature, index, out);
+  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_option_get ? FzeroTrackModsProvider()->feature_option_get(ctx, package, feature, index, out) : 0;
   (void)ctx;
   int kind = identity(package, feature);
   if (!kind || kind == 3 || kind == 5 || index != 0 || !out) return 0;
@@ -91,7 +91,7 @@ static int option_get(void *ctx, const char *package, const char *feature, int i
 }
 static int choice_get(void *ctx, const char *package, const char *feature,
                       const char *option, int index, RecompLauncherCModChoice *out) {
-  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_choice_get(ctx, package, feature, option, index, out);
+  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_choice_get ? FzeroTrackModsProvider()->feature_choice_get(ctx, package, feature, option, index, out) : 0;
   (void)ctx;
   if (!identity(package, feature) || !option || !out || index < 0) return 0;
   const char *value = NULL;
@@ -118,7 +118,7 @@ static int enable(void *ctx, const char *package, const char *feature, int enabl
 }
 static int set_option(void *ctx, const char *package, const char *feature,
                       const char *option, const char *value) {
-  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_set_option(ctx, package, feature, option, value);
+  if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_set_option ? FzeroTrackModsProvider()->feature_set_option(ctx, package, feature, option, value) : 0;
   (void)ctx;
   if (!identity(package, feature) || !option || !value) return 0;
   if (identity(package, feature) == 1 && !strcmp(option, "aspect")) {

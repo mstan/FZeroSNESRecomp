@@ -1,4 +1,5 @@
 #include "fzero_tracks.h"
+#include "sha256.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,44 +11,41 @@
 #define MKDIR(p) mkdir(p,0755)
 #endif
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"%d: %s (%s)\n",__LINE__,#x,FzeroTracksError());exit(1); } } while (0)
-static void copy(const char *src, const char *dst) {
-    FILE *a=fopen(src,"rb"),*b=fopen(dst,"wb");CHECK(a && b);
-    int c;while ((c=fgetc(a))!=EOF) CHECK(fputc(c,b)!=EOF);fclose(a);CHECK(!fclose(b));
+static void write_file(const char *path,const void *bytes,size_t n) {
+    FILE *f=fopen(path,"wb");CHECK(f);CHECK(fwrite(bytes,1,n,f)==n);CHECK(!fclose(f));
 }
-int main(int argc,char **argv) {
-    CHECK(argc==2);MKDIR("test-tracks");char from[1024];
-    snprintf(from,sizeof(from),"%s/max-league-classic.ini",argv[1]);copy(from,"test-tracks/classic.ini");
-    snprintf(from,sizeof(from),"%s/max-league-modern.ini",argv[1]);copy(from,"test-tracks/modern.ini");
-    remove("test-tracks/selection.txt");remove("test-tracks/max-league-classic.path");remove("test-tracks/max-league-modern.path");
-    remove("test-tracks/max-league-classic.disabled");remove("test-tracks/max-league-modern.disabled");
-    CHECK(FzeroTracksInit("test-tracks",true));CHECK(FzeroTracksCupCount()==8);
-    const CpPack *classic=cp_catalog_find(FzeroTracksCatalog(),"max-league-classic");
-    const CpPack *modern=cp_catalog_find(FzeroTracksCatalog(),"max-league-modern");CHECK(classic && modern);
-    CHECK(!FzeroTracksSelect("max-league-classic/max"));
-    FILE *f=fopen("test-tracks/source.ips","wb");CHECK(f);fwrite("PATCHEOF",1,8,f);fclose(f);
-    CHECK(FzeroTracksSetPatch(classic,"test-tracks/source.ips"));CHECK(FzeroTracksCupCount()==9);
-    CHECK(FzeroTracksSelect("max-league-classic/max"));
-    CHECK(!FzeroTracksValidate((const uint8_t*)"wrong ROM",9));
-    CHECK(FzeroTracksSetPatch(modern,"test-tracks/source.ips"));CHECK(FzeroTracksCupCount()==10);
-    CHECK(!strcmp(FzeroTracksSelection(),"max-league-classic/max"));
-    CHECK(FzeroTracksEnable(classic,false));CHECK(FzeroTracksCupCount()==9);
-    CHECK(!strcmp(FzeroTracksSelection(),"max-league-classic/max") && !FzeroTracksValidate((const uint8_t*)"wrong ROM",9));
-    CHECK(FzeroTracksEnable(classic,true));CHECK(FzeroTracksSave());
-    CHECK(!remove("test-tracks/classic.ini"));CHECK(FzeroTracksInit("test-tracks",true));
-    CHECK(FzeroTracksCupCount()==9 && !FzeroTracksSelected(NULL));
-    CHECK(!strcmp(FzeroTracksSelection(),"max-league-classic/max"));
-    CHECK(FzeroTracksSelect("retail/king"));CHECK(FzeroTracksSave());
-    snprintf(from,sizeof(from),"%s/max-league-classic.ini",argv[1]);copy(from,"test-tracks/classic.ini");
-    CHECK(FzeroTracksInit("test-tracks",false));CHECK(FzeroTracksCupCount()==5);
-    classic=cp_catalog_find(FzeroTracksCatalog(),"max-league-classic");
-    CHECK(FzeroTracksAvailable(classic)); /* Removing another pack did not erase its path. */
-    CHECK(!strcmp(FzeroTracksSelection(),"retail/king"));
-    CHECK(!remove("test-tracks/source.ips"));CHECK(FzeroTracksCupCount()==3);
-    CHECK(FzeroTracksSelect("retail/knight"));
-    copy("test-tracks/classic.ini","test-tracks/duplicate.ini");
-    CHECK(FzeroTracksInit("test-tracks",true));
-    CHECK(!cp_catalog_find(FzeroTracksCatalog(),"max-league-classic") && FzeroTracksDiagnosticCount());
-    CHECK(cp_catalog_find(FzeroTracksCatalog(),"max-league-modern"));
-    CHECK(!remove("test-tracks/duplicate.ini"));
-    puts("Absent, partial, disabled, removed and restored pack combinations passed");return 0;
+static void manifest(const char *path,const char *id) {
+    uint8_t hash[32];char hex[65];sha256_compute((const uint8_t *)"abc",3,hash);cp_hash_format(hash,hex);
+    FILE *f=fopen(path,"wb");CHECK(f);
+    fprintf(f,"format=1\nid=%s\nname=Single Course\nauthor=Test\nadapter=fzero-course-v1\n"
+        "source_sha256=%s\ntarget_sha256=%s\ncup=solo|Solo Cup|0\ntrack=one|One|solo|0\n",id,hex,hex);
+    CHECK(!fclose(f));
+}
+int main(void) {
+    const char *root="test-course-discovery";MKDIR(root);
+    remove("test-course-discovery/duplicate.ini");remove("test-course-discovery/a.disabled");
+    remove("test-course-discovery/library.disabled");remove("test-course-discovery/a.path");
+    remove("test-course-discovery/b.path");
+    manifest("test-course-discovery/a.ini","a");manifest("test-course-discovery/b.ini","b");
+    write_file("test-course-discovery/arbitrary-name.IPS","PATCHEOF",8);
+    write_file("test-course-discovery/broken.bps","BPS1bad!",8);
+    CHECK(FzeroTracksInit(root,true));
+    FzeroTracksDiscover((const uint8_t *)"abc",3);
+    const CpPack *a=cp_catalog_find(FzeroTracksCatalog(),"a"),*b=cp_catalog_find(FzeroTracksCatalog(),"b");
+    CHECK(a && b && FzeroTracksAvailable(a) && FzeroTracksAvailable(b));
+    CHECK(FzeroTracksDiagnosticCount());
+    CHECK(FzeroTracksEnable(a,false) && FzeroTracksSave());
+    CHECK(FzeroTracksInit(root,true));FzeroTracksDiscover((const uint8_t *)"abc",3);
+    a=cp_catalog_find(FzeroTracksCatalog(),"a");b=cp_catalog_find(FzeroTracksCatalog(),"b");
+    CHECK(!FzeroTracksEnabled(a) && FzeroTracksAvailable(b));
+    CHECK(!remove("test-course-discovery/arbitrary-name.IPS"));CHECK(!FzeroTracksAvailable(b));
+    write_file("test-course-discovery/arbitrary-name.IPS","PATCHEOF",8);CHECK(FzeroTracksAvailable(b));
+    manifest("test-course-discovery/duplicate.ini","a");CHECK(FzeroTracksInit(root,false));
+    CHECK(!cp_catalog_find(FzeroTracksCatalog(),"a"));CHECK(cp_catalog_find(FzeroTracksCatalog(),"b"));
+    CHECK(FzeroTracksAvailable(cp_catalog_find(FzeroTracksCatalog(),"retail")));
+    CHECK(!FzeroTracksAvailable(cp_catalog_find(FzeroTracksCatalog(),"bs-deluxe")));
+    FzeroTracksLibraryEnable(false);CHECK(FzeroTracksSave());
+    CHECK(FzeroTracksInit(root,true) && !FzeroTracksLibraryEnabled());
+    remove("test-course-discovery/duplicate.ini");
+    puts("Folder discovery, missing inputs, independent toggles and duplicate quarantine passed");return 0;
 }

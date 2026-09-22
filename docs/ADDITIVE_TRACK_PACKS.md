@@ -1,146 +1,105 @@
-# Additive track library experiment
+# Additive course library prototype
 
-This prototype adds a combined launcher cup library containing retail,
-BS Deluxe, and user-supplied MAX League content. MAX Classic and Modern are
-separate packs, each with the five courses Sand City, Port Canyon, Metal
-Forest, Death Storm and White Fire. No MAX patch or patched ROM is committed.
+The game imports course resources into the canonical F-Zero/BS Deluxe engine.
+It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
+only enables/disables the library and individual packs; it has no cup dropdown.
 
-The experiment starts from FZeroSNESRecomp `1686df4` and snesrecomp `bb37c87`.
-Both worktrees use branch `experiment/additive-track-packs`. The paired
-framework supplies `content_pack.h/.c`, `content_patch.c`, and the explicit
-interpreter-program selection API; the game's original pinned submodule does
-not contain those additions. Build with `SNESRECOMP_ROOT` pointing at the
-paired framework worktree until the framework changes are integrated.
+With BS Deluxe enabled the menu contains Knight, Queen, King, BS-1, BS-2, then
+MAX. The original four cars and four BS cars remain in the native vehicle menu.
+Additional manifests append additional cups. With Deluxe disabled, imports
+join the original three leagues and four-car roster. With the library disabled
+or no usable patches installed, the normal game menus remain active.
 
-## Try it
+## Installation and contribution
 
-The local Windows build is at
-`F:\Projects\snesrecomp\_wt-fzero-track-packs\build\FZeroSNESRecomp.exe`.
-`Launch-Track-Library.cmd` in that build directory opens the launcher using the
-owner's existing original USA ROM. Its library already has both supplied MAX
-patches. This is a separate build and saves directory from the normal install.
+[The mods README](../mods/README.md) contains player instructions followed by
+instructions for LLM contributors. [PARSE_MANIFEST.md](../mods/PARSE_MANIFEST.md)
+documents the metadata format, typed resource layout, deterministic tools,
+unknown-patch workflow and gameplay qualification checklist.
 
-In **Mods → Track Packs**, select **Track Library**, then choose a cup.
-Type `Track Library` in the search box to bring the group into view. The course
-list appears in the details pane. Play normally through the title and vehicle
-selection; the adapter highlights the chosen Grand Prix cup using the game's
-own input/navigation routine. Difficulty and vehicle choices remain yours.
-Return to the launcher to select a cup backed by a different pack.
+Drop IPS/BPS files into `mods/track-packs` beside the executable. Known MAX
+Classic and Modern patches are recognized by verified output SHA-256 and
+contribute one identical five-course pack. User manifests and layouts live
+beside their patches; the shipped registry is read-only. New registry entries
+are discovered without adding another pack-specific branch in game code.
 
-For another installation, select an extracted `.ips` or `.bps` through the
-Classic or Modern feature's file selector. Both formats are verified against
-the original ROM and exact expected output when that pack is launched. Or use:
+An optional ZIP installer is available:
 
 ```powershell
-python tools/import_track_pack.py --stock 'path/to/fzero.sfc' `
-  --archive 'path/to/F-Zero MAX League.zip' --library 'build/track-packs'
+python tools/import_track_pack.py --stock path/to/fzero.sfc `
+  --archive "path/to/F-Zero MAX League.zip" --library build/mods/track-packs
 ```
 
-`--variant classic` or `--variant modern` imports only one. For a loose patch,
-use `--patch path/to/patch.bps --variant modern`. The importer preserves other
-packs, the current cup selection, and existing resources. It refuses to
-overwrite a different installed input. Headered original USA ROMs are accepted.
+No MAX patch, patched ROM, decoded resource binary or generated native source
+is committed. MAX League is by PowerPanda and Zephyrum25.
 
-For headless or scripted launches:
+## Runtime design
+
+The framework owns bounded IPS/BPS application, exact source/target hash
+validation and the stable-ID catalog. Each input is patched against a fresh
+original image. The game decodes typed course resources (map, tile graphics,
+AI/checkpoints, minimap, environment and terrain); it discards the donor image.
+Donor native dispatch, menus, physics and replacement executable bytes never
+become the running cartridge. Classic/Modern boost differences are therefore
+not imported.
+
+One canonical loader binding serves every pack. It preserves the stock or BS
+Deluxe engine, its car/HUD palettes, raster/HD renderer and widened opponent
+projection hook. Deluxe's resource loader uses different WRAM metadata from
+stock, so its binding runs after that metadata is initialized. Stable catalog
+IDs and ordered course resources, rather than a patch filename, define state
+compatibility.
+
+Each imported cup has a record namespace derived from pack ID, cup ID and
+ordered course IDs/content hashes. Unrelated packs do not change it. New cups
+start with canonical empty times. The base SRAM and its record mirror are
+restored on title, reset and exit. Corrupt imported record files are preserved
+and that session is read-only. Library snapshots include the base backup,
+selected cup, full catalog identity and the framework execution-state chunk,
+including refresh timing needed for deterministic replay.
+
+## Build and validation
+
+Worktrees started from FZeroSNESRecomp `1686df4` and snesrecomp `bb37c87` on
+`experiment/additive-track-packs`. Build with `SNESRECOMP_ROOT` pointing at the
+paired framework worktree until its content-pack support is integrated. The
+normal generated stock and Deluxe modules are still required, as on main.
+The local desktop executable is `build/FZeroSNESRecompTracks.exe`;
+`FZERO_DESKTOP_NAME` leaves the normal output name unchanged in ordinary builds.
+
+ROM-free checks cover patch syntax/checksums, alternate verified hashes,
+manifest identities, directory discovery, independent missing/disabled packs,
+malformed resource bounds, a pit at checkpoint zero, clean record defaults,
+record isolation and corrupt-file preservation. Existing renderer, video,
+HDMA, gamepad and mod independence tests also run.
+
+Private qualification (requires the owner's original ROM and patch archive):
 
 ```powershell
-$env:FZERO_TRACK_PACKS = 'absolute/path/to/build/track-packs'
-$env:FZERO_CUP = 'max-league-classic/max'
-& build/FZeroSNESRecompHeadless.exe 'path/to/fzero.sfc' 1600
+python tests/validate_track_packs.py --build build --stock path/to/fzero.sfc `
+  --archive "path/to/F-Zero MAX League.zip" --out captures/qualification-new
 ```
 
-An empty cup selection preserves the existing BS Deluxe setting and ordinary
-menus. A named cup overrides that setting for the current session. Selecting a
-retail cup runs retail; selecting a Deluxe cup runs Deluxe. BS Deluxe's native
-alternate league controls and Practice remain available within its program.
+All five MAX courses were loaded and driven in the common Deluxe engine.
+Stock, King and BS-1 gameplay, in-game sixth-cup navigation, IPS/BPS discovery,
+equivalent-patch deduplication, partial single-course installs, removal/restore
+and library disabling were checked. Save/load replays compare ten frames with
+identical WRAM and master clock, and soft reset retains SRAM. The native GP
+transition routine was also exercised through all five course loads and a
+one-course cup using injected completed-result states. That boundary test is
+not a claim of manually driving every lap or qualifying all finish-line and
+hazard behavior.
 
-## Additive model
+## Current limits
 
-The framework's manifest/catalog is independent of F-Zero's guest memory.
-Each pack has a stable ID, each cup and track has a local stable ID, and slots
-are adapter metadata. Adding a compatible pack means supplying another `.ini`
-manifest and patch resource, not extending parallel compiled menu arrays.
+The decoder supports the MAX/FZEdit resource representation, not every hack.
+An unfamiliar binary format or donor-only hazard/event needs a new typed
+adapter and qualification. Structural parsing alone cannot prove playability.
+The current GP adapter accepts one to five tracks per cup. Imported Practice
+selection, cross-pack assembled cups and a combined records browser are future
+work. Stock/BS Practice remains available. MSU-1 is not enabled in imported
+library sessions in this prototype. Library snapshots require the same
+catalog; records survive adding/removing unrelated packs.
 
-`assets/track-packs/*.ini` contains the MAX metadata and exact target hashes.
-At runtime, `track-packs/*.ini` is scanned; each external pack gets its own
-patch selector and contributes cups only when enabled and its input exists.
-Its `.path` stores the owner's file path; `.disabled` preserves its toggle.
-`selection.txt` stores a key such as `max-league-classic/max`.
-
-Missing, disabled or removed content never renumbers a saved selection. A
-missing selected cup reports an error; unrelated cups still launch. Restoring
-the manifest/patch restores access to its existing records. Duplicate external
-IDs are quarantined and reported, with no directory-order winner. Built-in
-retail and Deluxe identities cannot be replaced by external manifests.
-
-The catalog accepts a single-course pack and arbitrary cup sizes. That is the
-unit to use when an author supplies only one independent course: its own
-identity, patch, manifest and compatible adapter. It does **not** extract
-independent courses out of an opaque whole-ROM patch or pretend that partially
-supplied patch bytes constitute a valid course. MAX's five courses currently
-share one indivisible patch resource per ruleset.
-
-## Execution and records
-
-Each imported patch is applied to a fresh verified original image in memory.
-MAX changes code as well as track data, so imported packs execute with an empty
-native dispatch table and the interpreter scheduler. The stock-only widening
-hook is disabled for them; the shared rendering/presentation path remains
-available. No downloaded native code or recompilation is needed to try MAX.
-
-SRAM and snapshots for imported packs live under
-`saves/<SHA256(pack ID + target ROM hash)>/`. This includes the full identity,
-so a different pack or revision cannot inherit another pack's times. Retail
-and Deluxe retain their existing save paths. Imported snapshots also include
-the full identity and refuse a different pack even if copied/renamed by hand.
-The existing runtime's save-root limit is 95 bytes; use a short root override.
-
-## Current boundary and next extension
-
-This is an additive **launcher** library, with one cartridge context per
-session. It does not expand the SNES game's own cup selector, transition across
-cartridges during a race, compose a Grand Prix from tracks from different
-packs, merge records into one leaderboard, or add MAX courses to Deluxe's
-internal ROM tables. Individual course names are browsable metadata; the
-prototype selects Grand Prix cups, not individual Practice courses.
-
-The next layer is a host-owned race controller: resolve a sequence of stable
-track IDs, load the appropriate adapter at safe race boundaries, and keep
-track-level records keyed by identity. A shared cup with optional tracks
-should expose its available entries and mark incomplete GP lineups explicitly.
-Adapters must define course loading, vehicle/rules compatibility and results
-extraction. Do not treat different boosting systems as interchangeable races.
-
-The `fzero-max-v1` adapter is qualified here for the two pinned MAX outputs.
-New code-changing hacks need adapter qualification even when their IPS/BPS
-syntax is valid. MSU-1 is not applied to imported packs; stock and Deluxe retain
-their existing MSU support. Performance promotion to native MAX code is future
-work after correctness and course coverage.
-
-## Validation
-
-- Ten game CTest suites, including partial/absent/disabled/removed/restored
-  pack combinations, duplicate quarantine, and preservation of old settings.
-- Framework patch/catalog suite and native dispatch isolation contract test.
-- Four 1,600-frame gameplay runs: MAX Classic IPS, equivalent MAX Modern BPS,
-  retail King and BS-1. Each reached live gameplay with changing video/audio.
-- Missing and corrupt selected patches fail; unrelated content continues to
-  boot. Restoring a patch restores its cup. Source ROM bytes remain identical.
-- Desktop Classic race with widescreen presentation, save and reload; the
-  snapshot loads in Classic and is refused in Modern, retail and Deluxe.
-- Actual launcher and guest-menu screenshots inspected. Cup navigation goes
-  through guest input so cursor, palettes, DMA and window masks stay in sync.
-
-Reproduce the private gameplay checks after building with Deluxe enabled:
-
-```powershell
-python tests/validate_track_packs.py --build build --stock 'path/to/fzero.sfc' `
-  --archive 'path/to/F-Zero MAX League.zip' --out captures/qualification-new
-```
-
-The output directory must be new. No full-cup completion or all-five-track
-qualification is claimed. The experiment is ready for further playtesting.
-
-MAX League is by PowerPanda and Zephyrum25. Their supplied readme also credits
-Grego/Catador's FZEdit, Tiled, Alejandro/Fennor's fixes and modern boost code,
-and BS Deluxe's recovered track work by GuyPerfect, Porthor and PowerPanda.
+The save-root API is limited to 95 bytes; imported cup subdirectories consume
+41 of those. Use a short root override for this experiment.

@@ -1,0 +1,20 @@
+# FZEdit course resources in MAX League 1.0 (both Classic and Modern).
+# CPU LoROM addresses, hexadecimal. All resources are parsed and bounded.
+format=fzero-course-1
+count=5
+pools=108605
+settings=108614
+palettes=10861e
+maps=10862d
+graphics=10865f
+paths=10866e
+names=10867d
+sky_graphics=108702
+sky_back=1086e4
+sky_front=1086f3
+minimaps=1085b9
+map_positions=1085c8
+terrain=108744
+gradients=10873f
+opponents=108767
+shortcuts=108753

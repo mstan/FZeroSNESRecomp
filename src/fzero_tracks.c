@@ -1,4 +1,5 @@
 #include "fzero_tracks.h"
+#include "sha256.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +13,7 @@
 #endif
 
 static CpCatalog catalog;
-static char root_path[CP_PATH], selection[CP_ID * 2], error_text[256];
+static char root_path[CP_PATH], error_text[256];
 static char patches[CP_PACKS][CP_PATH];
 static bool disabled[CP_PACKS];
 static char diagnostics[CP_PACKS][256];
@@ -20,9 +21,16 @@ static unsigned diagnostic_count;
 static char ambiguous[CP_PACKS][CP_ID];
 static unsigned ambiguous_count;
 static bool has_deluxe;
+static bool library_enabled = true;
+bool FzeroTracksLibraryEnabled(void) { return library_enabled; }
+void FzeroTracksLibraryEnable(bool enabled) { library_enabled=enabled; }
 const CpCatalog *FzeroTracksCatalog(void) { return &catalog; }
 const char *FzeroTracksError(void) { return error_text; }
-const char *FzeroTracksSelection(void) { return selection; }
+const char *FzeroTracksRoot(void) { return root_path; }
+void FzeroTracksReport(const char *message) {
+    if (diagnostic_count < CP_PACKS) snprintf(diagnostics[diagnostic_count++],256,"%s",message);
+    fprintf(stderr,"[track-library] %s\n",message);
+}
 unsigned FzeroTracksDiagnosticCount(void) { return diagnostic_count; }
 const char *FzeroTracksDiagnostic(unsigned i) { return i < diagnostic_count ? diagnostics[i] : ""; }
 static bool fail(const char *text) { snprintf(error_text, sizeof(error_text), "%s", text); return false; }
@@ -97,14 +105,19 @@ static void add_builtin(const char *id, const char *name, const char *adapter,
     }
     cp_catalog_add(&catalog, p, error_text, sizeof(error_text)); free(p);
 }
-static void load_manifest(const char *name) {
+static void load_manifest_at(const char *directory, const char *name, bool fallback) {
     size_t n = strlen(name); char path[CP_PATH], error[256] = "Manifest path is too long";
     if (n < 5 || strcmp(name+n-4, ".ini") || strchr(name, '/') || strchr(name, '\\')) return;
     CpPack *p = malloc(sizeof(*p));
     if (!p) { fail("Out of memory"); return; }
-    bool ok = path_for(path, sizeof(path), name, "") && cp_manifest_read(path, p, error, sizeof(error));
-    if (ok && strcmp(p->adapter, "fzero-max-v1")) {
+    bool ok = snprintf(path,sizeof(path),"%s/%s",directory,name)<(int)sizeof(path) && cp_manifest_read(path, p, error, sizeof(error));
+    if (ok && strcmp(p->adapter, "fzero-course-v1")) {
         snprintf(error, sizeof(error), "Unsupported game adapter: %s", p->adapter); ok = false;
+    }
+    if (ok && fallback) {
+        bool conflict=cp_catalog_find(&catalog,p->id)!=NULL;
+        for(unsigned i=0;i<ambiguous_count;++i)conflict|=!strcmp(ambiguous[i],p->id);
+        if(conflict){free(p);return;}
     }
     if (ok) {
         for (unsigned i = 0; i < ambiguous_count; ++i) if (!strcmp(ambiguous[i], p->id)) {
@@ -127,10 +140,24 @@ static void load_manifest(const char *name) {
         snprintf(diagnostics[diagnostic_count++], sizeof(diagnostics[0]), "%.80s: %.160s", name, error);
     free(p);
 }
+static void scan_manifests(const char *directory,bool fallback) {
+#ifdef _WIN32
+    char pattern[CP_PATH];WIN32_FIND_DATAA data;
+    if(snprintf(pattern,sizeof(pattern),"%s/*.ini",directory)>=(int)sizeof(pattern))return;
+    HANDLE h=FindFirstFileA(pattern,&data);
+    if(h!=INVALID_HANDLE_VALUE) {
+        do {if(!(data.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))load_manifest_at(directory,data.cFileName,fallback);}while(FindNextFileA(h,&data));
+        FindClose(h);
+    }
+#else
+    DIR *dir=opendir(directory);
+    if(dir){struct dirent *entry;while((entry=readdir(dir)))load_manifest_at(directory,entry->d_name,fallback);closedir(dir);}
+#endif
+}
 bool FzeroTracksInit(const char *root, bool deluxe_available) {
     cp_catalog_free(&catalog); memset(patches, 0, sizeof(patches));
     memset(disabled, 0, sizeof(disabled));
-    selection[0] = error_text[0] = 0; diagnostic_count = ambiguous_count = 0; has_deluxe = deluxe_available;
+    error_text[0] = 0; diagnostic_count = ambiguous_count = 0; has_deluxe = deluxe_available;
     if (!root || !*root || strlen(root) >= sizeof(root_path)-CP_ID-16) return fail("Track library path is too long");
     strcpy(root_path, root);
     static const char *const cups[] = {"knight", "queen", "king", "bs-1", "bs-2"};
@@ -142,18 +169,10 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
         "Mute City IV", "Forest III", "Sand Storm II", "Metal Fort I", "Metal Fort II"};
     add_builtin("retail", "F-Zero", "retail", cups, 3, tracks);
     add_builtin("bs-deluxe", "BS Deluxe", "bs-deluxe", cups, 5, tracks);
-#ifdef _WIN32
-    char pattern[CP_PATH]; WIN32_FIND_DATAA data;
-    path_for(pattern, sizeof(pattern), "*", ".ini");
-    HANDLE h = FindFirstFileA(pattern, &data);
-    if (h != INVALID_HANDLE_VALUE) {
-        do { if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) load_manifest(data.cFileName); } while (FindNextFileA(h, &data));
-        FindClose(h);
-    }
-#else
-    DIR *dir = opendir(root_path);
-    if (dir) { struct dirent *entry; while ((entry = readdir(dir))) load_manifest(entry->d_name); closedir(dir); }
-#endif
+    scan_manifests(root_path,false);
+    /* Registry defaults are read-only. Local identities override defaults;
+     * ambiguous local IDs remain quarantined rather than falling back. */
+    scan_manifests("assets/track-packs",true);
     char path[CP_PATH];
     for (unsigned i = 0; i < catalog.count; ++i) {
         path_for(path, sizeof(path), catalog.packs[i]->id, ".path");
@@ -161,14 +180,8 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
         char flag[8] = {0}; path_for(path, sizeof(path), catalog.packs[i]->id, ".disabled");
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
     }
-    path_for(path, sizeof(path), "selection", ".txt");
-    if (!read_line(path, selection, sizeof(selection))) selection[0] = 0;
-    /* A missing persisted key stays missing. Never bind it to another index. */
-    const char *override = getenv("FZERO_CUP");
-    if (override) {
-        if (strlen(override) >= sizeof(selection)) return fail("Cup key is too long");
-        strcpy(selection, override);
-    }
+    char library_flag[8]={0};path_for(path,sizeof(path),"library",".disabled");
+    library_enabled=!(read_line(path,library_flag,sizeof(library_flag))&&!strcmp(library_flag,"1"));
     return catalog.count >= 2;
 }
 bool FzeroTracksSetPatch(const CpPack *p, const char *path) {
@@ -182,36 +195,6 @@ bool FzeroTracksSetPatch(const CpPack *p, const char *path) {
     }
     strcpy(patches[i], path); error_text[0] = 0; return true;
 }
-bool FzeroTracksSelect(const char *key) {
-    const CpPack *p = NULL;
-    if (!key || strlen(key) >= sizeof(selection)) return fail("Invalid cup key");
-    if (*key && (!cp_catalog_cup(&catalog, key, &p) || !FzeroTracksAvailable(p))) return fail("Cup unavailable; locate its patch first");
-    strcpy(selection, key); error_text[0] = 0; return true;
-}
-const CpCup *FzeroTracksSelected(const CpPack **p) { return cp_catalog_cup(&catalog, selection, p); }
-unsigned FzeroTracksCupCount(void) {
-    unsigned count = 0;
-    for (unsigned i = 0; i < catalog.count; ++i) if (FzeroTracksAvailable(catalog.packs[i])) count += catalog.packs[i]->cup_count;
-    return count;
-}
-const CpCup *FzeroTracksCupAt(unsigned index, const CpPack **pack) {
-    for (unsigned i = 0; i < catalog.count; ++i) {
-        const CpPack *p = catalog.packs[i];
-        if (!FzeroTracksAvailable(p)) continue;
-        if (index < p->cup_count) { if (pack) *pack = p; return &p->cups[index]; }
-        index -= p->cup_count;
-    }
-    return NULL;
-}
-bool FzeroTracksValidate(const uint8_t *stock, size_t size) {
-    if (!*selection) return true;
-    const CpPack *p = NULL;
-    if (!FzeroTracksSelected(&p) || !FzeroTracksAvailable(p)) return fail("Selected cup is unavailable. Restore its patch or choose another cup in Track Library.");
-    if (builtin(p)) return true;
-    uint8_t *target = NULL; size_t target_size = 0;
-    bool ok = cp_pack_apply(p, stock, size, FzeroTracksPatch(p), &target, &target_size, error_text, sizeof(error_text));
-    free(target); return ok;
-}
 bool FzeroTracksSave(void) {
 #ifdef _WIN32
     if (_mkdir(root_path) && errno != EEXIST) return fail("Cannot create track library directory");
@@ -222,5 +205,51 @@ bool FzeroTracksSave(void) {
         if (!write_line(catalog.packs[i]->id, ".path", patches[i]) ||
             !write_line(catalog.packs[i]->id, ".disabled", disabled[i] ? "1" : "0")) return false;
     }
-    return write_line("selection", ".txt", selection);
+    return write_line("library", ".disabled", library_enabled?"0":"1");
+}
+
+enum { MAX_PATCH_FILES=256 };
+static char patch_files[MAX_PATCH_FILES][CP_PATH];
+static unsigned patch_file_count;
+static void candidate(const char *name) {
+    const char *ext=strrchr(name,'.');if(!ext)return;
+    char suffix[8]={0};if(strlen(ext)>=sizeof(suffix))return;
+    for(unsigned i=0;ext[i];++i)suffix[i]=ext[i]>='A'&&ext[i]<='Z'?ext[i]+32:ext[i];
+    if(strcmp(suffix,".ips")&&strcmp(suffix,".bps")&&strcmp(suffix,".patch"))return;
+    if(patch_file_count>=MAX_PATCH_FILES){FzeroTracksReport("Patch directory limit reached (256 files)");return;}
+    if(path_for(patch_files[patch_file_count],CP_PATH,name,""))++patch_file_count;
+}
+static int compare_paths(const void *a,const void *b) { return strcmp(a,b); }
+void FzeroTracksDiscover(const uint8_t *stock,size_t size) {
+    patch_file_count=0;
+    if(!library_enabled)return;
+#ifdef _WIN32
+    char pattern[CP_PATH];WIN32_FIND_DATAA data;if(!path_for(pattern,sizeof(pattern),"*",""))return;
+    HANDLE h=FindFirstFileA(pattern,&data);
+    if(h!=INVALID_HANDLE_VALUE){do{if(!(data.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))candidate(data.cFileName);}while(FindNextFileA(h,&data));FindClose(h);}
+#else
+    DIR *dir=opendir(root_path);if(dir){struct dirent *entry;while((entry=readdir(dir)))candidate(entry->d_name);closedir(dir);}
+#endif
+    qsort(patch_files,patch_file_count,sizeof(patch_files[0]),compare_paths);
+    uint8_t source_hash[32];sha256_compute(stock,size,source_hash);
+    bool found[CP_PACKS]={0};
+    for(unsigned f=0;f<patch_file_count;++f){
+        FILE *file=fopen(patch_files[f],"rb");if(!file)continue;
+        bool ok=!fseek(file,0,SEEK_END);long length=ok?ftell(file):-1;
+        ok=ok&&length>=8&&length<=CP_ROM_LIMIT*2&&!fseek(file,0,SEEK_SET);
+        uint8_t *patch=ok?malloc((size_t)length):NULL,*target=NULL;size_t target_size=0;
+        char error[256]="Patch exceeds input limit or cannot be read";
+        ok=patch&&fread(patch,1,(size_t)length,file)==(size_t)length;fclose(file);
+        if(ok)ok=cp_patch_apply(stock,size,patch,(size_t)length,&target,&target_size,error,sizeof(error));
+        free(patch);
+        if(!ok){char msg[256];snprintf(msg,sizeof(msg),"%.100s: %.140s",patch_files[f],error);FzeroTracksReport(msg);continue;}
+        uint8_t hash[32];sha256_compute(target,target_size,hash);free(target);bool matched=false;
+        for(unsigned i=0;i<catalog.count;++i){const CpPack *p=catalog.packs[i];
+            if(builtin(p)||memcmp(source_hash,p->source_hash,32))continue;
+            bool same=!memcmp(hash,p->target_hash,32);
+            for(unsigned j=0;j<p->alternate_target_count;++j)same|=!memcmp(hash,p->alternate_target_hash[j],32);
+            if(same){matched=true;if(!found[i]){strcpy(patches[i],patch_files[f]);found[i]=true;}}
+        }
+        if(!matched){char msg[256];snprintf(msg,sizeof(msg),"%.150s: no matching course manifest; see PARSE_MANIFEST.md",patch_files[f]);FzeroTracksReport(msg);}
+    }
 }
