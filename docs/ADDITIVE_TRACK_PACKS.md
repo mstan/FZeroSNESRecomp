@@ -22,7 +22,8 @@ unknown-patch workflow and gameplay qualification checklist.
 MAX Classic and CGP P1 IPS patches are bundled with attribution in
 `assets/track-packs`. They are discovered automatically alongside their
 manifests. Drop additional IPS/BPS files into `mods/track-packs` beside the
-executable. Matching user patches take precedence over bundled defaults. Known MAX
+executable. Bundled packs use their fixed included patch and expose only an
+enable checkbox, ignoring old file selections and duplicate user copies. Known MAX
 Classic and Modern patches are recognized by verified output SHA-256 and
 contribute one identical five-course pack. User manifests and layouts live
 beside their patches; the shipped registry is read-only. New registry entries
@@ -105,7 +106,7 @@ python tests/validate_bundled_tracks.py --build build --stock path/to/fzero.sfc 
 This checks the bundled IPS digests and attribution files, all four pack-toggle
 combinations, stock/BS gameplay, both imported packs, duplicate user copies and
 obsolete master settings. Bundled `<pack-id>.ips` or `.bps` companions appear
-as supplied in the launcher before ROM selection; hashes are verified on Play.
+as checkbox-only mods before ROM selection; hashes are verified on Play.
 
 Private qualification (requires the owner's original ROM and patch archive):
 

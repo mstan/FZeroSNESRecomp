@@ -22,6 +22,15 @@ int main(void) {
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
     CHECK(strcmp(pack.package_id, "track-library") && !strcmp(pack.id, "tracks"));
     CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == 0);
+    RecompLauncherCModResource resource;
+    if (FzeroTracksBundled(cp_catalog_find(catalog,pack.package_id))) {
+      CHECK(p->feature_resource_count(NULL,pack.package_id,pack.id) == 0);
+      CHECK(!p->feature_resource_get(NULL,pack.package_id,pack.id,0,&resource));
+      CHECK(!p->feature_resource_set_path(NULL,pack.package_id,pack.id,"patch",""));
+    } else {
+      CHECK(p->feature_resource_count(NULL,pack.package_id,pack.id) == 1);
+      CHECK(p->feature_resource_get(NULL,pack.package_id,pack.id,0,&resource));
+    }
     CHECK(!p->feature_option_get(NULL, pack.package_id, pack.id, 0, &option));
     CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 0));
     CHECK(p->feature_get(NULL, i, &pack) && !pack.enabled && !strcmp(pack.status, "Disabled"));

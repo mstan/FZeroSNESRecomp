@@ -16,6 +16,7 @@ static CpCatalog catalog;
 static char root_path[CP_PATH], error_text[256];
 static char patches[CP_PACKS][CP_PATH];
 static bool disabled[CP_PACKS];
+static bool bundled[CP_PACKS];
 static char diagnostics[CP_PACKS][256];
 static unsigned diagnostic_count;
 static char ambiguous[CP_PACKS][CP_ID];
@@ -36,6 +37,7 @@ static int index_of(const CpPack *p) {
     return -1;
 }
 const char *FzeroTracksPatch(const CpPack *p) { int i = index_of(p); return i < 0 ? "" : patches[i]; }
+bool FzeroTracksBundled(const CpPack *p) { int i = index_of(p); return i >= 0 && bundled[i]; }
 static bool builtin(const CpPack *p) { return !strcmp(p->adapter, "retail") || !strcmp(p->adapter, "bs-deluxe"); }
 bool FzeroTracksAvailable(const CpPack *p) {
     if (!p) return false;
@@ -164,6 +166,7 @@ static void select_companion_patch(const CpPack *pack, const char *directory) {
 bool FzeroTracksInit(const char *root, bool deluxe_available) {
     cp_catalog_free(&catalog); memset(patches, 0, sizeof(patches));
     memset(disabled, 0, sizeof(disabled));
+    memset(bundled, 0, sizeof(bundled));
     error_text[0] = 0; diagnostic_count = ambiguous_count = 0; has_deluxe = deluxe_available;
     if (!root || !*root || strlen(root) >= sizeof(root_path)-CP_ID-16) return fail("Track library path is too long");
     strcpy(root_path, root);
@@ -182,13 +185,16 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
     scan_manifests("assets/track-packs",true);
     char path[CP_PATH];
     for (unsigned i = 0; i < catalog.count; ++i) {
-        path_for(path, sizeof(path), catalog.packs[i]->id, ".path");
-        if (!read_line(path, patches[i], sizeof(patches[i]))) patches[i][0] = 0;
-        /* Show packaged inputs in the launcher even before a ROM is selected.
-         * Exact source/target verification still happens at discovery/Play. */
-        if (!builtin(catalog.packs[i]) && !patches[i][0]) {
-            select_companion_patch(catalog.packs[i],root_path);
-            if(!patches[i][0])select_companion_patch(catalog.packs[i],"assets/track-packs");
+        /* Included packs have a fixed input; old picker settings cannot replace
+         * it. Exact source/target verification still happens on Play. */
+        if (!builtin(catalog.packs[i])) {
+            select_companion_patch(catalog.packs[i],"assets/track-packs");
+            bundled[i] = patches[i][0] != 0;
+            if (!bundled[i]) {
+                path_for(path, sizeof(path), catalog.packs[i]->id, ".path");
+                if (!read_line(path, patches[i], sizeof(patches[i]))) patches[i][0] = 0;
+                if (!patches[i][0])select_companion_patch(catalog.packs[i],root_path);
+            }
         }
         char flag[8] = {0}; path_for(path, sizeof(path), catalog.packs[i]->id, ".disabled");
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
@@ -198,6 +204,7 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
 bool FzeroTracksSetPatch(const CpPack *p, const char *path) {
     int i = index_of(p);
     if (i < 0 || builtin(p) || !path || strlen(path) >= CP_PATH || strchr(path, '\n') || strchr(path, '\r')) return fail("Invalid patch path");
+    if (bundled[i]) return fail("Bundled packs use their included patch");
     if (*path) {
         FILE *f = fopen(path, "rb"); uint8_t magic[5] = {0};
         if (!f) return fail("Cannot open the selected patch");
@@ -213,7 +220,7 @@ bool FzeroTracksSave(void) {
     if (mkdir(root_path, 0755) && errno != EEXIST) return fail("Cannot create track library directory");
 #endif
     for (unsigned i = 0; i < catalog.count; ++i) if (!builtin(catalog.packs[i])) {
-        if (!write_line(catalog.packs[i]->id, ".path", patches[i]) ||
+        if ((!bundled[i] && !write_line(catalog.packs[i]->id, ".path", patches[i])) ||
             !write_line(catalog.packs[i]->id, ".disabled", disabled[i] ? "1" : "0")) return false;
     }
     return true;
@@ -246,11 +253,11 @@ static void scan_patches(const char *directory) {
 void FzeroTracksDiscover(const uint8_t *stock,size_t size) {
     patch_file_count=0;
     scan_patches(root_path);
-    /* Shared shipped inputs use the same verified manifest path as user packs.
-     * User inputs take precedence; only per-pack settings control activation. */
+    /* Shipped inputs use the same verified manifest path as user packs, but
+     * retain their fixed patch. Only per-pack settings control activation. */
     if(strcmp(root_path,"assets/track-packs"))scan_patches("assets/track-packs");
     uint8_t source_hash[32];sha256_compute(stock,size,source_hash);
-    bool found[CP_PACKS]={0};
+    bool found[CP_PACKS];memcpy(found,bundled,sizeof(found));
     for(unsigned f=0;f<patch_file_count;++f){
         FILE *file=fopen(patch_files[f],"rb");if(!file)continue;
         bool ok=!fseek(file,0,SEEK_END);long length=ok?ftell(file):-1;

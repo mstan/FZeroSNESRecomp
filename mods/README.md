@@ -1,7 +1,8 @@
 # Add more courses to F-Zero
 
 MAX League and Community Grand Prix are included. Enable or disable each pack
-in **Mods**; every enabled pack adds its cups automatically. Start the game,
+in **Mods**; every enabled pack adds its cups automatically. Bundled packs have
+only an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
 buttons. Imported cups appear after the original leagues.
 
@@ -53,7 +54,8 @@ mods/track-packs/
 The manifest supplies stable pack, cup and course identities and exact ROM
 hashes. The layout describes course resources. Filenames of patches do not
 matter. Bundled defaults remain in `assets/track-packs`; user patches and
-settings remain in `mods/track-packs`, and matching user patches take precedence.
+settings remain in `mods/track-packs`. Bundled packs always use their included
+patch; old file selections and extra copies cannot replace it.
 Patches are applied separately to your original ROM in memory. The
 game imports course data and discards the donor's replacement engine code.
 Your original ROM is never modified.

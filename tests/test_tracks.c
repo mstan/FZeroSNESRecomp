@@ -66,14 +66,20 @@ int main(void) {
     const CpPack *bundled=cp_catalog_find(FzeroTracksCatalog(),"bundled");
     /* The launcher can show the supplied input before selecting a ROM. */
     CHECK(bundled && FzeroTracksAvailable(bundled));
+    CHECK(FzeroTracksBundled(bundled));
+    CHECK(!FzeroTracksSetPatch(bundled,""));
     CHECK(!strcmp(FzeroTracksPatch(bundled),"assets/track-packs/bundled.ips"));
     FzeroTracksDiscover((const uint8_t *)"abc",3);
     CHECK(!strcmp(FzeroTracksPatch(bundled),"assets/track-packs/bundled.ips"));
     write_file("user/override.ips","PATCHEOF",8);FzeroTracksDiscover((const uint8_t *)"abc",3);
-    CHECK(!strcmp(FzeroTracksPatch(bundled),"user/override.ips"));
+    CHECK(!strcmp(FzeroTracksPatch(bundled),"assets/track-packs/bundled.ips"));
+    CHECK(!FzeroTracksSetPatch(bundled,"user/override.ips"));
+    write_file("user/bundled.path","user/override.ips\n",18);
     CHECK(FzeroTracksEnable(bundled,false) && FzeroTracksSave());
     CHECK(FzeroTracksInit("user",true));FzeroTracksDiscover((const uint8_t *)"abc",3);
-    CHECK(!FzeroTracksAvailable(cp_catalog_find(FzeroTracksCatalog(),"bundled")));
+    bundled=cp_catalog_find(FzeroTracksCatalog(),"bundled");
+    CHECK(!FzeroTracksAvailable(bundled));
+    CHECK(!strcmp(FzeroTracksPatch(bundled),"assets/track-packs/bundled.ips"));
     CHECK(!CHDIR(".."));
     puts("User/bundled discovery, per-pack toggles, obsolete settings and duplicate quarantine passed");return 0;
 }

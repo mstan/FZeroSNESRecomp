@@ -12,6 +12,7 @@ void FzeroTracksReport(const char *message);
 void FzeroTracksDiscover(const uint8_t *stock, size_t size);
 const char *FzeroTracksPatch(const CpPack *pack);
 bool FzeroTracksAvailable(const CpPack *pack);
+bool FzeroTracksBundled(const CpPack *pack);
 bool FzeroTracksEnabled(const CpPack *pack);
 bool FzeroTracksEnable(const CpPack *pack, bool enabled);
 bool FzeroTracksSetPatch(const CpPack *pack, const char *path);

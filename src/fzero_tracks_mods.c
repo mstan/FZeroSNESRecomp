@@ -25,7 +25,7 @@ static int feature_get(void *ctx, int i, RecompLauncherCModFeature *out) {
     COPY(out->package_name, p->name); COPY(out->author, p->author);
     snprintf(out->description, sizeof(out->description), "%u cup(s), %u course(s). Enable this pack to add its cups to the in-game Grand Prix league list.", p->cup_count, p->track_count);
     out->enabled = FzeroTracksEnabled(p);
-    COPY(out->status, !out->enabled ? "Disabled" : FzeroTracksAvailable(p) ? "Enabled; patch checked on Play" : "Supply the patch to add these cups");
+    COPY(out->status, !out->enabled ? "Disabled" : FzeroTracksBundled(p) ? "Enabled" : FzeroTracksAvailable(p) ? "Enabled; patch checked on Play" : "Supply the patch to add these cups");
     return 1;
 }
 static int package_get(void *ctx, int i, RecompLauncherCModPackage *out) {
@@ -40,13 +40,14 @@ static int enable(void *ctx, const char *package, const char *feature, int enabl
     return p && feature && !strcmp(feature, "tracks") && FzeroTracksEnable(p, enabled != 0);
 }
 static int resources(void *ctx, const char *package, const char *feature) {
-    (void)ctx; return find(package) && feature && !strcmp(feature, "tracks");
+    (void)ctx; const CpPack *p=find(package);
+    return p && !FzeroTracksBundled(p) && feature && !strcmp(feature, "tracks");
 }
 static int resource_get(void *ctx, const char *package, const char *feature, int i, RecompLauncherCModResource *out) {
     if (!out || i || !resources(ctx, package, feature)) return 0;
     const CpPack *p = find(package); memset(out, 0, sizeof(*out));
     COPY(out->id, "patch"); COPY(out->label, "IPS or BPS patch"); COPY(out->path, FzeroTracksPatch(p));
-    COPY(out->description, "Bundled patches are selected automatically. For other packs, extract the IPS or BPS from its ZIP and select it here.");
+    COPY(out->description, "Extract the IPS or BPS from its ZIP and select it here.");
     COPY(out->file_patterns, "*.ips,*.bps"); COPY(out->file_description, "ROM patches");
     COPY(out->status, *FzeroTracksPatch(p) ? "Selected; exact output verified on Play" : "Not supplied");
     return 1;
