@@ -147,9 +147,8 @@ filmstrip. It shows the recent past as a strip of frames:
 - **A** on a pad, or **Enter** / **Space**, jumps to the selected moment.
 - **B** on a pad, or **Escape**, leaves without changing anything.
 
-Rewind is **off by default**, because it keeps whole snapshots of the machine
-in memory. Turn it on in the launcher under **Settings**, where you can also
-set:
+Rewind is **on by default**. You can turn it off in the launcher's **Settings**,
+where you can also set:
 
 - **Rewind depth:** how many snapshots to keep (50, 100, 150, or 200).
 - **Rewind interval:** how many frames apart they are (1, 4, 8, 12, 15, or 30).

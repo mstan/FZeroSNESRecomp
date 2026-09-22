@@ -519,6 +519,9 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
   settings->volume = 100;
   settings->player_src[0] = 1;
   settings->deadzone[0] = 25;
+  settings->rewind_enabled = 1;
+  settings->rewind_depth = 50;
+  settings->rewind_interval = 15;
   settings->aspect_index = (int)g_video.aspect;
   /* The built-in mod owns native presentation settings. */
   settings->adaptive_view = 0;

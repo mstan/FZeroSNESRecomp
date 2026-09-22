@@ -2,6 +2,9 @@
 
 ## 1.8.3-fzero-55 - local branch build
 
+- Enable rewind by default for fresh installations; F8 opens the filmstrip.
+  Existing saved preferences remain respected.
+
 - Bundle CGP's 30 new courses alongside the 15 original and 10 BS courses:
   55 tracks in 11 cups, with the canonical eight-car roster and rendering.
 - Add enabled packs directly to the in-game league menu. Bundled packs use

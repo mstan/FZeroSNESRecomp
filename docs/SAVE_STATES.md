@@ -34,7 +34,8 @@ spellings, and the ini scan. It is deliberately not the framework's
 collide with it — and it is tested without SDL in `tests/test_hotkeys.c`.
 
 Rewind's own three settings live in the same file, as `[Rewind] Enabled`,
-`Depth` and `Interval`. recomp-ui leaves `Settings` persistence to the host
+`Depth` and `Interval`. New installations start with rewind enabled; an
+explicit saved `Enabled=0` remains off. recomp-ui leaves `Settings` persistence to the host
 and this host persisted none of it, so without that the launcher's checkbox
 came back off on every launch. They are written through the framework's own
 surgical writer (`launcher_ini_kv_write`), so `[KeyMap]` above is untouched,
