@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
+from validate_native_menus import ORDER, player_route
 import re
 import shutil
 import subprocess
@@ -82,9 +83,7 @@ def main():
     cases += [dict(name=f'partial-{mask}',packs=mask) for mask in range(1,8)]
     cases += [dict(name='lifecycle-'+v,vehicle=v,rules='cgp-legend',lifecycle=True,frames=1850) for v in NAMES]
     cases += [dict(name='navigate-'+v,vehicle=v,navigate=True,frames=570,
-                   route='320-326:8'+''.join(f',{400+j*30}-{403+j*30}:128' for j in range(i//4))+''.join(f',{480+j*20}-{483+j*20}:32' for j in range(i%4)))
-              for i,v in enumerate(['blue-falcon','golden-fox','wild-goose','fire-stingray','moon-shadow',
-                                     'great-star','dragon-bird','death-anchor','p-emerald','black-bull','white-cat','red-gazelle'])]
+                   route=player_route(i)) for i in ORDER for v in [NAMES[i]]]
     cases += [dict(name='rewind-'+v,vehicle=v,rewind=True,rules='cgp-legend') for v in NAMES]
     cases += [dict(name='practice-'+v,vehicle=v,practice=True,rewind=True,
                    route=ROUTE+',300-306:32',rules='cgp-legend') for v in NAMES]

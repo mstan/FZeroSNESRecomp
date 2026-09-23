@@ -179,3 +179,66 @@ the owner's settings/saves. A launcher screenshot confirms restored Lato,
 SNES branding and controller art (`continuous-desktop-check/launcher-restored.png`).
 Release packaging already uses the complete built assets; profile-based private
 playtests must not be distributed as release ZIPs.
+
+## Author-group columns and minimap colors (preview.5)
+
+Enabled P1/P2/P3 packs now occupy full four-car columns in their authored native
+row order (physical slots 0, 2, 1, 3):
+
+| Row | P1 | P2 | P3 |
+| --- | --- | --- | --- |
+| 1 | Moon Shadow | Blue Falcon | White Cat |
+| 2 | Great Star | Golden Fox | Red Gazelle |
+| 3 | Dragon Bird | P. Emerald | Wild Goose |
+| 4 | Death Anchor | Black Bull | Fire Stingray |
+
+Each original identity appears once. If its pack is disabled it joins the
+remaining originals in a separate, possibly partial column. Column membership
+does not enable a rebalance. Initial selection remains Blue Falcon, now the
+middle column when all three packs are enabled. The existing native carousel
+presentation, GP cohorts and unrestricted Practice rivals are retained.
+A separate snapshot marker rejects older CGP states containing obsolete menu
+indices; the gameplay signature and existing course record keys are unchanged.
+
+The owner confirmed that the alternating minimap dot belonged to Moon Shadow.
+Sixty-four consecutive captures reproduce pink `$3D3F` and blue `$7E8C`, changing
+every four frames. Native routine `$00:C163` alternates exhaust palettes at
+WRAM `$0760/$0860` into `$0660`. The shared marker entry inherited another
+car's color in one phase. Other physical slots retained retail marker colors,
+including Dragon Bird's green Wild Goose dot.
+
+Vehicle imports now retain only the two-byte marker color in each authored
+HUD row (`$7CD06 + row * 32`), eight bytes per donor. The runtime resolves marker
+colors using the stable identity in each racing slot, including a composed
+Practice rival. It updates only those color entries in the current and both
+buffered palettes before the native copy routine. Exhaust colors, timing and
+other HUD entries remain native. Neither stock nor original BS mode installs
+this hook. These marker resources are separate from record signatures.
+
+The unusual CGP Blue Falcon rear/turning shape is present in the author's P2
+artwork. Snes9x reference captures of the small artwork donor and full CGP P2
+ROM show that body shape; the full donor also matches its central exhaust.
+Enabling the other three original-car rebalances does not replace its artwork.
+This does not claim complete pixel or full-race equivalence. The information
+panel still uses original numeric cards and color styling; the later Dragon
+Bird/Wild Goose card feedback remains open, separately from the fixed map dot.
+
+Private evidence under `captures/feedback-20260923`:
+
+- `authored-columns-final`: 83 native-menu cases. Every displayed row has the
+  expected group, full artwork bank, selected palette and dim palette, including
+  all partial pack subsets and empty rows. All twelve cars enter races.
+- `authored-columns-practice`: 41 cases, including unrestricted mixed rivals,
+  all sixteen cups, eighty course previews and rewind.
+- `authored-columns-gp`: 44 starting-field cases, including partial packs and
+  sixteen group-switch/rewind checks.
+- `authored-columns-motion`: six directional transitions, 84 captured frames,
+  native/wide/HD composition and identical mid-slide rewind replay.
+- `markers-final`: 22 cases. All twelve identities, four untuned originals,
+  stock/BS baselines, Moon Shadow rewind and three cross-group Practice pairs.
+  Checks both exhaust phases, source colors, native marker pixels, composed
+  rival palettes, continuing exhaust animation and wide/HD Moon Shadow output.
+- `blue-falcon-feedback`: private reference-emulator and recomp comparisons.
+- Core CTest: 12/12 passed after these changes.
+
+These focused checks do not close the broader B03/B10/B12 limitations.

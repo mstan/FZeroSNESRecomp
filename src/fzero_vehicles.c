@@ -36,7 +36,7 @@ static const Vehicle vehicles[] = {{"blue-falcon", "BLUE FALCON", 0, 0},
                                    {"red-gazelle", "RED GAZELLE", 3, 2}};
 static const unsigned cohort[4][4] = {
     {0, 1, 2, 3}, {4, 5, 6, 7}, {0, 8, 2, 9}, {10, 1, 11, 3}};
-static const unsigned menu_order[] = {0, 2, 1, 3, 4, 6, 5, 7, 8, 9, 10, 11};
+static const unsigned menu_rows[] = {0, 2, 1, 3};
 static uint8_t *stock_image, *art[3], *images[4];
 static FzeroGameplaySettings choices, image_settings[4];
 static unsigned roster[12], count, selected_image = 99;
@@ -218,9 +218,25 @@ bool FzeroVehiclesLoad(const uint8_t *stock, size_t size, char *error,
       return false;
     }
   }
-  for (unsigned i = 0; i < 12; ++i)
-    if (enabled(menu_order[i]))
-      roster[count++] = menu_order[i];
+  /* Each enabled author's four-car group owns a complete native column.
+   * Stock identities remain single entries; their optional rebalances affect
+   * presentation/handling, never which column they belong to. Original cars
+   * whose CGP group is disabled follow in a separate, possibly partial column. */
+  unsigned placed = 0;
+  for (unsigned group = 1; group <= 3; ++group) {
+    if (!(choices.vehicle_packs & (1u << (group - 1))))
+      continue;
+    for (unsigned row = 0; row < 4; ++row) {
+      unsigned id = cohort[group][menu_rows[row]];
+      roster[count++] = id;
+      placed |= 1u << id;
+    }
+  }
+  for (unsigned row = 0; row < 4; ++row) {
+    unsigned id = menu_rows[row];
+    if (!(placed & (1u << id)))
+      roster[count++] = id;
+  }
   return true;
 }
 static void copy_changes(uint8_t *out, const uint8_t *source, unsigned start,
@@ -743,7 +759,24 @@ void FzeroVehiclesEndFrame(Ppu *ppu) {
   pane_active = false;
 }
 static void menu_hook(CpuState *cpu, uint32_t pc) {
-  if (pc == 0x1edd01) {
+  if (pc == 0x00c163) {
+    /* Exhaust animation alternates $0760/$0860 into the HUD palette. Those
+     * legacy tables can contain a retail or another donor car's marker.
+     * Resolve only that color by identity in both phases, retaining every
+     * exhaust color and the original animation/copy routine. */
+    static const unsigned hud_row[] = {3, 0, 2, 1};
+    for (unsigned slot = 0; slot < 4; ++slot) {
+      unsigned id = g_snes->cart->rom[0xf00ff + slot * 256];
+      if (id >= 12) continue;
+      unsigned group = group_for(id);
+      const uint8_t *source = group ? art[group - 1] : stock_image;
+      const uint8_t *color = source + 0x7cd06 + hud_row[vehicles[id].slot] * 32;
+      unsigned offset = 6 + hud_row[slot] * 32;
+      memcpy(g_ram + 0x600 + offset, color, 2);
+      memcpy(g_ram + 0x700 + offset, color, 2);
+      memcpy(g_ram + 0x800 + offset, color, 2);
+    }
+  } else if (pc == 0x1edd01) {
     g_ram[MENU_STATE] = 1;
     g_ram[MENU_DIRECTION] = 1;
     unsigned index = 0;
@@ -869,7 +902,7 @@ void FzeroVehiclesInstallHooks(void) {
   if (!count)
     return;
   const unsigned sites[] = {0x1edd01, 0x1ec76e, 0x1ed90a, 0x1edb0c, 0x1ec81b,
-                            0x1ed04f, 0x1ec831, 0x00d54c};
+                            0x1ed04f, 0x1ec831, 0x00d54c, 0x00c163};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], menu_hook);
 }

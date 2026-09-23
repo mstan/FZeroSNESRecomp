@@ -30,6 +30,20 @@ up/down changes the selected ship. **Vehicle Rebalances** separately offers
 the author's versions of Blue Falcon, Golden Fox, Wild Goose and Fire Stingray.
 Those options modify the existing identities and default off.
 
+Each enabled CGP set occupies its own selection column, in the author's native
+top-to-bottom order:
+
+| P1 | P2 | P3 |
+| --- | --- | --- |
+| Moon Shadow | Blue Falcon | White Cat |
+| Great Star | Golden Fox | Red Gazelle |
+| Dragon Bird | P. Emerald | Wild Goose |
+| Death Anchor | Black Bull | Fire Stingray |
+
+Original cars appear once, in their enabled group. If a group is disabled,
+its original cars remain available in a separate column. Group placement does
+not enable their optional artwork/stat rebalances.
+
 In Grand Prix, selecting any member of an enabled CGP set brings the other
 three as its main rivals: **P1** Moon Shadow / Dragon Bird / Great Star /
 Death Anchor; **P2** Blue Falcon / P. Emerald / Golden Fox / Black Bull;

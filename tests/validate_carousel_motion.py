@@ -55,7 +55,7 @@ def main():
     sheet = Image.new("RGB", (256 * 5, 242 * 6))
     draw = ImageDraw.Draw(sheet)
     for i, press in enumerate(presses):
-        target = [4, 8, 0, 8, 4, 0][i]
+        target = [10, 4, 0, 4, 10, 0][i]
         moving = []
         for frame in range(press - 1, press + 13):
             path = outputs[0] / f"capture-{frame:06}.bin"

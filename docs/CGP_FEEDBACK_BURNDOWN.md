@@ -12,6 +12,14 @@ Preview.4 delivery is tracked in `beads-8wg.5.49`; it does not close unfinished
 items below. See [tester notes](TESTER_NOTES_FZERO55.md) for remaining limitations.
 No GitHub release upload was requested.
 
+Preview.5 follow-up: authored selection columns and car-identity minimap colors
+are corrected. Marker coverage includes all twelve cars, untuned originals,
+stock/BS baselines, mixed Practice rivals and rewind. Native menu coverage
+checks every displayed row's source artwork and normal/dim palettes across
+partial installations. Original information-card numbers and styling remain
+open under B03/B10; the reported Dragon Bird green card is not fixed by the
+marker correction.
+
 Planning issue: `beads-8wg.5.34`. The 12 work items below belong directly under
 `beads-8wg.5` (Game: F-Zero), under `beads-8wg` (System: SNES), in the central
 database at `F:\Software\beads\issues`. Beads owns status; this file is the
@@ -276,7 +284,12 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   those bounds when CPU writes do not supersede them; repair old results-state
   bounds to the native empty window. Fresh BS results and the owner's slot 1
   pass stock/wide/HD checks, including old-state rewind. Broader visuals remain
-  open. See `CGP_VEHICLE_RUNTIME.md` for the current evidence.
+  open. The later Moon Shadow blue/pink marker alternation was reproduced:
+  native exhaust animation swapped in an unrelated slot color. Authored marker
+  colors now follow all four racing identities through both palette phases,
+  including cross-group Practice rivals. Dragon Bird's green marker is corrected;
+  its original information-card numbers/styling are still pending. See
+  `CGP_VEHICLE_RUNTIME.md` for the current evidence.
 
 <a id="original-cups"></a>
 - [x] **B11 — Compare CGP's first three leagues** — `beads-8wg.5.45`, P2.

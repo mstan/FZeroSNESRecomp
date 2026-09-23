@@ -1,4 +1,4 @@
-# F-Zero 55 preview.4: tester notes
+# F-Zero 55 preview.5: tester notes
 
 Extract this ZIP into a **new folder** and run `FZeroSNESRecomp.exe`. Select
 your own original F-Zero (USA) ROM. Keep older build folders and saves until
@@ -8,14 +8,21 @@ music are included.
 ## What is included
 
 - The original three leagues remain available unchanged.
-- CGP adds eleven cups: revised Knight/Queen/King, corrected BS-1/BS-2, and
+- CGP adds 40 courses beyond the original 15: 30 CGP courses and 10 corrected
+  BS courses. It also offers revisions of the original 15 as separate cups.
+  Its eleven cups are revised Knight/Queen/King, corrected BS-1/BS-2, and
   Baron, Scepter, Crown, Zenith, Falcon and True.
 - Bower adds five courses. MAX is visible again and defaults off. With all
   three packs enabled, there are **16 cups / 80 selectable course versions**.
 - Grand Prix and Practice use the vertical league list. Practice can preview
   courses across cups and select any enabled rival car.
 - Car selection keeps the native Satellaview style, with continuous movement
-  between columns and neighboring cars visible on both sides.
+  between columns and neighboring cars visible on both sides. Each enabled
+  P1/P2/P3 set now stays together in its own four-car column. Original cars
+  appear once; their optional rebalances remain independent.
+- Car minimap markers use their authored colors. Moon Shadow no longer
+  alternates pink/blue with its exhaust animation; Dragon Bird no longer
+  inherits Wild Goose's green marker.
 - Marine City's trampoline and Lightning's railroad landing have targeted
   fixes. Required course features accompany their courses automatically.
 - Volcania uses the author's approved replacement venue. The retired artwork
@@ -57,8 +64,10 @@ Rewind is on by default: **R** on keyboard. **D / C** are left/right shoulder;
 
 ## Known limitations
 
-- Some numeric car information cards still show original-car values. Those
-  displayed numbers are not a reliable description of CGP handling.
+- Car information cards still retain original-car numbers and color styling
+  (for example, Dragon Bird can show Wild Goose's green card). Those displayed
+  numbers are not a reliable description of CGP handling. Driving behavior
+  uses the separately checked per-car data.
 - Changing enabled vehicle packs or gameplay rules can select a different
   record namespace, making earlier times appear absent. Existing files are
   retained. Keep the same configuration when comparing times.
@@ -84,7 +93,7 @@ optional local performance logs are described in
 [the diagnostics guide](docs/PERFORMANCE_DIAGNOSTICS.md).
 
 The source qualification includes 12 core checks, 44 GP roster cases, 41
-Practice catalog cases and 38 native-menu cases, covering all 12 CGP identities
+Practice catalog cases, 83 native-menu cases and 22 marker cases, covering all 12 CGP identities
 and all 16 cups. Bower's five courses were loaded through both engines and GP
 progression was checked through injected finish transitions. Carousel,
 results-screen, Practice heading and targeted landing checks were also run.

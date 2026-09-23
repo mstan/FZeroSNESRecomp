@@ -214,6 +214,8 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
      * changing the gameplay signature used by existing course records. */
     if (FzeroVehiclesActive()) hashes[0] |= 2;
     const FzeroGameplaySettings *rules=FzeroGameplaySettingsCurrent();
+    /* Author-group columns change saved menu/rival indices, not record keys. */
+    if (rules->vehicle_packs) hashes[0] |= 4;
     for (unsigned j=0;j<4;++j) hashes[1+j]=(uint8_t)(rules->enabled>>(j*8));
     hashes[5]=FzeroRuleEnabled(FZERO_RULE_TUNING)?(uint8_t)rules->tuning:0;
     hashes[6]=FzeroRuleEnabled(FZERO_RULE_BOOST)?(uint8_t)rules->boost:0;

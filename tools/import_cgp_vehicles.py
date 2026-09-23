@@ -34,6 +34,11 @@ def main():
         image=bytearray(stock)
         for start,end in [(0x40000,0x60000),(0x76180,0x76800),(0x7cd80,0x7ce00)]:
             image[start:end]=donor[start:end]
+        # One minimap marker color per native HUD row. Runtime selects this by
+        # stable vehicle identity; never import the surrounding shared HUD.
+        for row in range(4):
+            start=0x7cd06+row*32
+            image[start:start+2]=donor[start:start+2]
         # These addresses are shared HUD/exhaust OAM and fog assets.
         for start,end in [(0x5ec00,0x5f000),(0x46f80,0x47000)]:
             assert donor[start:end]==stock[start:end],(file,hex(start),'shared resource changed')

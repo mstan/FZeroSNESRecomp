@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.5 - tester feedback fixes
+
+- Keep each authored P1/P2/P3 set together in its native selection column,
+  including partial installations, without duplicating original cars or
+  enabling their optional rebalances. Older CGP menu save states are rejected;
+  existing course record keys are retained.
+- Fix Moon Shadow's alternating pink/blue minimap dot and other cars retaining
+  retail marker colors. Resolve colors by car identity for GP and Practice
+  while preserving the native exhaust animation.
+- Clarify that CGP adds 40 courses beyond the original 15, plus separately
+  selectable revisions of those original courses. Information-card numbers
+  and styling remain a documented limitation.
+
 ## 1.8.3-fzero-55-preview.4 - tester build
 
 - Add Bower League, restore MAX to Mods (default off), and restore the CGP

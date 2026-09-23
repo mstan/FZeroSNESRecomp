@@ -14,21 +14,18 @@ import subprocess
 import sys
 
 from validate_vehicles import NAMES, GROUPS, SLOTS, FIELDS, authored_stats
-from validate_native_menus import ORDER, press, enabled_cup_count, enable_all_packs
+from validate_native_menus import ORDER, ROSTERS, player_route, press, enabled_cup_count, enable_all_packs
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from inspect_bs_deluxe import apply_ips
 
 
-def route(player, rival):
-    result = "300-306:32,320-326:8"
-    index = ORDER.index(player)
-    result += "".join(press(400 + i * 35, 128) for i in range(index // 4))
-    result += "".join(press(480 + i * 25, 32) for i in range(index % 4))
+def route(player, rival, packs=7):
+    result = "300-306:32," + player_route(player, packs)
     result += ",600-606:8,760-766:8"
     if rival < 12:
-        index = ORDER.index(rival)
+        index = ROSTERS[packs].index(rival)
         result += "".join(press(900 + i * 35, 128) for i in range(index // 2))
         if index % 2:
             result += press(1100, 32)
@@ -73,9 +70,9 @@ def main():
               dict(name="reverse-courses", route=base + ",1300-1306:8,1800-1803:16", frames=1950,
                    courses=[(cup_count, 5)])]
     for mask in range(1, 8):
-        roster = [i for i in ORDER if i < 4 or mask & (1 << (GROUPS[i] - 1))]
+        roster = ROSTERS[mask]
         cases.append(dict(name=f"partial-{mask}", player=0, rival=roster[-1], packs=mask, menu=True,
-                          route=route(0, 0) + "".join(press(900 + i * 20, 4) for i in range(len(roster) - 1))))
+                          route=route(0, roster[0], mask) + "".join(press(900 + i * 20, 4) for i in range(len(roster) - 1))))
     results = {}
 
     def run(case):
