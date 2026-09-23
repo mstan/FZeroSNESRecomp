@@ -67,13 +67,14 @@ checkbox requires the item's acceptance evidence, not merely a successful build.
 1. A vehicle is a stable identity with matching artwork, animation, stats,
    boost parameters, exhaust geometry, icons and menu metadata. P1/P2/P3 are
    donor sets to import coherently, not unrelated global replacement tables.
-2. Keep original cars available. Add genuinely new ships. If CGP revises a BS
-   identity, use one selected version of that ship, not duplicate entries;
-   preserve unrelated BS ships when overlap is only partial. If none overlap,
-   both rosters coexist. Determine the count from evidence, not a guessed 12/20.
+2. Keep original cars available. The owner's roster clarification below
+   supersedes the earlier proposal to mix non-overlapping stock BS and CGP
+   ships. Stock BS cars and CGP car packs are separate modes; CGP packs may
+   coexist with one another. Determine identities/counts from evidence.
 3. A CGP rebalance of a stock car is an opt-in modification of that identity,
    separate from adding ships. Shared engine support and per-ship balance are
    separate concepts. Existing settings need deliberate migration.
+   CGP vehicle tuning must not leak into the stock BS eight-car experience.
 4. Required course behavior accompanies the enabled pack and is scoped to its
    declared courses/features. A user should not need to guess which optional
    switches prevent a valid landing from killing them. Optional difficulty,
@@ -84,6 +85,36 @@ checkbox requires the item's acceptance evidence, not merely a successful build.
 6. Replace the revoked venue before another shareable build. Review the whole
    new donor revision and prevent accepted older donors from restoring the
    retired artwork. Preserve private source evidence; do not delete user ROMs.
+
+### Owner clarification: stock BS versus CGP cars (2026-09-23)
+
+- The stock BS cars mod retains the existing four original cars plus four BS
+  cars, each with its original handling, boost, exhaust and presentation.
+  "Behave identically" is interpreted as matching that established eight-car
+  experience, not giving all eight cars identical stats. Independently selected
+  global rules remain separate from CGP vehicle tuning.
+- Do not convert the legacy BS cars to CGP vehicle behavior. If CGP includes
+  versions of those identities, import the matching CGP resources and balance
+  for those versions; the legacy BS data is not their tuning specification.
+- The entire stock BS cars mod conflicts with **each** of CGP car packs P1,
+  P2 and P3, irrespective of how much their ship identities overlap. Enabling
+  any CGP car pack disables stock BS cars. Enabling stock BS cars disables
+  all three CGP car packs. Apply the same rule when loading saved settings.
+- P1, P2 and P3 do **not** conflict with each other. Any subset should work;
+  enabling one must preserve the others. The target is all 12 CGP donor ships
+  available together, subject to the identity audit and technical validation.
+  Original cars remain available; stock-identity rebalances stay explicit.
+  Do not promise a total roster count before resolving duplicate identities.
+- These are vehicle-pack conflicts, not track-pack conflicts. Stock BS cars
+  remain usable on CGP courses. CGP cars remain usable on stock or BS courses;
+  the existing conflict between original and CGP-corrected BS tracks is separate.
+- Qualify all nine valid combinations of the four car-pack switches: BS off
+  with each of the eight CGP subsets, plus BS on with all CGP car packs off.
+  Verify transitions both ways and normalize the seven conflicting saved
+  combinations deterministically, with a clear explanation in the UI.
+
+This clarification updates the agreed roster direction, not authorization to
+start the remaining implementation burndown.
 
 ## Checklist
 
@@ -99,21 +130,27 @@ checkbox requires the item's acceptance evidence, not merely a successful build.
   Produce a 12-slot identity table covering art, names, menu previews, race
   frames, palette, stats, boost and blast pipes. Compare against retail and BS
   identities. Resolve stale names, exact set mapping and the unique-ship count.
+  Identify CGP versions of BS ships from CGP donors; do not repurpose legacy BS
+  balance or use the overlap audit to relax the whole-pack conflict rule.
 
 <a id="roster"></a>
 - [ ] **B03 — Add coherent, expandable vehicle packs** — `beads-8wg.5.37`, P1.
   Depends on B02. Import complete ship records, add pages/scrolling to the shared
-  selector, and bind all resources by identity. Resolve overlapping BS variants
-  deterministically. Validate player/CPU identities, all menus and HUD icons,
-  partial installations, all course sources, save/load and rewind. More selectable
-  ships does not itself require more racers simultaneously on the track.
+  selector, and bind all resources by identity. Enforce stock BS cars versus
+  every CGP car pack, while allowing P1/P2/P3 together and preserving originals.
+  Use CGP donors for CGP versions of BS identities. Validate all nine valid
+  car-pack combinations, conflicting saved settings, player/CPU identities,
+  menus/HUD, partial installations, all course sources, save/load and rewind.
+  More selectable ships does not itself require more simultaneous racers.
 
 <a id="retail-tuning"></a>
 - [ ] **B04 — Separate stock rebalances from added ships** — `beads-8wg.5.38`, P2.
   Depends on B02. Provide explicit opt-in changes for any retail identities CGP
   modifies. Separate required speed/boost support from stat data. Replace the
   mix-and-match profile UX and migrate saved choices; do not guess BS boost
-  balance by repeating a four-slot table. Prove the disabled baseline is stock.
+  balance by repeating a four-slot table. Preserve all eight cars' individual
+  baseline behavior in stock BS mode, without CGP vehicle tuning. Prove the
+  disabled baseline is stock and toggling modes restores the correct data.
 
 <a id="course-runtime"></a>
 - [ ] **B05 — Audit missing embedded course behavior** — `beads-8wg.5.39`, P1.
@@ -170,6 +207,8 @@ checkbox requires the item's acceptance evidence, not merely a successful build.
   Depends on B01-B11. Compare donor and recomp through reported hazards, starts,
   checkpoints and affected course/cup completion. Cover rosters, partial packs,
   valid Legend dependencies, rendering modes, title option and save/rewind/reset.
+  Include all nine valid car-pack combinations, all three CGP packs together,
+  both directions of BS/CGP exclusion and all eight stock BS baseline cars.
   Update README/PARSE_MANIFEST with mandatory capability checks and vehicle
   identity rules. Commit locally and verify a fresh Windows ZIP with no ROM,
   music or retired venue; explicitly document remaining limits.
