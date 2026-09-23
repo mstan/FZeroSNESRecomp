@@ -5,6 +5,7 @@
 #include "fzero_deluxe.h"
 #include "fzero_gameplay_patches.inc"
 #include "fzero_tracks.h"
+#include "fzero_vehicles.h"
 #include "sha256.h"
 #include "snes/interp_bridge.h"
 #include <stdio.h>
@@ -25,7 +26,7 @@ bool FzeroRuleEnabled(FzeroRule r) {
 }
 bool FzeroBsCars(void) { return cars; }
 bool FzeroBsTracks(void) { return tracks; }
-bool FzeroGameplayActive(void) { return settings.enabled || cars != tracks; }
+bool FzeroGameplayActive(void) { return settings.enabled || cars != tracks || settings.vehicle_packs || settings.stock_rebalance; }
 const FzeroGameplaySettings *FzeroGameplaySettingsCurrent(void) {
   return &settings;
 }
@@ -40,6 +41,7 @@ static void sign_program(const uint8_t *rom, size_t size) {
 void FzeroGameplayConfigure(const FzeroGameplaySettings *s, bool vehicles,
                             bool courses) {
   settings = *s;
+  if (vehicles) settings.vehicle_packs = settings.stock_rebalance = 0;
   cars = vehicles;
   tracks = courses &&
            !FzeroTracksEnabled(cp_catalog_find(FzeroTracksCatalog(), "cgp"));
@@ -61,10 +63,15 @@ void FzeroGameplayHeadless(bool deluxe) {
     s.tuning = s.boost = s.exhaust = (unsigned)(env[0] - '1');
   env = getenv("FZERO_BS_CARS");
   bool vehicles = env ? atoi(env) != 0 : deluxe;
+  const char *packs = getenv("FZERO_CGP_CARS"), *rebalance = getenv("FZERO_CGP_REBALANCE");
+  if (packs) s.vehicle_packs = (unsigned)atoi(packs);
+  if (rebalance) s.stock_rebalance = (unsigned)atoi(rebalance);
+  if ((s.vehicle_packs || s.stock_rebalance) && !env) vehicles = false;
   env = getenv("FZERO_BS_TRACKS");
   bool courses = env ? atoi(env) != 0 : deluxe;
   if (courses && env)
     FzeroTracksEnable(cp_catalog_find(FzeroTracksCatalog(), "cgp"), false);
+  if (!getenv("FZERO_TEST_LEGACY_PROFILES")) s.enabled &= ~7u;
   FzeroGameplayConfigure(&s, vehicles, courses);
 }
 static unsigned r16(unsigned a) {
@@ -151,6 +158,11 @@ static void tuning_metadata(uint8_t *rom) {
     memcpy(rom + 0xf0076 + car * 256, acceleration[car], 19);
   }
 }
+void FzeroGameplayActivateVehicles(const FzeroGameplaySettings *s, uint8_t *rom) {
+  settings = *s;
+  if (FzeroRuleEnabled(FZERO_RULE_TUNING)) tuning_metadata(rom);
+}
+void FzeroGameplaySetSignature(const uint8_t hash[32]) { memcpy(signature,hash,32); }
 bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
   error[0] = 0;
   if (settings.tuning > 2 || settings.boost > 2 || settings.exhaust > 2 ||
@@ -365,13 +377,15 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
       accum(cpu, cpu->A & 3);
     break;
   case 0x00b890: {
-    if (!effective_rule(FZERO_RULE_DMAG) && !FzeroRuleEnabled(FZERO_RULE_TUNING)) break;
+    if (!effective_rule(FZERO_RULE_DMAG) && !FzeroRuleEnabled(FZERO_RULE_TUNING) && !FzeroVehiclesActive()) break;
     bool magnet = effective_rule(FZERO_RULE_DMAG) && !(g_ram[0xd51] & 128) &&
                   (g_ram[0xd50] & 8);
     unsigned car = g_ram[0x52] & 7, speed = r16(0xb20) >> 7;
     unsigned value;
     if (magnet)
       value = 0x38;
+    else if (FzeroVehiclesActive())
+      value = FzeroVehicleTurn(speed);
     else if (FzeroRuleEnabled(FZERO_RULE_TUNING) && car < 4)
       value = turn[car][speed < 30 ? speed : 29];
     else if (FzeroDeluxeActive())
@@ -409,10 +423,12 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
   case 0x1eacf0: {
     unsigned actor = cpu->X & 255, speed = cpu->A & 255;
     unsigned car = actor ? g_ram[0xd71 + actor] : g_ram[0x52];
-    if (actor && car >= 0x94 && FzeroRuleEnabled(FZERO_RULE_LEGEND)) {
+    if (actor && car >= 0x94 && (FzeroRuleEnabled(FZERO_RULE_LEGEND) || FzeroVehiclesActive())) {
       unsigned offset = car - 0x94 + speed;
       cpu_write_a_m(cpu, rom8(0x02cad6 + (offset < 29 ? offset : 28)));
-    } else if (FzeroRuleEnabled(FZERO_RULE_TUNING) && car < 4)
+    } else if (FzeroVehiclesActive() && car < 4)
+      cpu_write_a_m(cpu, FzeroVehicleAcceleration(car,speed));
+    else if (FzeroRuleEnabled(FZERO_RULE_TUNING) && car < 4)
       cpu_write_a_m(cpu, acceleration[car][speed < 29 ? speed : 28]);
     else
       break;
@@ -421,7 +437,7 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
     break;
   }
   case 0x1eadde:
-    if (g_ram[0x52] < 4) {
+    if (FzeroRuleEnabled(FZERO_RULE_EXHAUST) && g_ram[0x52] < 4) {
       unsigned car = g_ram[0x52], frame = cpu->Y & 255;
       if (frame > 12)
         frame = 12;
@@ -507,13 +523,13 @@ void FzeroGameplayInstallHooks(void) {
       interp_bridge_set_pre_opcode_hook(sites[i], rule_hook);
     if (!FzeroDeluxeActive()) interp_bridge_set_pre_opcode_hook(0x009292, rule_hook);
   }
-  if (FzeroRuleEnabled(FZERO_RULE_TUNING) || available_rule(FZERO_RULE_DMAG))
+  if (FzeroRuleEnabled(FZERO_RULE_TUNING) || FzeroVehiclesActive() || available_rule(FZERO_RULE_DMAG))
     interp_bridge_set_pre_opcode_hook(0x00b890, rule_hook);
   if (FzeroDeluxeActive()) {
-    if (FzeroRuleEnabled(FZERO_RULE_TUNING) ||
+    if (FzeroRuleEnabled(FZERO_RULE_TUNING) || FzeroVehiclesActive() ||
         FzeroRuleEnabled(FZERO_RULE_LEGEND))
       interp_bridge_set_pre_opcode_hook(0x1eacf0, rule_hook);
-    if (FzeroRuleEnabled(FZERO_RULE_EXHAUST))
+    if (FzeroRuleEnabled(FZERO_RULE_EXHAUST) || FzeroVehiclesActive())
       interp_bridge_set_pre_opcode_hook(0x1eadde, rule_hook);
     if (available_rule(FZERO_RULE_DMAG))
       interp_bridge_set_pre_opcode_hook(0x1eac6d, rule_hook);

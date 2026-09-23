@@ -11,6 +11,7 @@
 #include "fzero_runtime.h"
 #include "fzero_deluxe.h"
 #include "fzero_gameplay.h"
+#include "fzero_vehicles.h"
 #include "fzero_tracks.h"
 #include "fzero_course_runtime.h"
 #include "fzero_msu.h"
@@ -404,6 +405,11 @@ int main(int argc, char **argv) {
       }
       memcpy(replay_expected, g_ram, sizeof(replay_expected));
       replay_master = g_cpu.master_cycles;
+      if (getenv("FZERO_VEHICLE_CROSS_STATE") && FzeroVehicleCount()>4) {
+        g_ram[0x14dff]=FzeroVehicleSelected()>=4?0:4;
+        FzeroVehiclesLoaded();
+        fputs("lifecycle: switched vehicle cohort before restoring snapshot\n",stderr);
+      }
       if (!RtlLoadSnapshot(path)) { fputs("lifecycle: load failed\n", stderr); return 8; }
       /* Compare identical replay paths. The normal host loop drains audio;
        * the speculative pass above does not, so comparing against that loop

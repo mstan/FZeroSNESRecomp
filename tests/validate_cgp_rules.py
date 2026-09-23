@@ -48,7 +48,7 @@ def main():
                    FZERO_ASPECT='21:9', SNESRECOMP_INPUT_SCRIPT=route,
                    SNESRECOMP_WRAM_DUMP=str(folder/'ram.bin'),
                    SNESRECOMP_FRAME_DUMP=str(folder/'frame.ppm'), SNESRECOMP_SAVE_ROOT='s',
-                   FZERO_RULE_PROBE='1')
+                   FZERO_RULE_PROBE='1', FZERO_TEST_LEGACY_PROFILES='1')
         env.update(extra)
         with (folder/'run.log').open('w') as log:
             proc = subprocess.run([str(build/'FZeroSNESRecompHeadless.exe'), str(stock), str(frames)],

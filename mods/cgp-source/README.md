@@ -7,14 +7,15 @@ the MSU source credits Conn, Khilendel and Catador. No additional license is
 inferred from receiving the source.
 
 All gameplay options are **off by default** in Mods. They work independently
-of the course pack. P1, P2 and P3 are parameter choices, not three copies of
-the courses. No music files, replacement vehicle art or ROM are bundled here.
+of the course pack. P1, P2 and P3 are coherent vehicle sets, exposed as three
+combinable vehicle packs plus four separate retail-identity rebalances.
+Artwork-only IPS deltas live in `assets/vehicle-packs`; no ROM or music is bundled.
 
 | Mods option | Source files |
 | --- | --- |
-| CGP vehicle tuning, P1/P2/P3 | `CGP/{1,2,3}/CGP.asm` |
-| CGP energy boost, P1/P2/P3 | `CGP/{1,2,3}/CGP_Boost.asm` |
-| CGP exhaust placement, P1/P2/P3 | `CGP/{1,2,3}/CGP_Blast_Pipe.asm` |
+| Per-identity CGP handling | `CGP/{1,2,3}/CGP.asm` |
+| Per-identity CGP energy boost | `CGP/{1,2,3}/CGP_Boost.asm` |
+| Per-identity CGP exhaust | `CGP/{1,2,3}/CGP_Blast_Pipe.asm` |
 | Blue Falcon / Golden Fox animation fix | `BF_GF_Animation_Fix.asm` |
 | Dash plate facing fix | `Dash_Fix2.asm` |
 | Dynamic collision spin | `Dynamic_Spin_Amount.asm` |
@@ -56,20 +57,24 @@ Adaptations are explicit in the generator and `src/fzero_gameplay.c`:
 
 - Each source gets its own free bank. No source is applied on top of a
   previously patched donor; options have a fixed application order.
-- Deluxe uses per-car metadata instead of the stock column tables. The four
-  base cars get the selected tuning profile, while BS stat records remain.
-  Shared physics changes still apply to all cars.
-- Energy boost extends the four profile entries to eight, repeating them
-  for the corresponding BS car slots. It preserves the native HUD position.
+- Deluxe uses per-car metadata instead of stock column tables. The expandable
+  catalog binds each identity to its own source slot and parameters. Original
+  identities retain retail stats unless their explicit rebalance is selected.
+  Stock BS vehicle mode excludes the CGP roster and rebalances entirely.
+- Energy boost belongs to CGP identities. The historical eight-slot profile
+  extension remains only in the private legacy-profile test path; it is not a
+  user option and does not tune stock BS cars.
 - Exhaust coordinates are decoded from the source for all 13 animation
-  frames, including P2 Wild Goose's three exhaust sprites. BS cars retain
+  frames, including P2 P. Emerald's three exhaust sprites. BS cars retain
   their native exhaust positions.
 - Dynamic spin reads the Deluxe player's own weight/spin metadata.
 - Legend uses five difficulty levels and its source CPU tables. It wins
-  over tuning's overlapping CPU tables. Native opponent-frequency data is
+  over tuning's overlapping CPU tables. Per-vehicle launch acceleration lasts
+  until the source's Straightaway handoff. Native opponent-frequency data is
   retained before those tables are overwritten. Course resources keep their
   own frequency values. Lives are 7/6/5/4/3 from Beginner through Legend.
-- Grip magnets take precedence over turning/strafe lookup only on grounded
+- Required magnet and Rainbow capabilities are declared by course layouts and
+  apply without changing global mod switches. Grip magnets take precedence over turning/strafe lookup only on grounded
   magnet tiles; elsewhere the active stock/BS/tuning tables are used.
 - Rainbow Road behavior uses the stable `cgp/rainbow-road` course ID, not
   the donor's absolute cup number. Other courses are unaffected by this mod.

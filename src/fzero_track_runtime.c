@@ -2,6 +2,7 @@
 #include "fzero_course_runtime.h"
 #include "fzero_deluxe.h"
 #include "fzero_gameplay.h"
+#include "fzero_vehicles.h"
 #include "fzero_title.h"
 #include "cpu_state.h"
 #include "common_rtl.h"
@@ -196,9 +197,10 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
             p->track_count);
   }
   (void)deluxe;
-  if (!FzeroDeluxePrepare(rom, size, FzeroBsCars() || FzeroBsTracks(), deluxe_path))
+  if (!FzeroVehiclesLoad(*rom,*size,error,sizeof(error))) { FzeroTracksReport(error); return false; }
+  if (!FzeroDeluxePrepare(rom, size, FzeroBsCars() || FzeroBsTracks() || FzeroVehiclesActive(), deluxe_path))
     return false;
-  if (!FzeroGameplayPrepare(rom,size)) return false;
+  if (!FzeroVehiclesPrepare(rom,size,error,sizeof(error))) { FzeroTracksReport(error); return false; }
   if (FzeroTracksActive()) {
     /* The canonical native interrupt module remains selected. Resource
      * callbacks run at the same loader sites for every imported pack. */
@@ -269,7 +271,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
 bool FzeroTracksSelectSaveRoot(void) {
   if (!FzeroDeluxeSelectSaveRoot())
     return false;
-  if (FzeroGameplaySettingsCurrent()->enabled) {
+  if (FzeroGameplaySettingsCurrent()->enabled || FzeroVehiclesActive()) {
     char hex[65],root[96]; cp_hash_format(FzeroGameplaySignature(),hex);
     if(snprintf(root,sizeof(root),"%s/rules-%.16s",RtlSaveRoot(),hex)>=(int)sizeof(root))return false;
     RtlEnsureSaveDir();RtlSetSaveRoot(root);RtlEnsureSaveDir();
@@ -349,6 +351,17 @@ bool FzeroTracksClassSelected(void) {
 }
 void FzeroTracksRefreshCourse(void) {
   current_course();
-  if (FzeroTracksActive() && !FzeroTracksRecordsSelect(course ? cup_hash : NULL))
+  uint8_t vehicle_key[32];
+  const uint8_t *key=course?cup_hash:NULL;
+  const char *vehicle=FzeroVehicleIdentity();
+  if(vehicle && active_pack && active_cup) {
+    uint8_t data[32+3*CP_ID]={0};
+    if(key)memcpy(data,key,32);
+    memcpy(data+32,active_pack->id,strlen(active_pack->id));
+    memcpy(data+32+CP_ID,active_cup->id,strlen(active_cup->id));
+    memcpy(data+32+2*CP_ID,vehicle,strlen(vehicle));
+    sha256_compute(data,sizeof(data),vehicle_key);key=vehicle_key;
+  }
+  if (FzeroTracksActive() && !FzeroTracksRecordsSelect(key))
     course = NULL;
 }

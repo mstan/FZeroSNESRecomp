@@ -22,6 +22,10 @@ assets/img/*
 !assets/shaders/**
 !assets/track-packs/
 !assets/track-packs/*.ini
+!assets/vehicle-packs/
+!assets/vehicle-packs/*.ini
+!assets/vehicle-packs/*.ips
+!assets/vehicle-packs/*.md
 /track-packs/
 /tier2_coverage.json
 /tier2_*.json

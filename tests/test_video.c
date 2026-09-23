@@ -139,11 +139,19 @@ static void config_tests(void) {
   f = fopen("test-video.ini", "w"); CHECK(f);
   fputs("BSVehicles=0\nBSTracks=1\nBSDeluxe=1\n", f); fclose(f);
   CHECK(FzeroVideoLoad(&b, "test-video.ini") && !b.bs_deluxe && b.bs_tracks);
-  b.gameplay.enabled=(1u<<FZERO_RULE_COUNT)-1;
+    b.gameplay.enabled=((1u<<FZERO_RULE_COUNT)-1)&~7u;
   b.gameplay.tuning=0; b.gameplay.boost=1; b.gameplay.exhaust=2;
   CHECK(FzeroVideoSave(&b,"test-video.ini") && FzeroVideoLoad(&a,"test-video.ini"));
   CHECK(!a.bs_deluxe && a.bs_tracks && a.gameplay.enabled==b.gameplay.enabled);
-  CHECK(a.gameplay.tuning==0 && a.gameplay.boost==1 && a.gameplay.exhaust==2);
+    CHECK(a.gameplay.tuning==0 && a.gameplay.boost==1 && a.gameplay.exhaust==2);
+    b.gameplay.vehicle_packs=7;b.gameplay.stock_rebalance=15;
+    CHECK(FzeroVideoSave(&b,"test-video.ini") && FzeroVideoLoad(&a,"test-video.ini"));
+    CHECK(a.gameplay.vehicle_packs==7 && a.gameplay.stock_rebalance==15);
+    b.bs_deluxe=true;
+    CHECK(FzeroVideoSave(&b,"test-video.ini") && FzeroVideoLoad(&a,"test-video.ini"));
+    CHECK(a.bs_deluxe && !a.gameplay.vehicle_packs && !a.gameplay.stock_rebalance);
+    f=fopen("test-video.ini","w");CHECK(f);fputs("BSVehicles=0\nCGPRules=7\n",f);fclose(f);
+    CHECK(FzeroVideoLoad(&a,"test-video.ini") && !a.gameplay.enabled && !a.gameplay.vehicle_packs && !a.gameplay.stock_rebalance);
   remove("test-video.ini");
   CHECK(FzeroVideoLoad(&b, "test-video.ini"));
   CHECK(b.enhanced && b.fps_enabled && b.bs_deluxe && b.aspect == FZERO_ASPECT_FIT); /* first run: all mods on */

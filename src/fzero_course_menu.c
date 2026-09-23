@@ -1,6 +1,7 @@
 #include "fzero_course_runtime.h"
 #include "fzero_tracks.h"
 #include "fzero_gameplay.h"
+#include "fzero_vehicles.h"
 #include "fzero_deluxe.h"
 #include "common_rtl.h"
 #include <ctype.h>
@@ -33,6 +34,7 @@ static void text(Canvas c, int x, int y, const char *s, unsigned limit, uint32_t
   }
 }
 void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch) {
+  FzeroVehiclesOverlay(pixels,width,height,pitch);
   if (!pixels || !FzeroTracksMenuVisible() || height < 224 || height % 224)
     return;
   static bool logged;

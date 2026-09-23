@@ -136,6 +136,12 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
       has_tracks = true;
       if (!strcmp(value,"0") || !strcmp(value,"1")) s->bs_tracks = value[0] == '1';
       else valid = false;
+    } else if (!strcmp(key,"CGPCars") || !strcmp(key,"CGPStockRebalance")) {
+      unsigned bits, maximum=!strcmp(key,"CGPCars")?7:15;
+      if(sscanf(value,"%u%c",&bits,&tail)==1 && bits<=maximum) {
+        if(maximum==7)s->gameplay.vehicle_packs=bits;
+        else s->gameplay.stock_rebalance=bits;
+      } else valid=false;
     } else if (!strcmp(key,"CGPRules")) {
       unsigned bits;
       if (sscanf(value,"%u%c",&bits,&tail)==1 && !(bits >> FZERO_RULE_COUNT)) s->gameplay.enabled=bits;
@@ -165,6 +171,11 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
   if (!has_cars) s->bs_deluxe = legacy_bs;
   if (!has_tracks && has_legacy_bs) s->bs_tracks = legacy_bs;
   if (!has_fps_toggle) s->fps_enabled = s->enhanced; /* migrate combined checkpoint mod */
+  /* Old slot profiles cannot establish which ships the user intended. Retire
+   * those three choices without silently opting into new content. A saved
+   * conflict resolves to the explicitly preserved stock BS vehicle mode. */
+  s->gameplay.enabled &= ~7u;
+  if(s->bs_deluxe)s->gameplay.vehicle_packs=s->gameplay.stock_rebalance=0;
   return valid;
 }
 
@@ -173,9 +184,10 @@ bool FzeroVideoSave(const FzeroVideoSettings *s, const char *path) {
   if (snprintf(temporary, sizeof(temporary), "%s.tmp", path) >= (int)sizeof(temporary)) return false;
   FILE *f = fopen(temporary, "w");
   if (!f) return false;
-  bool ok = fprintf(f, "[FZeroVideo]\nEnhancedRenderer=%d\nAspect=%s\nPresentationEnabled=%d\nPresentationFPS=%u\nBSVehicles=%d\nBSTracks=%d\nCGPRules=%u\nCGPTuning=%u\nCGPBoost=%u\nCGPExhaust=%u\nHDMode7=%d\nHDMode7Scale=%u\nDiagnostics=%d\n",
+  bool ok = fprintf(f, "[FZeroVideo]\nEnhancedRenderer=%d\nAspect=%s\nPresentationEnabled=%d\nPresentationFPS=%u\nBSVehicles=%d\nBSTracks=%d\nCGPRules=%u\nCGPTuning=%u\nCGPBoost=%u\nCGPExhaust=%u\nCGPCars=%u\nCGPStockRebalance=%u\nHDMode7=%d\nHDMode7Scale=%u\nDiagnostics=%d\n",
                     s->enhanced, FzeroAspectName(s->aspect), s->fps_enabled, s->fps, s->bs_deluxe, s->bs_tracks, s->gameplay.enabled,
                     s->gameplay.tuning, s->gameplay.boost, s->gameplay.exhaust,
+                    s->gameplay.vehicle_packs,s->gameplay.stock_rebalance,
                     s->hd_mode7, FzeroValidHdScale(s->hd_scale) ? s->hd_scale : 2u, s->diagnostics) > 0;
   if (fclose(f)) ok = false;
   if (ok) {

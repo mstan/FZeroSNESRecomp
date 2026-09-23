@@ -7,6 +7,7 @@
 #include "fzero_mods.h"
 #include "fzero_deluxe.h"
 #include "fzero_tracks.h"
+#include "fzero_vehicles.h"
 #include "fzero_course_runtime.h"
 #include "fzero_hotkeys.h"
 #include "fzero_gamepad.h"
@@ -1589,6 +1590,9 @@ int main(int argc, char **argv) {
   FzeroGameplayConfigure(&g_video.gameplay,g_video.bs_deluxe,g_video.bs_tracks);
   if (!FzeroTracksPrepare(&rom, &rom_size, g_video.bs_deluxe,
                           deluxe_override ? deluxe_override : deluxe_path)) {
+    if(FzeroVehiclesActive()) {
+      fprintf(stderr,"[vehicles] %s\n",FzeroTracksError());free(rom);return 2;
+    }
     fprintf(stderr, "[bs-deluxe] %s starting stock\n", FzeroDeluxeError());
     if (*FzeroGameplayError()) { fprintf(stderr,"%s\n",FzeroGameplayError()); free(rom); return 2; }
     g_video.bs_deluxe = g_video.bs_tracks = false;

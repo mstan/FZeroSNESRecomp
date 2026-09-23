@@ -26,6 +26,7 @@
 #include "fzero_state_mode.h"
 #include "fzero_msu.h"
 #include "fzero_gameplay.h"
+#include "fzero_vehicles.h"
 
 #include "common_rtl.h"
 #include "cpu_state.h"
@@ -208,10 +209,11 @@ static bool run_main_slice(uint64_t deadline) {
 }
 
 static void run_one_frame(void) {
+  FzeroVehiclesSync();
   /* This host replays HDMA during deferred scanout. The clock-driven engine
    * must not also consume its tables while the CPU runs ahead of that frame. */
   snes_set_hdma_beam_enabled(g_snes, false);
-  RtlSetPadState(0, FzeroTracksMenuInput(FzeroGameplayMenuInput(g_snes->input1_currentState,g_ram), g_ram));
+  RtlSetPadState(0, FzeroTracksMenuInput(FzeroGameplayMenuInput(FzeroVehiclesInput(g_snes->input1_currentState),g_ram), g_ram));
   const uint32_t previous_scene = g_ram[0x54] | (uint32_t)g_ram[0x55] << 8 | (uint32_t)g_ram[0x56] << 16;
   if (!s_initialized) {
     uint64_t reset_master = g_cpu.master_cycles;
@@ -708,6 +710,7 @@ static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
   if(state.mode == kFzeroStateModeTrackPack)FzeroTracksSaveState(sli, true);
 
   FzeroTracksMenuState(state.reserved, true);
+  FzeroVehiclesLoaded();
   g_cpu = state.cpu;
   g_cpu.ram = g_ram;
   s_resume_pc = state.resume_pc;

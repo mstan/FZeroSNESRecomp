@@ -16,6 +16,19 @@ and CGP are mutually exclusive; enabling either turns off the other. The
 vehicle option works with either track set, or just the original 15 courses.
 CGP and BS vehicles are enabled by default; original BS tracks are off.
 
+**CGP P1, P2 and P3 vehicles** are three independent, opt-in packs. Enable any
+combination to add their ships to the car selector; all three give twelve
+distinct identities including the original four. Each new ship has its own
+artwork, handling, energy boost and exhaust. Left/right changes car pages;
+up/down changes the selected ship. **Vehicle Rebalances** separately offers
+the author's versions of Blue Falcon, Golden Fox, Wild Goose and Fire Stingray.
+Those options modify the existing identities and default off.
+
+Stock BS vehicles conflict with all three CGP vehicle packs and the stock-car
+rebalances. Enabling one mode disables the other. This does not affect the
+selected courses. Old independent tuning/boost/exhaust profiles are retired;
+old selections do not silently enable new ships or rebalances.
+
 CGP's **Title screen** dropdown defaults to **Original**. Select **F-Zero 55**
 to use the 55 logo and its title colors while CGP is enabled. Disabling CGP
 restores the original title and remembers your choice. This changes only the
@@ -32,18 +45,17 @@ credits in `assets/track-packs`. Classic and Modern supply the same five
 courses; installing both adds MAX once. Races use the common game's rules,
 including its boost behavior.
 
-**Community Grand Prix (CGP) 1.0** includes the P1 IPS and credits in
-`assets/track-packs`. P1, P2 and P3 contain identical courses with different
-donor vehicles: any one patch supplies the
-same **eight cups / 40 courses** (30 new plus 10 corrected BS), and
-installing all three adds them once. The 15 retail courses are omitted from
-the import because the game already supplies them. MAX's five courses are
-distinct but parked in this build.
+**Community Grand Prix (CGP)** includes a regenerated IPS for the author's
+P3test venue revision and credits in `assets/track-packs`. Historical P1/P2/P3
+had identical courses, but their retired Volcania artwork is no longer an
+accepted course source. The current import supplies **eight cups / 40 courses**
+(30 new plus 10 corrected BS). MAX's five courses are distinct but parked.
 
-The author's ASM supplies **19 separate opt-in gameplay mods** in Mods.
-Tuning, energy boost and exhaust placement each offer P1/P2/P3 profiles.
-These options work independently of the course pack; enabling CGP courses
-does not change vehicle mechanics. See [the source/options table](cgp-source/README.md).
+The remaining **16 optional gameplay mods** work independently of vehicle and
+course packs. Required up/grip magnet and Rainbow Road behavior now accompanies
+the declaring courses automatically; optional switches are not prerequisites
+for those courses. Course packs do not select car tuning or difficulty.
+See [the source/options table](cgp-source/README.md).
 The optional CGP MSU adapter requires your own music folder. No MSU/PCM audio
 files are installed or enabled by these packs.
 
@@ -53,8 +65,7 @@ tool (the game itself expects loose patches):
 
 ```powershell
 python tools/import_track_pack.py --stock path/to/fzero.sfc `
-  --archive "path/to/F-Zero CGP P1.zip" --archive "path/to/F-Zero CGP P2.zip" `
-  --archive "path/to/F-Zero CGP P3.zip" --library build/mods/track-packs
+  --archive "path/to/another-qualified-pack.zip" --library build/mods/track-packs
 ```
 
 Other compatible packs supply three files:

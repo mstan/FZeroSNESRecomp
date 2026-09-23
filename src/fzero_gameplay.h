@@ -28,6 +28,8 @@ typedef enum FzeroRule {
 typedef struct FzeroGameplaySettings {
   uint32_t enabled;
   unsigned tuning, boost, exhaust; /* 0=P1, 1=P2, 2=P3. Retained while off. */
+  unsigned vehicle_packs; /* Independent CGP P1/P2/P3 bits. */
+  unsigned stock_rebalance; /* Explicit BF/WG/GF/FS identity bits. */
 } FzeroGameplaySettings;
 typedef struct FzeroRuleInfo {
   const char *id, *name, *description;
@@ -45,4 +47,6 @@ const uint8_t *FzeroGameplaySignature(void);
 bool FzeroGameplayPrepare(uint8_t **rom, size_t *size);
 const char *FzeroGameplayError(void);
 void FzeroGameplayInstallHooks(void);
+void FzeroGameplayActivateVehicles(const FzeroGameplaySettings *settings, uint8_t *rom);
+void FzeroGameplaySetSignature(const uint8_t hash[32]);
 uint16_t FzeroGameplayMenuInput(uint16_t input, const uint8_t *ram);

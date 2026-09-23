@@ -15,7 +15,7 @@ int main(void) {
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
     packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
-  CHECK(p->package_count(NULL) == 6 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 10 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -23,7 +23,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 6 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 10 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -56,21 +56,37 @@ int main(void) {
     CHECK(p->feature_get(NULL, i, &pack) && pack.enabled);
     CHECK(!s.enhanced && !s.bs_deluxe && !s.hd_mode7 && !s.fps_enabled);
   }
-  for (int i=0;i<FZERO_RULE_COUNT;++i) {
+  for (int i=3;i<FZERO_RULE_COUNT;++i) {
     RecompLauncherCModFeature rule;
-    CHECK(p->feature_get(NULL,6+i,&rule) && !rule.enabled);
+    CHECK(p->feature_get(NULL,3+i,&rule) && !rule.enabled);
     CHECK(p->feature_resource_count(NULL,rule.package_id,rule.id)==0);
     CHECK(p->feature_enable(NULL,rule.package_id,rule.id,1));
     CHECK((s.gameplay.enabled & (1u<<i))!=0);
     CHECK(p->feature_enable(NULL,rule.package_id,rule.id,0));
-    if(i<=FZERO_RULE_EXHAUST) {
-      CHECK(p->feature_set_option(NULL,rule.package_id,rule.id,"profile","P1"));
-      CHECK(p->feature_option_get(NULL,rule.package_id,rule.id,0,&option));
-      CHECK(!strcmp(option.value,"P1"));
-      CHECK(!p->feature_set_option(NULL,rule.package_id,rule.id,"profile","P4"));
-    }
+    CHECK(!rule.option_count);
   }
   CHECK(!s.gameplay.enabled);
+  CHECK(!p->feature_enable(NULL,"cgp-tuning","rules",1));
+  CHECK(!p->feature_enable(NULL,"cgp-boost","rules",1));
+  CHECK(!p->feature_enable(NULL,"cgp-exhaust","rules",1));
+  const char *car_packs[]={"cgp-cars-p1","cgp-cars-p2","cgp-cars-p3"};
+  for(unsigned mask=0;mask<8;++mask) {
+    for(unsigned i=0;i<3;++i) CHECK(p->feature_enable(NULL,car_packs[i],"vehicles",(mask>>i)&1));
+    CHECK(s.gameplay.vehicle_packs==mask && !s.bs_deluxe);
+    CHECK(p->commit(NULL,NULL) && FzeroVideoLoad(&loaded,"test-mods.ini"));
+    CHECK(loaded.gameplay.vehicle_packs==mask && !loaded.bs_deluxe);
+  }
+  for(unsigned i=0;i<3;++i) {
+    CHECK(p->feature_enable(NULL,"bs-cars","vehicles",1));
+    CHECK(s.bs_deluxe && !s.gameplay.vehicle_packs);
+    CHECK(p->feature_enable(NULL,car_packs[i],"vehicles",1));
+    CHECK(!s.bs_deluxe && s.gameplay.vehicle_packs==(1u<<i));
+  }
+  CHECK(p->feature_enable(NULL,"cgp-blue-falcon","vehicles",1));
+  CHECK(s.gameplay.stock_rebalance==1 && !s.bs_deluxe);
+  CHECK(p->feature_enable(NULL,"bs-cars","vehicles",1));
+  CHECK(s.bs_deluxe && !s.gameplay.vehicle_packs && !s.gameplay.stock_rebalance);
+  CHECK(p->feature_enable(NULL,"bs-cars","vehicles",0));
   const CpPack *cgp=cp_catalog_find(catalog,"cgp");
   CHECK(p->feature_enable(NULL,"bs-tracks","tracks",1) && s.bs_tracks);
   CHECK(!s.bs_deluxe);

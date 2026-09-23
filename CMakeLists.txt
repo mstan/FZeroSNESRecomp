@@ -199,7 +199,7 @@ target_compile_definitions(FZeroSNESRecomp PRIVATE
     RECOMP_UI_DEFAULT_RENDERER_KEY="")
 
 function(configure_fzero_target target)
-    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_gameplay.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c src/fzero_course_hooks.c src/fzero_course_menu.c src/fzero_course_saves.c)
+    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_gameplay.c src/fzero_vehicles.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c src/fzero_course_hooks.c src/fzero_course_menu.c src/fzero_course_saves.c)
     target_link_libraries(${target} PRIVATE fzero_tracks)
     if(FZERO_DELUXE_GEN_DIR)
         target_sources(${target} PRIVATE $<TARGET_OBJECTS:fzero_deluxe_native>
@@ -306,8 +306,12 @@ file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.bps"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.hidden"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.txt")
+file(GLOB FZERO_VEHICLE_REGISTRY CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.ini"
+    "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.ips"
+    "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.md")
 set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
-    ${FZERO_COURSE_REGISTRY} "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md"
+    ${FZERO_COURSE_REGISTRY} ${FZERO_VEHICLE_REGISTRY} "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/fzero-55.ips"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/README.txt")
 add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
@@ -319,6 +323,10 @@ add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
         "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md"
         "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/track-packs/"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/track-packs"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/vehicle-packs"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${FZERO_VEHICLE_REGISTRY}
+        "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/vehicle-packs"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${FZERO_COURSE_REGISTRY}
         "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/track-packs/"

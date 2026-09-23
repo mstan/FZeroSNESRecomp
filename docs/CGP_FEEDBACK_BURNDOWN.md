@@ -149,6 +149,11 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   car-pack combinations, conflicting saved settings, player/CPU identities,
   menus/HUD, partial installations, all course sources, save/load and rewind.
   More selectable ships does not itself require more simultaneous racers.
+  Implemented the twelve-identity selector, combinable packs, bundled artwork
+  and per-identity stat/boost/exhaust bindings. All twelve race entries, source
+  stat checks, real navigation, seven nonempty partial catalogs and cross-cohort
+  snapshot restores pass. See `CGP_VEHICLE_RUNTIME.md`; broader qualification
+  remains open before marking this complete.
 
 <a id="retail-tuning"></a>
 - [ ] **B04 — Separate stock rebalances from added ships** — `beads-8wg.5.38`, P2.
@@ -158,6 +163,11 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   balance by repeating a four-slot table. Preserve all eight cars' individual
   baseline behavior in stock BS mode, without CGP vehicle tuning. Prove the
   disabled baseline is stock and toggling modes restores the correct data.
+  Four separate retail rebalances are implemented, default off. Legacy slot
+  profile switches are retired. Original catalog stats match retail; stock BS
+  mode excludes CGP vehicle/rebalance data. All four authored rebalances and
+  saved-setting exclusion/migration tests pass; BS eight-car runtime regression
+  and remaining mixed-rival qualification still pending.
 
 <a id="course-runtime"></a>
 - [ ] **B05 — Audit missing embedded course behavior** — `beads-8wg.5.39`, P1.
@@ -179,7 +189,8 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   still work. Include mod combinations and save/rewind/reset.
   Shared landing fix passes 1,024 surface/phase/recovery probes on each of the
   eight revised courses. Native tile-number checks were ignoring custom ground
-  properties. Full reported-route reproduction remains pending.
+  properties. The owner identified Marine City I as the trampoline course;
+  its exit now has a dedicated route-validation target.
 
 <a id="railroad"></a>
 - [ ] **B07 — Fix railroad-landing death** — `beads-8wg.5.41`, P1.
@@ -187,7 +198,8 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   landing semantics, and fix the mismatch. Keep a separate regression even if
   it shares B06's root cause. Test adjacent invalid landing surfaces too.
   Shares the confirmed tile-number/property mismatch. Probes cover high-numbered
-  safe tiles and lower-numbered pits; reported railroad route still pending.
+  safe tiles and lower-numbered pits. The owner identified Lightning as the
+  railroad course; its landing now has a dedicated route-validation target.
 
 <a id="magnets"></a>
 - [ ] **B08 — Validate up and grip magnets** — `beads-8wg.5.42`, P1.
@@ -260,6 +272,7 @@ course payload is checked into this plan. The images were inspected directly.
 
 Prior structural extraction, race-entry and soak tests did not establish full
 donor parity for hazards, starts or all vehicle combinations. No reported bug
-is marked reproduced or fixed by this planning pass. The exact trampoline and
-railroad courses/routes and the intended meaning of each image remain to be
-established; use the supplied donors and geometry before requesting more detail.
+is marked reproduced or fixed by this planning pass. The owner subsequently
+identified Marine City I's trampoline and Lightning's railroad. Their exact
+landing transitions and the intended meaning of each image still need donor
+comparison; use the supplied donors and geometry before requesting more detail.
