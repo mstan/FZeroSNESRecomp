@@ -208,6 +208,11 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   stats ordering and audit overlapping tables/host hooks. Check early CPU
   fighting, lead changes, path flags and higher-speed support, including Legend
   with non-CGP courses or untuned cars. Compare per-racer traces, not just feel.
+  Fixed the unconditional common-acceleration override: consume the author's
+  per-actor phase index instead. Standalone Legend includes movement-range
+  support without vehicle stat replacement. Both engines pass focused launch,
+  handoff, shared-table and movement checks, plus all three combined-profile
+  lifecycle tests. Expanded-roster and longer AI traces remain pending.
 
 <a id="visuals"></a>
 - [ ] **B10 — Fix garble and reconcile HUD/exhaust/menu presentation** — `beads-8wg.5.44`, P1.

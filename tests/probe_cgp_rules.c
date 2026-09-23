@@ -314,6 +314,55 @@ bool FzeroRulesProbe(void) {
     }
   }
   if (FzeroRuleEnabled(FZERO_RULE_LEGEND)) {
+    /* Launch acceleration must match that vehicle, even with Legend active.
+     * D71 changes to a shared-table index only at the donor's handoff sites. */
+    for (unsigned car = 0; car < (FzeroBsCars() ? 8u : 4u); ++car) {
+      unsigned stride = FzeroRuleEnabled(FZERO_RULE_TUNING) ? 29 : 19;
+      unsigned index = FzeroDeluxeActive() ? car : car * stride;
+      for (unsigned speed = 0; speed < 18; ++speed) {
+        unsigned values[2];
+        for (unsigned actor = 0; actor <= 2; actor += 2) {
+          CpuState c = state(0x30);
+          c.X = (uint16_t)actor;
+          c.A = (uint16_t)speed;
+          g_ram[0x52] = (uint8_t)car;
+          g_ram[0xd71 + actor] = (uint8_t)index;
+          CHECK(fragment(&c, 0x0094ce, 0x0094d7, 0, false));
+          CHECK(c.Y == actor);
+          values[actor / 2] = c.A & 255;
+        }
+        CHECK(values[0] == values[1]);
+      }
+    }
+    for (unsigned index = 0x94; index <= 0x9a; ++index)
+      for (unsigned speed = 0; speed < 32; ++speed) {
+        CpuState c = state(0x30);
+        c.X = 2;
+        c.A = (uint16_t)speed;
+        g_ram[0xd73] = (uint8_t)index;
+        unsigned offset = index - 0x94 + speed;
+        unsigned expected = cpu_read8(&c, 2, (uint16_t)(0xcad6 + (offset < 29 ? offset : 28)));
+        CHECK(fragment(&c, 0x0094ce, 0x0094d7, 0, false));
+        CHECK(c.Y == 2 && (c.A & 255) == expected);
+      }
+    for (unsigned level = 0; level < 5; ++level) {
+      CpuState c = state(0x30);
+      c.X = 2;
+      g_ram[0x57] = (uint8_t)level;
+      g_ram[0xd73] = 0;
+      CHECK(fragment(&c, 0x00e334, 0x00e339, 0, false));
+      CHECK(g_ram[0xd73] == 0x9a - level);
+    }
+    /* Exercise the actual movement clamp with X=0 and non-boosting state. */
+    {
+      CpuState c = state(0x30);
+      word(0xd51, 0);
+      word(8, 12);
+      word(12, 0xfff4);
+      CHECK(fragment(&c, 0x0096f2, 0x00973c, 0, false));
+      CHECK(read_word(8) == 12 && read_word(12) == 0xfff4);
+    }
+    fprintf(stderr, "rules-probe: Legend per-vehicle starts, handoff, shared indices and movement range PASS\n");
     for (unsigned rival = 0; rival < 256; ++rival) {
       CpuState c = state(0x30);
       c.X = (uint16_t)rival;

@@ -33,7 +33,7 @@ const char *FzeroGameplayError(void) { return error; }
 const uint8_t *FzeroGameplaySignature(void) { return signature; }
 static void sign_program(const uint8_t *rom, size_t size) {
   /* Bump the adapter version when a host rule changes its guest semantics. */
-  uint8_t key[36] = {2, 0, 0, 0};
+  uint8_t key[36] = {3, 0, 0, 0};
   sha256_compute(rom, size, key + 4);
   sha256_compute(key, sizeof(key), signature);
 }
@@ -194,6 +194,11 @@ bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
     if (rule == FZERO_RULE_RAINBOW)
       apply(grown, 19);
   }
+  /* Legend's higher speeds need the common extended movement range, even
+   * without selecting a vehicle rebalance. This is the independent CGP
+   * velocity-limit change, not its vehicle tables. */
+  if (FzeroRuleEnabled(FZERO_RULE_LEGEND))
+    grown[0x16f6] = 0x80;
   /* These bytes are independently assembled mechanics, not a donor engine.
    * No compiled routine may bypass them. The canonical presentation, course,
    * projection and save hooks remain installed in the shared runtime. */
@@ -391,31 +396,22 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
     break;
   }
   case 0x0094ce:
-    if (!FzeroDeluxeActive() && cpu->X) {
+    if (!FzeroDeluxeActive() && cpu->X && g_ram[0xd71 + (cpu->X & 255)] >= 0x94) {
       unsigned actor = cpu->X & 255, speed = cpu->A & 255;
-      unsigned index = 0x9a - g_ram[0x57];
-      if (g_ram[0xd40] > 0 && g_ram[0xd40] < 5)
-        index = 0x98 - g_ram[0x57] +
-                (g_ram[0xdc8] <= 1   ? 0
-                 : g_ram[0xdc8] <= 4 ? 1
-                                     : 2);
+      /* The author routines change D71 only after the opening Straightaway,
+       * at lap/rank updates, and at the finish. Preserve that state machine. */
+      unsigned offset = g_ram[0xd71 + actor] - 0x94 + speed;
       cpu->Y = (uint16_t)actor;
-      accum(cpu, rom8(0x02cad6 + index - 0x94 + (speed < 24 ? speed : 24)));
+      accum(cpu, rom8(0x02cad6 + (offset < 29 ? offset : 28)));
       interp_bridge_pre_opcode_redirect(0x0094d7);
     }
     break;
   case 0x1eacf0: {
     unsigned actor = cpu->X & 255, speed = cpu->A & 255;
     unsigned car = actor ? g_ram[0xd71 + actor] : g_ram[0x52];
-    if (actor && FzeroRuleEnabled(FZERO_RULE_LEGEND)) {
-      unsigned index = 0x9a - g_ram[0x57];
-      if (g_ram[0xd40] > 0 && g_ram[0xd40] < 5)
-        index = 0x98 - g_ram[0x57] +
-                (g_ram[0xdc8] <= 1   ? 0
-                 : g_ram[0xdc8] <= 4 ? 1
-                                     : 2);
-      cpu_write_a_m(cpu,
-                    rom8(0x02cad6 + index - 0x94 + (speed < 24 ? speed : 24)));
+    if (actor && car >= 0x94 && FzeroRuleEnabled(FZERO_RULE_LEGEND)) {
+      unsigned offset = car - 0x94 + speed;
+      cpu_write_a_m(cpu, rom8(0x02cad6 + (offset < 29 ? offset : 28)));
     } else if (FzeroRuleEnabled(FZERO_RULE_TUNING) && car < 4)
       cpu_write_a_m(cpu, acceleration[car][speed < 29 ? speed : 28]);
     else
