@@ -165,6 +165,11 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   14 cups / 70 versions. The 41-case Practice catalog matrix passes, including
   seven partial rosters and cross-identity rewind. Existing native Practice
   record keys are preserved. Full-race/ghost qualification remains open.
+  Follow-up: removed the alternating physical-column bounce from presentation.
+  A continuous strip keeps input direction, cursor side and settled position
+  consistent while retaining native car/menu resources. Six frame-by-frame
+  transition checks, both wraps and pixel-identical mid-slide rewind pass;
+  text stays clear of moving cars. See `validate_carousel_motion.py`.
 
 <a id="retail-tuning"></a>
 - [ ] **B04 — Separate stock rebalances from added ships** — `beads-8wg.5.38`, P2.
@@ -279,6 +284,9 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   Update README/PARSE_MANIFEST with mandatory capability checks and vehicle
   identity rules. Commit locally and verify a fresh Windows ZIP with no ROM,
   music or retired venue; explicitly document remaining limits.
+  Fixed incomplete private playtest staging that omitted shared launcher fonts,
+  logo and controller art. `tools/stage_playtest.py` copies and checks the full
+  CMake-built assets; restored launcher appearance verified by screenshot.
 
 Suggested sequence after approval: B01 and B02 first; B05 before hazard fixes;
 B03/B04 after the roster table; B09/B10 can be investigated independently;

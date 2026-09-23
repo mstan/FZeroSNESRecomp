@@ -455,6 +455,7 @@ void FzeroVehiclesLoaded(void) {
  * Page bindings live in WRAM so rewind/snapshots restore the same viewport. */
 enum {
   MENU_STATE = 0x14ce0,
+  MENU_DIRECTION = 0x14ce7,
   MENU_ART = 0x300000,
   MENU_PALETTES = 0x340000,
   MENU_CARDS = 0x341000
@@ -468,13 +469,6 @@ static unsigned menu_id(unsigned position) {
   if (count <= 4 && position >= 4)
     return 99;
   unsigned index = page(position / 4) * 4 + position % 4;
-  return index < count ? roster[index] : 99;
-}
-static unsigned preview_id(const uint8_t *ram, unsigned row) {
-  unsigned column = (ram[0x14c84] & 4) / 4;
-  unsigned current = ram[MENU_STATE + 1 + column];
-  unsigned neighbor = (current + page_count() + (column ? 1 : -1)) % page_count();
-  unsigned index = neighbor * 4 + row;
   return index < count ? roster[index] : 99;
 }
 static unsigned read16(const uint8_t *p) { return p[0] | (unsigned)p[1] << 8; }
@@ -607,58 +601,122 @@ static void menu_resources(bool upload) {
     unsigned ram_address = (dest[2] == 0x7f ? 0x10000 : 0) + read16(dest);
     memcpy(g_ram + ram_address, rom + dim, 32);
   }
-  if (upload && page_count() > 1) {
-    /* Add the third column's clipped edge using the same authored 5x3 BG
-     * previews. The native two-column slide and selected OBJ remain intact.
-     * $8000 VRAM is unused by the native menu, and BG palette 6 is supplied
-     * per row alongside the original two column palettes during scanout. */
-    unsigned column = (g_ram[0x14c84] & 4) / 4;
+  rival_resources(upload);
+}
+
+/* The guest's eight display slots still own selection, dimming, sprite
+ * animation and confirmation. Present those slots through one continuous
+ * strip instead of exposing their alternating 0/48-pixel backing buffers.
+ * Only native BG tiles, palettes and OBJ positions are adapted; the guest
+ * frame/text/info screens and the stock BS menu are unchanged.
+ *
+ * A 56-pixel pitch leaves equal 16-pixel neighboring previews inside the
+ * original 104-pixel pane, clear of the native cursor. Direction lives in
+ * guest WRAM; motion comes from the native slide counter, including rewind.
+ */
+enum { PANE_TILES = 0x4000, PANE_TILE_WORDS = (12 * 15 + 1) * 16 };
+static uint16_t pane_map_backup[1024], pane_tiles_backup[PANE_TILE_WORDS];
+static bool pane_active;
+static int pane_offset(const uint8_t *ram) {
+  int column = (ram[0x14c84] & 4) / 4;
+  int remaining = abs(column * 48 - (int)read16(ram + 0x14c86));
+  if (remaining > 48) remaining = 48;
+  return (ram[MENU_DIRECTION] == 255 ? -1 : 1) * remaining * 56 / 48;
+}
+static unsigned pane_id(const uint8_t *ram, int relative, unsigned row) {
+  unsigned column = (ram[0x14c84] & 4) / 4;
+  int current = ram[MENU_STATE + 1 + column] % page_count();
+  unsigned neighbor = (current + (int)page_count() * 2 + relative) % page_count();
+  unsigned index = neighbor * 4 + row;
+  return index < count ? roster[index] : 99;
+}
+void FzeroVehiclesBeginFrame(Ppu *ppu, const uint8_t *ram) {
+  pane_active = count > 4 && ram[MENU_STATE] == 1 &&
+                ram[0x54] == 1 && ram[0x55] == 1 && ram[0x56] == 0;
+  if (!pane_active) return;
+  memcpy(pane_map_backup, ppu->vram + 0x400, sizeof(pane_map_backup));
+  memcpy(pane_tiles_backup, ppu->vram + PANE_TILES, sizeof(pane_tiles_backup));
+  memset(ppu->vram + 0x400, 0, sizeof(pane_map_backup));
+  static const unsigned source_tiles[15] = {
+      0x55e0, 0x5600, 0x5620, 0x5640, 0x5660, 0x56e0, 0x5700, 0x5720,
+      0x5740, 0x5760, 0x5680, 0x56a0, 0x56c0, 0x5780, 0x57a0};
+  for (unsigned i = 0; i < count; ++i) {
+    unsigned id = roster[i], group = group_for(id), slot = vehicles[id].slot;
+    const uint8_t *source = (group ? art[group - 1] : stock_image) + 0x40000 + slot * 0x8000;
+    for (unsigned tile = 0; tile < 15; ++tile)
+      for (unsigned j = 0; j < 16; ++j)
+        ppu->vram[PANE_TILES + (i * 15 + tile) * 16 + j] =
+            (uint16_t)read16(source + source_tiles[tile] + j * 2);
+  }
+  memset(ppu->vram + PANE_TILES + 12 * 15 * 16, 0, 32);
+  int offset = pane_offset(ram);
+  unsigned column = (ram[0x14c84] & 4) / 4;
+  for (int relative = -2; relative <= 2; ++relative) {
+    int x = 32 + relative * 56;
+    if (x + offset >= 104 || x + offset + 40 <= 0) continue;
+    unsigned palette = 4 + (relative + 3) % 3;
     for (unsigned row = 0; row < 4; ++row) {
-      unsigned id = preview_id(g_ram, row);
-      unsigned group = id < 12 ? group_for(id) : 0;
-      unsigned slot = id < 12 ? vehicles[id].slot : 0;
-      const uint8_t *source = group ? art[group - 1] : stock_image;
+      unsigned id = pane_id(ram, relative, row), index = 0;
+      while (index < count && roster[index] != id) ++index;
       for (unsigned tile = 0; tile < 15; ++tile) {
-        unsigned number = 0x200 + row * 15 + tile;
-        unsigned dest = 0x4000 + number * 32;
-        const uint8_t *pixels = source + 0x40000 + slot * 0x8000 + tile_source[tile];
-        for (unsigned j = 0; j < 16; ++j)
-          g_ppu->vram[dest / 2 + j] = id < 12 ? read16(pixels + j * 2) : 0;
-      }
-      /* Leave the native arrow cells intact. Only two edge tiles of the
-       * adjacent ship are visible, clear of the title and selected cursor. */
-      for (unsigned y = 0; y < 3; ++y) {
-        for (unsigned x = 0; x < 2; ++x) {
-          unsigned left = 0x400 + (6 + row * 5 + y) * 32 + x;
-          unsigned right = left + 18;
-          g_ppu->vram[left] = column ? 0 : 0x1a00 + row * 15 + y * 5 + 3 + x;
-          g_ppu->vram[right] = column ? 0x1a00 + row * 15 + y * 5 + x : 0;
-          unsigned words[] = {left, right};
-          for (unsigned i = 0; i < 2; ++i) {
-            unsigned word = words[i];
-            g_ram[0x18000 + word * 2] = g_ppu->vram[word];
-            g_ram[0x18001 + word * 2] = g_ppu->vram[word] >> 8;
-          }
-        }
+        unsigned word = 0x400 + (6 + row * 5 + tile / 5) * 32 +
+                        ((x / 8 + (int)(tile % 5)) & 31);
+        bool blank = index == count || (!relative && row == (ram[0x14c84] & 3));
+        ppu->vram[word] = (uint16_t)(palette * 0x400 + 0x200 +
+                                    (blank ? 12 * 15 : index * 15 + tile));
       }
     }
   }
-  rival_resources(upload);
+  /* Reuse the active native arrow's color indices, always on the left and
+   * facing the selected ship. It travels with that column during the slide. */
+  unsigned row = ram[0x14c84] & 3;
+  for (unsigned y = 0; y < 2; ++y)
+    ppu->vram[0x400 + (7 + row * 5 + y) * 32 + 2] =
+        (uint16_t)(0x920 + column * 8 + row * 2 + y);
 }
 void FzeroVehiclesRaster(Ppu *ppu, const uint8_t *ram, unsigned line) {
-  if (!count || page_count() < 2 || ram[0x54] != 1 || ram[0x55] != 1 || ram[0x56] != 0 || line < 48)
-    return;
+  if (!pane_active) return;
+  int offset = pane_offset(ram);
+  ppu->hScroll[1] = (uint16_t)-offset;
+  /* The original selected OBJ never approached the pane from both sides.
+   * Clip the incoming ship to the same window as its neighboring BG tiles. */
+  ppu->windowsel = (ppu->windowsel & ~0xf0000u) | 0x20000u;
+  ppu->screenWindowed[0] |= 16;
+  unsigned selected_row = ram[0x14c84] & 3;
+  static const unsigned sprite_x[] = {0, 16, 32, 0, 16, 32, 48, 48};
+  static const unsigned sprite_y[] = {0, 0, 0, 16, 16, 16, 0, 16};
+  for (unsigned i = 0; i < 8; ++i) {
+    int x = 28 + (int)sprite_x[i] + offset;
+    unsigned y = 44 + selected_row * 40 + sprite_y[i];
+    ppu->oam[i * 2] = (uint16_t)((y << 8) | (x & 255));
+    unsigned shift = (i % 4) * 2;
+    ppu->highOam[i / 4] = (uint8_t)((ppu->highOam[i / 4] & ~(3u << shift)) |
+                                   ((2u | ((unsigned)x >> 8 & 1)) << shift));
+  }
+  if (line < 48) return;
   unsigned row = (line - 48) / 40;
   if (row >= 4) return;
-  unsigned id = preview_id(ram, row), group = id < 12 ? group_for(id) : 0;
-  unsigned slot = id < 12 ? vehicles[id].slot : 0;
-  const uint8_t *palette = (group ? art[group - 1] : stock_image) + 0x76180 + slot * 32;
-  for (unsigned i = 0; i < 16; ++i)
-    ppu->cgram[96 + i] = id < 12 ? (uint16_t)read16(palette + i * 2) : 0;
+  for (int relative = -2; relative <= 2; ++relative) {
+    int x = 32 + relative * 56 + offset;
+    if (x >= 104 || x + 40 <= 0) continue;
+    unsigned id = pane_id(ram, relative, row), group = id < 12 ? group_for(id) : 0;
+    unsigned slot = id < 12 ? vehicles[id].slot : 0;
+    const uint8_t *palette = (group ? art[group - 1] : stock_image) + 0x76180 + slot * 32;
+    unsigned dest = (4 + (relative + 3) % 3) * 16;
+    for (unsigned i = 0; i < 16; ++i)
+      ppu->cgram[dest + i] = id < 12 ? (uint16_t)read16(palette + i * 2) : 0;
+  }
+}
+void FzeroVehiclesEndFrame(Ppu *ppu) {
+  if (!pane_active) return;
+  memcpy(ppu->vram + 0x400, pane_map_backup, sizeof(pane_map_backup));
+  memcpy(ppu->vram + PANE_TILES, pane_tiles_backup, sizeof(pane_tiles_backup));
+  pane_active = false;
 }
 static void menu_hook(CpuState *cpu, uint32_t pc) {
   if (pc == 0x1edd01) {
     g_ram[MENU_STATE] = 1;
+    g_ram[MENU_DIRECTION] = 1;
     unsigned index = 0;
     while (index + 1 < count && roster[index] != FzeroVehicleSelected())
       ++index;
@@ -717,6 +775,8 @@ static void menu_hook(CpuState *cpu, uint32_t pc) {
           g_ram[MENU_STATE + 1 + column] = (uint8_t)(i / 4);
           next = column * 4 + i % 4;
         }
+    if (next / 4 != old / 4)
+      g_ram[MENU_DIRECTION] = (buttons & 0x300) == 0x200 ? 255 : 1;
     cpu->A = (uint16_t)next;
     unsigned id = menu_id(next);
     g_ram[ID_ADDRESS] = (uint8_t)id;

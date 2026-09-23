@@ -491,6 +491,7 @@ void FzeroDrawPpuFrame(void) {
       SimpleHdma_Init(&channels[channel], &g_dma->channel[channel]);
   }
 
+  FzeroVehiclesBeginFrame(g_ppu, s_published_ram);
   for (int line = 0; line <= 224; line++) {
     for (uint8_t index = 0; index < s_irq_event_count; index++) {
       const FzeroIrqEvent *event = &s_irq_events[index];
@@ -538,6 +539,7 @@ void FzeroDrawPpuFrame(void) {
     PpuBeginDrawing(g_ppu, s_output_pixels, s_output_pitch, kPpuRenderFlags_NewRenderer);
   }
   if(!s_viewport.enhanced)FzeroTracksOverlay((uint32_t *)s_output_pixels,256,224,s_output_pitch);
+  FzeroVehiclesEndFrame(g_ppu);
 
   /* Window bounds are hardware latches, including when the next scene turns
    * their HDMA channel off. Carry the last scanline forward unless the CPU

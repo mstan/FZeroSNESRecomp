@@ -73,10 +73,21 @@ a reviewed adapter.
 
 ## Practice and September 23 playtest corrections
 
-The native car carousel now shows clipped neighboring previews on both sides.
-It retains the original two-column animation, cursor and authored dim palettes.
-The extra preview uses otherwise unused BG tiles and a row palette; it does not
-replace the guest car selector or its information panel.
+The native car carousel shows clipped neighboring previews on both sides.
+The guest still owns selection, sprite animation, palettes, confirmation and
+the information panel. Its two backing columns are presented as a continuous
+strip: Right always brings the next column in from the right, Left reverses
+that motion, and the native cursor always faces right from the ship's left.
+At rest the selected column stays at one position. A 56-pixel column pitch
+leaves matching 16-pixel preview areas inside the original 104-pixel pane.
+Up/Down, Select, partial-column behavior and circular wrapping are unchanged.
+
+The native slide counter supplies motion; direction is stored at WRAM
+`$7F:4CE7` for snapshots/rewind. During car-select scanout only, authored BG
+tiles, row palettes and selected OBJ positions are arranged into that strip.
+The original window also clips the incoming OBJ away from the text. Temporary
+VRAM changes are restored after capturing/drawing the frame, so guest VRAM,
+other menu panels, stock BS mode and racing resources remain intact.
 
 Practice uses the same complete vertical league catalog as Grand Prix. Up/Down
 and Select also cross cup boundaries in the native on-track course preview.
@@ -122,3 +133,22 @@ Evidence remains under `captures/feedback-20260923`: `practice-catalog-qualified
 `results-qualified`, `vehicles-practice-expanded`, `native-menus-expanded` and
 `presentation-practice-expanded`. The broader B03/B12 limitations above remain
 open; these checks are not a claim of complete CGP donor parity.
+
+Follow-up continuity validation: `validate_carousel_motion.py` checks each
+intermediate frame of six directional transitions, including both wrap points.
+Sprite positions move monotonically in the requested direction, the cursor
+keeps its side/orientation, and the text area remains pixel-identical. Full raw
+captures match before/after an actual rewind performed in the middle of a
+slide. Evidence: `carousel-motion-clipped/motion.png` and `validation.json`.
+The 38 native-menu cases, twelve mixed Practice player routes and 12 CTest
+checks also pass after the continuity correction.
+
+The launcher font/logo/controller regression was an incomplete private
+playtest directory: source-tree assets omit the shared UI assets assembled by
+CMake. `tools/stage_playtest.py --build build --output <fresh-directory>
+--profile <previous-playtest>` now stages the full built asset tree, checks
+required font/branding/controller files, verifies their hashes and preserves
+the owner's settings/saves. A launcher screenshot confirms restored Lato,
+SNES branding and controller art (`continuous-desktop-check/launcher-restored.png`).
+Release packaging already uses the complete built assets; profile-based private
+playtests must not be distributed as release ZIPs.
