@@ -43,7 +43,7 @@ def main():
                f'source_sha256={STOCK}',f'target_sha256={hashlib.sha256(image).hexdigest()}',
                f'# Author artwork input SHA-256: {expected}']
         lines += [f'vehicle={id}|{name}|{slot}|{role}' for slot,(id,name,role) in enumerate(ships)]
-        (a.out/f'cgp-p{group}.ini').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+        (a.out/f'cgp-p{group}.ini').write_text('\n'.join(lines)+'\n',encoding='utf-8',newline='\n')
         print(group,len(patch),hashlib.sha256(image).hexdigest())
 
 if __name__=='__main__':main()

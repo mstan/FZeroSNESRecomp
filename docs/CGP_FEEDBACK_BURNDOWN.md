@@ -2,7 +2,7 @@
 
 Date: 2026-09-23. Branch: `fzero-55`. Baseline: `ced5d72` (preview.3).
 
-**Status: approved and in progress (2026-09-23). Implementation: 2/12 complete.**
+**Status: approved and in progress (2026-09-23). Implementation: 4/12 complete.**
 Matthew approved beginning the full burndown, including fixes, asset replacement
 and a validated local Windows build. Work solo. Keep commits local; no pushes.
 
@@ -182,7 +182,7 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   capabilities. See `CGP_COURSE_CAPABILITIES.md` for coverage and remaining gaps.
 
 <a id="trampoline"></a>
-- [ ] **B06 — Fix trampoline-exit death** — `beads-8wg.5.40`, P1.
+- [x] **B06 — Fix trampoline-exit death** — `beads-8wg.5.40`, P1.
   Depends on B05. Identify the exact course/ship/route from the report, then
   compare height, landing, surface and boundary decisions against the donor.
   Require a replay that survives the valid exit while genuine off-track deaths
@@ -190,16 +190,22 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   Shared landing fix passes 1,024 surface/phase/recovery probes on each of the
   eight revised courses. Native tile-number checks were ignoring custom ground
   properties. The owner identified Marine City I as the trampoline course;
-  its exit now has a dedicated route-validation target.
+  its exit now has a dedicated reproduced regression. Native-check negative
+  controls die on tile DB; fixed and donor replays survive. Full trampoline
+  crossing, neighboring pit and immediate pre-landing snapshot/reset pass.
+  See [landing audit](CGP_LANDING_AUDIT.md) for the 40-case matrix and limits.
 
 <a id="railroad"></a>
-- [ ] **B07 — Fix railroad-landing death** — `beads-8wg.5.41`, P1.
+- [x] **B07 — Fix railroad-landing death** — `beads-8wg.5.41`, P1.
   Depends on B05. Identify the course and railroad property, establish donor
   landing semantics, and fix the mismatch. Keep a separate regression even if
   it shares B06's root cause. Test adjacent invalid landing surfaces too.
   Shares the confirmed tile-number/property mismatch. Probes cover high-numbered
   safe tiles and lower-numbered pits. The owner identified Lightning as the
-  railroad course; its landing now has a dedicated route-validation target.
+  railroad course. The native-check negative control dies on tile F7; fixed
+  and donor replays survive. Neighboring void remains fatal. All three car
+  modes, optional rules on/off and pre-landing snapshot/reset pass in the
+  [40-case landing matrix](CGP_LANDING_AUDIT.md).
 
 <a id="magnets"></a>
 - [ ] **B08 — Validate up and grip magnets** — `beads-8wg.5.42`, P1.

@@ -24,6 +24,7 @@
 #include "sha256.h"
 #include "snes/apu.h"
 #include "snes/cart.h"
+#include "snes/interp_bridge.h"
 #include "snes/dsp.h"
 #include "snes/ppu.h"
 #include "snes/snes.h"
@@ -66,6 +67,58 @@ typedef struct InputSpan {
 } InputSpan;
 
 void headless_install_exception_filter(void);
+
+/* Private-ROM replay fixtures. Entries are: first last WRAM-address hex-bytes.
+ * Kept in the headless host: no memory editing interface in the shipped app. */
+typedef struct WramEvent {
+  long first, last;
+  unsigned address, size;
+  uint8_t bytes[128];
+} WramEvent;
+static WramEvent wram_events[128];
+static unsigned wram_event_count;
+static FILE *wram_trace;
+static bool replay_wram_init(void) {
+  const char *path = getenv("FZERO_TEST_WRAM_SCRIPT");
+  if (path) {
+    FILE *f = fopen(path, "r");
+    if (!f) return false;
+    char line[512], hex[257], extra;
+    while (fgets(line, sizeof(line), f)) {
+      if (line[0] == '#' || line[0] == '\n') continue;
+      if (wram_event_count == 128) { fclose(f); return false; }
+      WramEvent *e = &wram_events[wram_event_count];
+      if (sscanf(line, "%ld %ld %x %256s %c", &e->first, &e->last,
+                 &e->address, hex, &extra) != 4 || e->first < 0 || e->last < e->first ||
+          strlen(hex) % 2 || !strlen(hex)) { fclose(f); return false; }
+      e->size = (unsigned)strlen(hex) / 2;
+      if (e->address >= sizeof(g_ram) || e->size > sizeof(g_ram) - e->address) {
+        fclose(f); return false;
+      }
+      for (unsigned i = 0; i < e->size; ++i) {
+        char pair[3] = {hex[i*2], hex[i*2+1], 0}, *end;
+        unsigned long value = strtoul(pair, &end, 16);
+        if (*end) { fclose(f); return false; }
+        e->bytes[i] = (uint8_t)value;
+      }
+      ++wram_event_count;
+    }
+    bool ok = !ferror(f); fclose(f); if (!ok) return false;
+  }
+  path = getenv("FZERO_TEST_WRAM_TRACE");
+  if (path && !(wram_trace = fopen(path, "wb"))) return false;
+  return true;
+}
+static void replay_wram_before(long frame) {
+  for (unsigned i = 0; i < wram_event_count; ++i) {
+    const WramEvent *e = &wram_events[i];
+    if (frame >= e->first && frame <= e->last)
+      memcpy(g_ram + e->address, e->bytes, e->size);
+  }
+}
+static void stock_landing_probe(CpuState *cpu, uint32_t pc) {
+  (void)cpu; (void)pc; /* Run the native instructions as a negative control. */
+}
 
 static uint64_t fnv1a_update(uint64_t hash, const void *data, size_t size) {
   const uint8_t *bytes = (const uint8_t *)data;
@@ -381,9 +434,14 @@ int main(int argc, char **argv) {
   uint64_t replay_master = 0;
   const char *progress_test = getenv("FZERO_LIBRARY_PROGRESS_TEST");
   long next_completed_result = 1450;
-
+  const char *save_frame_text = getenv("FZERO_TEST_SAVE_FRAME");
+  long save_frame = save_frame_text ? strtol(save_frame_text, NULL, 10) : 1500;
+  if (!replay_wram_init()) { fputs("Invalid WRAM replay fixture\n", stderr); return 10; }
+  if (getenv("FZERO_TEST_STOCK_LANDING"))
+    interp_bridge_set_pre_opcode_hook(0x009c9a, stock_landing_probe);
 
   for (long frame = 0; frame < frame_limit; frame++) {
+    replay_wram_before(frame);
     /* Private integration check: inject a completed results state, then let
      * the unmodified GP transition routine advance/load/finish the cup.
      * This tests queue boundaries, not driving or finish-line detection. */
@@ -394,7 +452,7 @@ int main(int argc, char **argv) {
       next_completed_result=frame+1000;
     }
 
-    if (lifecycle && frame == 1500) {
+    if (lifecycle && frame == save_frame) {
       RtlEnsureSaveDir();
       char path[1024]; RtlSaveSlotPath(11, path, sizeof(path));
       if (!RtlSaveSnapshot(path)) { fputs("lifecycle: save failed\n", stderr); return 8; }
@@ -452,6 +510,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[fzero-viewport] frame=%ld width=%d\n", frame, frame_width);
     }
     (void)RtlRunFrame(scripted_input(input_spans, input_span_count, frame));
+    if (wram_trace && fwrite(g_ram, 1, 0x2000, wram_trace) != 0x2000) return 10;
     if (getenv("FZERO_SCENE_TRACE"))
       fprintf(stderr, "scene %ld state=%02x,%02x,%02x training=%02x scenery=%02x sound=%02x,%02x,%02x,%02x,%02x msu=%02x,%02x,%02x,%02x brightness=%02x\n",
               frame, g_ram[0x54], g_ram[0x55], g_ram[0x56], g_ram[0x58], g_ram[0x81],
@@ -488,6 +547,7 @@ int main(int argc, char **argv) {
     }
   }
 
+  if (wram_trace && fclose(wram_trace)) return 10;
   int output_ok = wav_close(&wav) &&
                   write_ppm(getenv("SNESRECOMP_FRAME_DUMP"), pixels,
                             frame_width) &&

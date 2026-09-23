@@ -24,8 +24,9 @@ Validation: all eight courses changed by P3test enter races with every optional
 rule disabled. Each passes 1,024 landing/recovery decisions and 720 up-magnet
 cases. With the optional author ASM installed, all 720 magnet results match
 its accumulator and carry results. This is not a claim of complete CPU-register
-equivalence or full-route playability. The reported trampoline and railroad
-routes still require dedicated replays.
+equivalence or full-route playability. Dedicated Marine City I trampoline and
+Lightning railroad replays now reproduce both old deaths and validate the fix;
+see [landing audit](CGP_LANDING_AUDIT.md).
 
 Matched native-course runs with required features declared versus omitted
 produce identical WRAM and rendered frames in both stock and Deluxe engines.
