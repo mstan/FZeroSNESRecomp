@@ -53,8 +53,11 @@ dependency_roots = {"snesrecomp": Path(cache.get("SNESRECOMP_ROOT", ROOT / "snes
                     "recomp-ui": Path(cache.get("RECOMP_UI_ROOT", ROOT / "recomp-ui"))}
 exe = build / a.exe
 image = exe.read_bytes()
-if version.encode() not in image:
-    raise SystemExit("Executable does not contain the release version")
+release_version = version + ("-" + a.label if a.label else "")
+if cache.get("SNESRECOMP_BUILD_VERSION") != release_version:
+    raise SystemExit(f"Build version does not match {release_version}; reconfigure and rebuild")
+if release_version.encode() not in image:
+    raise SystemExit("Executable does not contain the full release version")
 deluxe_mods = a.deluxe_mods if (a.deluxe_mods / "bs-deluxe-import.json").exists() else build / "mods"
 metadata = json.loads((deluxe_mods / "bs-deluxe-import.json").read_text())
 # The payload is what ships, so it has to be inside the binary - together with
@@ -69,7 +72,6 @@ if hashlib.sha256((deluxe_mods / "bs-deluxe.dat").read_bytes()).hexdigest() != m
 for source in Path(cache.get("FZERO_GEN_DIR", ROOT / "src/gen")).glob("*.c"):
     if "rtl_aot_node_denied(" in source.read_text(encoding="utf-8"):
         raise SystemExit("Regenerate without the AOT deny gate before packaging")
-release_version = version + ("-" + a.label if a.label else "")
 name = f"FZeroSNESRecomp-{release_version}-windows-x64"
 stage = ROOT / a.output / name
 stage.mkdir(parents=True, exist_ok=False)
