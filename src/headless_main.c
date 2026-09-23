@@ -10,6 +10,7 @@
 
 #include "fzero_runtime.h"
 #include "fzero_deluxe.h"
+#include "fzero_gameplay.h"
 #include "fzero_tracks.h"
 #include "fzero_course_runtime.h"
 #include "fzero_msu.h"
@@ -299,6 +300,7 @@ int main(int argc, char **argv) {
 #endif
                        )) { fprintf(stderr, "%s\n", FzeroTracksError()); free(rom); return 2; }
   const char *deluxe_data = getenv("FZERO_DELUXE_DATA");
+  FzeroGameplayHeadless(deluxe_data && *deluxe_data);
   if (!FzeroTracksPrepare(&rom, &rom_size, deluxe_data && *deluxe_data, deluxe_data)) {
     fprintf(stderr, "[content] %s %s\n", FzeroTracksError(), FzeroDeluxeError());
     free(rom);
@@ -509,7 +511,11 @@ int main(int argc, char **argv) {
           (unsigned long long)stats.video_changes, audio_samples,
           (unsigned long long)stats.audio_active_frames, stats.audio_peak,
           (unsigned long long)stats.audio_underruns);
-  free(rom);
   FzeroTracksSavesFinish();
+  if (getenv("FZERO_RULE_PROBE")) {
+    extern bool FzeroRulesProbe(void);
+    if (!FzeroRulesProbe()) { free(rom); return 9; }
+  }
+  free(rom);
   return qualified && output_ok ? 0 : 8;
 }

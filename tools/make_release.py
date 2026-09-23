@@ -102,7 +102,9 @@ for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
 (stage / "mods/track-packs").mkdir()
 for filename in ("README.md", "PARSE_MANIFEST.md"):
     shutil.copy2(ROOT / "mods" / filename, stage / "mods" / filename)
-    shutil.copy2(ROOT / "mods" / filename, stage / "mods/track-packs" / filename)
+    text = (ROOT / "mods" / filename).read_text(encoding="utf-8")
+    (stage / "mods/track-packs" / filename).write_text(text.replace("(cgp-source/README.md)", "(../cgp-source/README.md)"), encoding="utf-8")
+shutil.copytree(ROOT / "mods/cgp-source", stage / "mods/cgp-source")
 shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
@@ -117,7 +119,7 @@ shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK
     "The MSU patch, music and CRT-Geom shader are not bundled. See README.md\n"
     "for import instructions and save-state/audio limitations.\n\n"
     "Mods defaults to Widescreen at Fit, which follows the\n"
-    "window between 4:3 and 32:9, Presentation FPS at Auto, and BS Deluxe.\n"
+    "window between 4:3 and 32:9, Presentation FPS at Auto, and BS vehicles.\n"
     "Turn any of them off in Mods, or choose a fixed aspect or rate there.\n\n"
     "HD Mode 7 starts off. Enable it in Mods for sharper tracks at 2x through 10x.\n"
     "Start at 2x. Above 4x can cause severe slowdown; use at your own risk.\n"
@@ -127,12 +129,14 @@ shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK
     "then attach the newest diagnostics/performance-*.jsonl file to your report.\n"
     "Logs stay local and include no ROM or save data.\n"
     "See docs/PERFORMANCE_DIAGNOSTICS.md for details.\n\n"
-    "BS Deluxe gives you the original and the BS content together, and keeps\n"
+    "BS vehicles and original BS tracks have independent switches. The engine keeps\n"
     "its saves apart under saves/bs-deluxe. It is included with permission\n"
     "from its authors: GuyPerfect, Porthor, and PowerPanda. The SNES patch is\n"
     "at patches/bs-deluxe-usa.ips for your own ROM, and\n"
     "mods/BS-Deluxe-credits.txt lists machines, leagues and alternate controls.\n\n"
-    "Community Grand Prix adds 30 courses for 55 total with BS Deluxe.\n"
+    "Community Grand Prix adds 30 new + 10 corrected BS courses for 55 total.\n"
+    "CGP and original BS tracks are mutually exclusive; cars are independent.\n"
+    "CGP rules and fixes are separate opt-in mods. No music is included.\n"
     "Enable or disable CGP directly in Mods. MAX League is retained but\n"
     "hidden and disabled in this branch. Bundled IPS patches and attribution\n"
     "are under assets/track-packs; no MSU audio is included.\n"

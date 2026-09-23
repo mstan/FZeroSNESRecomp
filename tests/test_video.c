@@ -132,9 +132,22 @@ static void config_tests(void) {
   CHECK(!FzeroVideoLoad(&b, "test-video.ini"));
   CHECK(!b.enhanced && !b.bs_deluxe);
   CHECK(b.aspect == FZERO_ASPECT_FIT && b.fps == 0 && !b.fps_enabled);
+  CHECK(!b.bs_tracks && !b.gameplay.enabled);
+  f = fopen("test-video.ini", "w"); CHECK(f);
+  fputs("BSDeluxe=1\n", f); fclose(f);
+  CHECK(FzeroVideoLoad(&b, "test-video.ini") && b.bs_deluxe && b.bs_tracks);
+  f = fopen("test-video.ini", "w"); CHECK(f);
+  fputs("BSVehicles=0\nBSTracks=1\nBSDeluxe=1\n", f); fclose(f);
+  CHECK(FzeroVideoLoad(&b, "test-video.ini") && !b.bs_deluxe && b.bs_tracks);
+  b.gameplay.enabled=(1u<<FZERO_RULE_COUNT)-1;
+  b.gameplay.tuning=0; b.gameplay.boost=1; b.gameplay.exhaust=2;
+  CHECK(FzeroVideoSave(&b,"test-video.ini") && FzeroVideoLoad(&a,"test-video.ini"));
+  CHECK(!a.bs_deluxe && a.bs_tracks && a.gameplay.enabled==b.gameplay.enabled);
+  CHECK(a.gameplay.tuning==0 && a.gameplay.boost==1 && a.gameplay.exhaust==2);
   remove("test-video.ini");
   CHECK(FzeroVideoLoad(&b, "test-video.ini"));
   CHECK(b.enhanced && b.fps_enabled && b.bs_deluxe && b.aspect == FZERO_ASPECT_FIT); /* first run: all mods on */
+  CHECK(!b.bs_tracks && !b.gameplay.enabled); /* corrected BS comes from CGP; rules opt-in */
   CHECK(!FzeroValidFps(61));
   FzeroAspect aspect;
   CHECK(FzeroParseAspect("32:9", &aspect) && aspect == FZERO_ASPECT_32_9);

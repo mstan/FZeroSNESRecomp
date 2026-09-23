@@ -16,7 +16,7 @@ if(NOT MSVC)
     target_compile_options(fzero_tracks PRIVATE -Wall -Wextra -Werror)
 endif()
 option(FZERO_BUILD_GAME "Build game hosts (requires privately generated ROM sources)" ON)
-add_library(fzero_video STATIC src/fzero_video.c src/fzero_mode7.c src/fzero_replay.c src/fzero_hdma.c)
+add_library(fzero_video STATIC src/fzero_gameplay_settings.c src/fzero_video.c src/fzero_mode7.c src/fzero_replay.c src/fzero_hdma.c)
 target_include_directories(fzero_video PUBLIC "${CMAKE_SOURCE_DIR}/src")
 if(NOT MSVC)
     target_compile_options(fzero_video PRIVATE -Wall -Wextra -Werror)
@@ -164,6 +164,7 @@ endif()
 # The headless host keeps its own host_report stubs: it links no SDL, and
 # host_report.c includes desktop/sdl_compat.h.
 add_executable(FZeroSNESRecompHeadless
+    tests/probe_cgp_rules.c
     ${SNESRECOMP_RUNNER_SOURCES}
     ${FZERO_GEN_SOURCES}
     src/headless_host.c
@@ -198,7 +199,7 @@ target_compile_definitions(FZeroSNESRecomp PRIVATE
     RECOMP_UI_DEFAULT_RENDERER_KEY="")
 
 function(configure_fzero_target target)
-    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c src/fzero_course_hooks.c src/fzero_course_menu.c src/fzero_course_saves.c)
+    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_gameplay.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c src/fzero_course_hooks.c src/fzero_course_menu.c src/fzero_course_saves.c)
     target_link_libraries(${target} PRIVATE fzero_tracks)
     if(FZERO_DELUXE_GEN_DIR)
         target_sources(${target} PRIVATE $<TARGET_OBJECTS:fzero_deluxe_native>

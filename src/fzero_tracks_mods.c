@@ -24,6 +24,8 @@ static int feature_get(void *ctx, int i, RecompLauncherCModFeature *out) {
     COPY(out->id, "tracks"); COPY(out->package_id, p->id); COPY(out->name, p->name);
     COPY(out->package_name, p->name); COPY(out->author, p->author);
     snprintf(out->description, sizeof(out->description), "%u cup(s), %u course(s). Enable this pack to add its cups to the in-game Grand Prix league list.", p->cup_count, p->track_count);
+    if (!strcmp(p->id,"cgp"))
+        COPY(out->description,"30 new courses plus 10 corrected BS courses in 8 cups. Enabling this turns off the original BS Satellaview track pack. Vehicles and gameplay rules are separate mods.");
     out->enabled = FzeroTracksEnabled(p);
     COPY(out->status, !out->enabled ? "Disabled" : FzeroTracksBundled(p) ? "Enabled" : FzeroTracksAvailable(p) ? "Enabled; patch checked on Play" : "Supply the patch to add these cups");
     return 1;

@@ -17,11 +17,11 @@ static const char *const aspect_names[] = {"4:3", "16:9", "21:9", "32:9", "Fit"}
 void FzeroVideoDefaults(FzeroVideoSettings *s) {
   *s = (FzeroVideoSettings){.enhanced = true, .aspect = FZERO_ASPECT_FIT,
                             .fps = 0, .fps_enabled = true, .bs_deluxe = true,
-                            .hd_scale = 2};
+                            .hd_scale = 2, .gameplay = {.tuning=2, .boost=2, .exhaust=2}};
 }
 
 void FzeroVideoStock(FzeroVideoSettings *s) {
-  *s = (FzeroVideoSettings){.aspect = FZERO_ASPECT_STOCK, .hd_scale = 2};
+  *s = (FzeroVideoSettings){.aspect = FZERO_ASPECT_STOCK, .hd_scale = 2, .gameplay = {.tuning=2, .boost=2, .exhaust=2}};
 }
 
 const char *FzeroAspectName(FzeroAspect aspect) {
@@ -105,7 +105,8 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
   if (!f) return errno == ENOENT;
   char line[256], key[64], value[64], tail;
   bool valid = true;
-  bool has_fps_toggle = false;
+  bool has_fps_toggle = false, has_cars = false, has_tracks = false, has_legacy_bs = false;
+  bool legacy_bs = s->bs_deluxe;
   while (fgets(line, sizeof(line), f)) {
     int fields = sscanf(line, " %63[^= \t] = %63s", key, value);
     if (fields != 2) {
@@ -127,8 +128,28 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
     } else if (!strcmp(key, "Diagnostics")) {
       if (!strcmp(value, "0") || !strcmp(value, "1")) s->diagnostics = value[0] == '1';
       else valid = false;
+    } else if (!strcmp(key, "BSVehicles")) {
+      has_cars = true;
+      if (!strcmp(value,"0") || !strcmp(value,"1")) s->bs_deluxe = value[0] == '1';
+      else valid = false;
+    } else if (!strcmp(key,"BSTracks")) {
+      has_tracks = true;
+      if (!strcmp(value,"0") || !strcmp(value,"1")) s->bs_tracks = value[0] == '1';
+      else valid = false;
+    } else if (!strcmp(key,"CGPRules")) {
+      unsigned bits;
+      if (sscanf(value,"%u%c",&bits,&tail)==1 && !(bits >> FZERO_RULE_COUNT)) s->gameplay.enabled=bits;
+      else valid=false;
+    } else if (!strcmp(key,"CGPTuning") || !strcmp(key,"CGPBoost") || !strcmp(key,"CGPExhaust")) {
+      unsigned profile;
+      if (sscanf(value,"%u%c",&profile,&tail)==1 && profile<3) {
+        if (!strcmp(key,"CGPTuning")) s->gameplay.tuning=profile;
+        else if (!strcmp(key,"CGPBoost")) s->gameplay.boost=profile;
+        else s->gameplay.exhaust=profile;
+      } else valid=false;
     } else if (!strcmp(key, "BSDeluxe")) {
-      if (!strcmp(value, "0") || !strcmp(value, "1")) s->bs_deluxe = value[0] == '1';
+      has_legacy_bs = true;
+      if (!strcmp(value, "0") || !strcmp(value, "1")) legacy_bs = value[0] == '1';
       else valid = false;
     } else if (!strcmp(key, "Aspect")) {
       if (!FzeroParseAspect(value, &s->aspect)) valid = false;
@@ -141,6 +162,8 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
   }
   if (ferror(f)) valid = false;
   fclose(f);
+  if (!has_cars) s->bs_deluxe = legacy_bs;
+  if (!has_tracks && has_legacy_bs) s->bs_tracks = legacy_bs;
   if (!has_fps_toggle) s->fps_enabled = s->enhanced; /* migrate combined checkpoint mod */
   return valid;
 }
@@ -150,8 +173,9 @@ bool FzeroVideoSave(const FzeroVideoSettings *s, const char *path) {
   if (snprintf(temporary, sizeof(temporary), "%s.tmp", path) >= (int)sizeof(temporary)) return false;
   FILE *f = fopen(temporary, "w");
   if (!f) return false;
-  bool ok = fprintf(f, "[FZeroVideo]\nEnhancedRenderer=%d\nAspect=%s\nPresentationEnabled=%d\nPresentationFPS=%u\nBSDeluxe=%d\nHDMode7=%d\nHDMode7Scale=%u\nDiagnostics=%d\n",
-                    s->enhanced, FzeroAspectName(s->aspect), s->fps_enabled, s->fps, s->bs_deluxe,
+  bool ok = fprintf(f, "[FZeroVideo]\nEnhancedRenderer=%d\nAspect=%s\nPresentationEnabled=%d\nPresentationFPS=%u\nBSVehicles=%d\nBSTracks=%d\nCGPRules=%u\nCGPTuning=%u\nCGPBoost=%u\nCGPExhaust=%u\nHDMode7=%d\nHDMode7Scale=%u\nDiagnostics=%d\n",
+                    s->enhanced, FzeroAspectName(s->aspect), s->fps_enabled, s->fps, s->bs_deluxe, s->bs_tracks, s->gameplay.enabled,
+                    s->gameplay.tuning, s->gameplay.boost, s->gameplay.exhaust,
                     s->hd_mode7, FzeroValidHdScale(s->hd_scale) ? s->hd_scale : 2u, s->diagnostics) > 0;
   if (fclose(f)) ok = false;
   if (ok) {

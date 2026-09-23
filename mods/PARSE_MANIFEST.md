@@ -12,8 +12,10 @@ registry and neighboring manifests. MAX Classic and Modern are registered as
 equivalent course donors. Their normalized course hashes were compared;
 accepting equivalent revisions must never depend on their filenames or titles.
 CGP P1/P2/P3 are another verified equivalence group. Their 55 resource slots
-are identical across variants, but the manifest exposes only the 30 new
-courses. Slots 0-14 are retail and 15-24 are BS; they do not create extra cups.
+are identical across variants. The manifest exposes 40: slots 15-24 are the
+corrected BS courses and slots 25-54 are the new courses. Slots 0-14 are retail
+and do not create extra cups. CGP and the original BS track provider are
+mutually exclusive; BS vehicles are an independent option.
 The new courses follow the donor's GP permutation, not numeric resource order.
 No new CGP course matches MAX's normalized tile pool/block/grid resources.
 
@@ -152,3 +154,13 @@ Compare initial loaded geometry before racing, or compare a mutation with
 the actual donor. Hacks with additional hazards, physics, vehicles or custom
 scripted events need explicit support. A successful structural parse cannot
 prove those semantic features are compatible.
+
+## Gameplay source changes
+
+The course manifest remains data-only. Do not turn it into an arbitrary ROM
+write or executable-hook format. Author-supplied gameplay ASM is separately
+reviewed and adapted to the common engines; see [cgp-source/README.md](cgp-source/README.md)
+for source coverage, table ownership, interaction rules and validation.
+Keep gameplay options off by default. A course pack must not silently enable
+music, tuning or new rules. Verify stock/BS car IDs, caller register widths,
+return-stack balance and any shared renderer/HUD hooks before exposing a patch.

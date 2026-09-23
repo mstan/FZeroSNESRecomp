@@ -6,18 +6,21 @@ only an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
 buttons. Imported cups appear after the original leagues.
 
-The `fzero-55` build has **11 cups / 55 courses** with BS Deluxe enabled.
+The `fzero-55` build has **11 cups / 55 courses** with CGP enabled: the
+15 original courses, CGP's 10 corrected BS courses, and 30 new courses.
 MAX League's files are retained, but its mod and cups are hidden and disabled.
+
+**BS Satellaview vehicles** adds the four extra cars independently of tracks.
+**BS Satellaview tracks** adds the ten original BS courses. That track option
+and CGP are mutually exclusive; enabling either turns off the other. The
+vehicle option works with either track set, or just the original 15 courses.
+CGP and BS vehicles are enabled by default; original BS tracks are off.
 
 For additional packs, put extracted `.ips` or `.bps` files in
 **`mods/track-packs` beside the game**, along with their manifest and layout
 when they are not already recognized. You still supply your own original ROM.
-
-With BS Deluxe enabled, its four extra cars and two extra leagues remain
-available alongside the original content and imported courses. With BS Deluxe
-off, imports join the original four-car game. Turn off the individual track
-packs to use the native league list; turn off BS Deluxe and other enhancements
-for the stock experience. There is no separate Track Library switch.
+Turn off course packs, BS vehicles and other enhancements for the stock
+experience. There is no separate Track Library switch.
 
 MAX League by PowerPanda and Zephyrum25 includes the Classic IPS and original
 credits in `assets/track-packs`. Classic and Modern supply the same five
@@ -27,12 +30,17 @@ including its boost behavior.
 **Community Grand Prix (CGP) 1.0** includes the P1 IPS and credits in
 `assets/track-packs`. P1, P2 and P3 contain identical courses with different
 donor vehicles: any one patch supplies the
-same **six new cups / 30 courses**, and installing all three adds them once.
-CGP's original and Satellaview courses are omitted because the native leagues
-already provide them. MAX's five courses are distinct but parked in this build.
-BS Deluxe and CGP preserve the existing eight-car roster. CGP's replacement vehicles, boost rules,
-Legend difficulty and MSU soundtrack are not imported by this course adapter.
-No MSU/PCM audio files are installed or enabled by these packs.
+same **eight cups / 40 courses** (30 new plus 10 corrected BS), and
+installing all three adds them once. The 15 retail courses are omitted from
+the import because the game already supplies them. MAX's five courses are
+distinct but parked in this build.
+
+The author's ASM supplies **19 separate opt-in gameplay mods** in Mods.
+Tuning, energy boost and exhaust placement each offer P1/P2/P3 profiles.
+These options work independently of the course pack; enabling CGP courses
+does not change vehicle mechanics. See [the source/options table](cgp-source/README.md).
+The optional CGP MSU adapter requires your own music folder. No MSU/PCM audio
+files are installed or enabled by these packs.
 
 MAX and CGP need no separate download. To import additional or equivalent
 patches from ZIP archives without extracting the soundtrack, use the optional
@@ -73,8 +81,10 @@ A contributor can supply a single-course pack, several cups, or a selected
 subset of a donor's courses. Each independently supplied patch needs its own
 manifest. Imported Practice selection and a combined records browser are not
 implemented yet. Save states require the same installed course catalog and
-base engine; adding/removing packs preserves records but invalidates old
-library snapshots. MSU-1 remains outside this prototype's qualification.
+base engine and gameplay rules; adding/removing packs preserves records but
+invalidates old library snapshots. Changed gameplay rules use a separate save
+and records namespace. Native original BS Practice courses are unavailable
+when their track mod is off.
 
 If a patch is unrecognized, see [PARSE_MANIFEST.md](PARSE_MANIFEST.md). File an
 issue with the author's patch link, revision, source-ROM checksum and desired
@@ -94,7 +104,9 @@ donor's bytes, add another launcher cup selector, or silently substitute a
 different course when data is missing. Structural parsing is only one part
 of qualification; record gameplay evidence and unresolved features explicitly.
 For compilations, inventory the donor's resource slots and its race-order
-table separately. Exclude existing native courses explicitly in the manifest.
+table separately. Exclude unchanged native courses explicitly in the manifest. Corrected BS
+revisions in CGP are deliberate alternatives, with mutually exclusive track
+providers; do not deduplicate them against originals solely by name.
 Compare normalized geometry against other packs before claiming duplicates;
 names alone cannot distinguish a revision from another track. Accept multiple
 donor hashes under one pack ID only after comparing every declared resource.

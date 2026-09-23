@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "fzero_gameplay.h"
 
 enum { FZERO_HEIGHT = 224, FZERO_STOCK_WIDTH = 256, FZERO_MAX_WIDTH = 684 };
 enum { FZERO_HD_SCALE_MIN = 2, FZERO_HD_SCALE_MAX = 10 };
@@ -21,7 +22,9 @@ typedef struct FzeroVideoSettings {
   FzeroAspect aspect;
   unsigned fps; /* 0 = display refresh (Auto). */
   bool fps_enabled;
-  bool bs_deluxe; /* Launch-time content selection. */
+  bool bs_deluxe; /* BS vehicles; legacy field name retained for callers. */
+  bool bs_tracks; /* Original BS courses, exclusive with CGP's corrected set. */
+  FzeroGameplaySettings gameplay; /* Author's rules are all opt-in. */
   bool hd_mode7; /* Independent, opt-in spatial resolution enhancement. */
   unsigned hd_scale; /* Integer 2..10; retained while disabled. */
   bool diagnostics; /* Opt-in local performance reports; off by default. */

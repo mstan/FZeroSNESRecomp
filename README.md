@@ -3,7 +3,7 @@
 A native PC build of *F-Zero* for SNES.
 
 This local `fzero-55` branch includes Community Grand Prix: **55 tracks in
-11 cups** with BS Deluxe. MAX League is preserved but hidden and disabled.
+11 cups**, including corrected BS courses. BS vehicles are independent. MAX League is preserved but hidden and disabled.
 
 You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 
@@ -70,7 +70,9 @@ Open **Mods** for:
 - **HD Mode 7:** sharper tracks at integer scales from 2x to 10x; off by default.
 - **Diagnostics:** optional local performance reports for troubleshooting; off by default. See [how to capture a report](docs/PERFORMANCE_DIAGNOSTICS.md).
   Start at 2x. Above 4x can cause severe slowdown; use at your own risk.
-- **BS Deluxe:** adds the Satellaview machines, leagues, and tracks.
+- **BS Satellaview vehicles:** adds four machines independently of courses.
+- **BS Satellaview tracks:** adds the ten original BS courses; mutually exclusive with CGP, which supplies corrected versions.
+- **CGP rules and fixes:** 19 opt-in mods, including P1/P2/P3 tuning, energy boost and exhaust profiles. See [source coverage](mods/cgp-source/README.md).
 - **Community Grand Prix (prototype):** a bundled course pack with one enable checkbox. Every enabled track pack adds its cups to the in-game leagues. See [installation and manifest instructions](mods/README.md).
 
 When the Widescreen mod is on, its aspect setting wins over the normal Display aspect setting.

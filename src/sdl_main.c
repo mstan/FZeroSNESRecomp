@@ -561,7 +561,7 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
       "option overrides this when that mod is enabled.";
   game.has_shader = 1;
   game.msu1_supported = 1;
-  game.msu1_note = "Select a music folder containing Conn/Cubear v11 f-zero_msu1.ips and your PCM tracks. Works with stock F-Zero and BS Deluxe.";
+  game.msu1_note = "Select your own music folder. Enable CGP MSU music adapter under Mods for the CGP soundtrack mapping. The legacy stock/BS adapter requires Conn/Cubear v11 f-zero_msu1.ips. No music is included.";
   game.mods = FzeroModsProvider(&g_video, kVideoConfig);
   game.rom_cache_path = "rom.cfg";
   /* Draws the Controls page's SaveStateMenu and Rewind rows, and the
@@ -1525,9 +1525,9 @@ int main(int argc, char **argv) {
 #ifndef FZERO_HAS_DELUXE
   /* BS Deluxe is on by default, but a build configured without the native
    * module cannot honour it and FzeroDeluxePrepare would refuse to start. */
-  if (g_video.bs_deluxe) {
+  if (g_video.bs_deluxe || g_video.bs_tracks) {
     fprintf(stderr, "[bs-deluxe] This build has no BS Deluxe module; starting stock\n");
-    g_video.bs_deluxe = false;
+    g_video.bs_deluxe = g_video.bs_tracks = false;
   }
 #endif
   const char *track_root = getenv("FZERO_TRACK_PACKS");
@@ -1584,16 +1584,26 @@ int main(int argc, char **argv) {
    * does not verify; say so on stderr and run the stock cartridge for this
    * session. The user's settings file is left alone, so fixing the build or
    * removing the override brings Deluxe back without touching it. */
+  FzeroGameplayConfigure(&g_video.gameplay,g_video.bs_deluxe,g_video.bs_tracks);
   if (!FzeroTracksPrepare(&rom, &rom_size, g_video.bs_deluxe,
                           deluxe_override ? deluxe_override : deluxe_path)) {
     fprintf(stderr, "[bs-deluxe] %s starting stock\n", FzeroDeluxeError());
-    g_video.bs_deluxe = false;
+    if (*FzeroGameplayError()) { fprintf(stderr,"%s\n",FzeroGameplayError()); free(rom); return 2; }
+    g_video.bs_deluxe = g_video.bs_tracks = false;
+    FzeroGameplayConfigure(&g_video.gameplay,false,false);
     if (!FzeroTracksPrepare(&rom, &rom_size, false, NULL)) { free(rom); return 2; }
   }
   const char *msu_pack = getenv("SNESRECOMP_MSU1");
   if (!msu_pack || !*msu_pack)
     msu_pack = launcher_settings.msu1_enabled ?
         (launcher_settings.msu1_dir[0] ? launcher_settings.msu1_dir : "auto") : "";
+  if (FzeroRuleEnabled(FZERO_RULE_MSU)) {
+#ifdef _WIN32
+    _putenv_s("SNESRECOMP_MSU1",msu_pack);
+#else
+    setenv("SNESRECOMP_MSU1",msu_pack,1);
+#endif
+  }
   if (!FzeroTracksActive() && !FzeroMsuPrepare(&rom, &rom_size, msu_pack, rom_path)) {
     fprintf(stderr, "[fzero-msu1] %s Starting with original audio.\n", FzeroMsuError());
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "MSU-1 pack not loaded", FzeroMsuError(), NULL);

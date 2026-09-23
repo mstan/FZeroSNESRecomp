@@ -1,5 +1,7 @@
 #include "fzero_course_runtime.h"
 #include "fzero_tracks.h"
+#include "fzero_gameplay.h"
+#include "fzero_deluxe.h"
 #include "common_rtl.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -73,8 +75,9 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
   text(c, 234 - (int)strlen(page) * 8, 55, page, 5, 0xff80c8e8);
   box(c, 112, 151, 122, 29, 0xff000000);
   text(c, 120, 151, "CLASS", 5, 0xffffff00);
-  static const char *classes[] = {"BEGINNER", "STANDARD", "EXPERT", "MASTER"};
-  text(c, 126, 168, classes[g_ram[0x57] & 3], 12, 0xffc0ffff);
+  static const char *classes[] = {"BEGINNER", "STANDARD", "EXPERT", "MASTER", "LEGEND"};
+  unsigned level=g_ram[choosing_class && !FzeroDeluxeActive() ? 0x5a : 0x57];
+  text(c, 126, 168, classes[level < 5 ? level : 0], 12, 0xffc0ffff);
   if (choosing_class)
     text(c, 115, 168, ">", 1, 0xffffff00);
   box(c, 106, 197, 140, 8, 0xff000000);

@@ -14,7 +14,7 @@ int main(void) {
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
     packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
-  CHECK(p->package_count(NULL) == 5 + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 6 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -22,7 +22,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 5; i < p->feature_count(NULL); ++i) {
+  for (int i = 6 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -44,6 +44,30 @@ int main(void) {
     CHECK(p->feature_get(NULL, i, &pack) && pack.enabled);
     CHECK(!s.enhanced && !s.bs_deluxe && !s.hd_mode7 && !s.fps_enabled);
   }
+  for (int i=0;i<FZERO_RULE_COUNT;++i) {
+    RecompLauncherCModFeature rule;
+    CHECK(p->feature_get(NULL,6+i,&rule) && !rule.enabled);
+    CHECK(p->feature_resource_count(NULL,rule.package_id,rule.id)==0);
+    CHECK(p->feature_enable(NULL,rule.package_id,rule.id,1));
+    CHECK((s.gameplay.enabled & (1u<<i))!=0);
+    CHECK(p->feature_enable(NULL,rule.package_id,rule.id,0));
+    if(i<=FZERO_RULE_EXHAUST) {
+      CHECK(p->feature_set_option(NULL,rule.package_id,rule.id,"profile","P1"));
+      CHECK(p->feature_option_get(NULL,rule.package_id,rule.id,0,&option));
+      CHECK(!strcmp(option.value,"P1"));
+      CHECK(!p->feature_set_option(NULL,rule.package_id,rule.id,"profile","P4"));
+    }
+  }
+  CHECK(!s.gameplay.enabled);
+  const CpPack *cgp=cp_catalog_find(catalog,"cgp");
+  CHECK(p->feature_enable(NULL,"bs-tracks","tracks",1) && s.bs_tracks);
+  CHECK(!s.bs_deluxe);
+  if(cgp) {
+    CHECK(!FzeroTracksEnabled(cgp));
+    CHECK(p->feature_enable(NULL,"cgp","tracks",1) && !s.bs_tracks);
+    CHECK(!s.bs_deluxe);
+  }
+  CHECK(p->feature_enable(NULL,"bs-tracks","tracks",0));
   RecompLauncherCModFeature diag;
   CHECK(p->feature_get(NULL, 4, &diag) && !diag.enabled && diag.option_count == 0);
   CHECK(!p->feature_option_get(NULL, diag.package_id, diag.id, 0, &option));

@@ -3,19 +3,20 @@
 The local `fzero-55` release parks MAX League with a shipped
 `assets/track-packs/max-league.hidden` marker. Its implementation, manifest,
 patch and records are retained; it is hidden in Mods and held off, including
-when old settings enabled it. BS Deluxe plus CGP defaults to **11 cups / 55
-courses**. Remove the marker or set it to `0` to expose MAX again.
+when old settings enabled it. CGP defaults to **11 cups / 55
+courses**, with BS vehicles independently enabled. Remove the marker or set it to `0` to expose MAX again.
 
 The game imports course resources into the canonical F-Zero/BS Deluxe engine.
 It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
 enables/disables individual packs; there is no master mod or cup dropdown.
 
-With BS Deluxe enabled the menu contains Knight, Queen, King, BS-1, BS-2, then
-installed imported cups. CGP adds six. MAX adds one more when unhidden and
-enabled, bringing the total to 12 cups and 60 courses. The original four cars
-and four BS cars remain in the native vehicle menu.
-Additional manifests append additional cups. With Deluxe disabled, imports
-join the original three leagues and four-car roster. With all imported packs
+The menu contains Knight, Queen and King, then CGP's two corrected BS cups
+and six new cups. Original BS tracks have their own switch and are mutually
+exclusive with CGP. The four BS cars have a separate switch that works with
+either track set or stock courses. MAX adds five courses when unhidden,
+bringing the total to 60.
+Additional manifests append additional cups. With BS vehicles disabled, imports
+use the four-car roster. With all imported packs
 disabled or unavailable, the normal game menus remain active. Obsolete
 `library.disabled` settings are ignored; each pack controls its own cups.
 
@@ -50,18 +51,19 @@ is preserved as `assets/track-packs/MAX-League-credits.txt`. CGP attribution
 and patch provenance are in `assets/track-packs/CGP-credits.txt`.
 
 CGP's three patches are equivalent course donors, so any one is sufficient.
-The manifest excludes its 15 retail and 10 BS courses and retains the original
-race order for its 30 new courses. None match MAX geometry. Its custom palette
+The manifest excludes its 15 retail courses, includes its 10 corrected BS
+courses, and retains the original race order for its 30 new courses. None match MAX geometry. Its custom palette
 cycles use one bounded typed resource and a common engine callback; no
-CGP-specific executable hooks or running donor code are installed. The original
+donor executable code is installed by the course importer. The original
 MAX hash region remains unchanged, preserving existing imported record keys.
 The ZIP installer accepts repeated `--archive` arguments and scans nested
 IPS/BPS entries; it does not copy MSU audio or other archive contents.
 
 CGP is by Worthy MF, Fennor Virastar and its contributors; full credits and
 the release description are on the [author's release page](https://romhackplaza.org/romhacks/f-zero-community-grand-prix-cgp-super-nintendo-romhack/).
-The course adapter retains the common roster and rules, rather than the
-donor's alternative vehicles, health-based boosts or Legend difficulty.
+The course adapter retains the common roster and rules. The author's ASM
+is exposed separately as 19 opt-in gameplay mods; see
+[source coverage and adaptation](../mods/cgp-source/README.md).
 
 ## Runtime design
 
@@ -144,10 +146,10 @@ python tests/validate_cgp.py --build build --stock path/to/fzero.sfc `
 ```
 
 The suite compares all 55 extracted resource hashes across all three variants,
-checks the 30-course manifest and MAX geometry, loads every imported course,
+checks the 40-course manifest and MAX geometry, loads every imported course,
 and compares loaded tile pools/blocks/grids with extraction. For road cells
 changed by mine explosions, it compares the initial road before driving.
-It exercises all six cup transitions, native leagues, MAX, stock engine,
+It exercises all eight cup transitions, native leagues, MAX, stock engine,
 snapshot replay/reset, single-variant installs, BPS, disabling/removal, and
 identical record namespaces across variant changes. Inputs and evidence remain
 private under `captures`; patched ROMs and decoded assets are not committed.
@@ -168,9 +170,38 @@ An unfamiliar binary format or donor-only hazard/event needs a new typed
 adapter and qualification. Structural parsing alone cannot prove playability.
 The current GP adapter accepts one to five tracks per cup. Imported Practice
 selection, cross-pack assembled cups and a combined records browser are future
-work. Stock/BS Practice remains available. MSU-1 is not enabled in imported
-library sessions in this prototype. Library snapshots require the same
+work. Native Practice includes only enabled native courses. The CGP MSU
+adapter is separately opt-in and falls back to SPC without matching audio. Library snapshots require the same
 catalog; records survive adding/removing unrelated packs.
 
 The save-root API is limited to 95 bytes; imported cup subdirectories consume
 41 of those. Use a short root override for this experiment.
+
+## Independent gameplay mods
+
+The course provider and gameplay settings are independent. `BSVehicles` and
+`BSTracks` replace the old combined `BSDeluxe` setting; old configurations
+migrate both flags, then enabled CGP takes precedence over original BS tracks.
+Changes to mechanics use a rules-specific save root and snapshots include the
+assembled canonical image digest plus an adapter version. Imported cup record
+identities remain stable when unrelated packs change.
+
+The reviewed source patches are compiled from blank images at build time and
+applied only when their individual mod is enabled. They do not execute a donor
+engine or replace the common rendering/HUD hooks. The implementation composes
+Legend's CPU tables and magnet steering explicitly with vehicle tuning.
+
+Run `tests/validate_cgp_rules.py --build build --stock path/to/fzero.sfc --out
+captures/rules-new` for the private rule matrix, instruction probes and replay
+checks. Imported Practice selection remains outside the course prototype;
+disabled original BS courses cannot be selected through native Practice.
+
+The split-content implementation passed 62 gameplay cases (including both
+engines, standalone options, all profiles, Practice, Legend, eight-car energy
+boost and six save/load/reset replays), 64 course qualification cases covering
+all 40 imports and eight cup transitions, nine bundled-install cases, and all
+12 CTests. The shared interpreter redirect regression harness passed 113/113
+checks. MSU with a missing soundtrack correctly returned to SPC on both engines;
+no soundtrack is enabled by default. Local evidence is under
+`captures/rules-qualified`, `captures/cgp40-validation` and
+`captures/bundled40-validation`.

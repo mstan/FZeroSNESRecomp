@@ -1,6 +1,7 @@
 #include "fzero_tracks.h"
 #include "fzero_course_runtime.h"
 #include "fzero_deluxe.h"
+#include "fzero_gameplay.h"
 #include "cpu_state.h"
 #include "common_rtl.h"
 #include "snes/interp_bridge.h"
@@ -24,7 +25,7 @@ static unsigned menu_hold;
 static const FzeroCourse *course;
 static uint8_t cup_hash[32];
 bool FzeroTracksActive(void) {
-  return imported_count != 0;
+  return imported_count != 0 || FzeroGameplayActive();
 }
 const uint8_t *FzeroTracksActiveHash(void) {
   return identity;
@@ -44,13 +45,14 @@ static bool imported_pack(const CpPack *p) {
 const CpCup *FzeroTracksRuntimeCup(unsigned n, const CpPack **pack) {
   const CpCatalog *cat = FzeroTracksCatalog();
   const CpPack *base = cp_catalog_find(cat, FzeroDeluxeActive() ? "bs-deluxe" : "retail");
-  if (base && n < base->cup_count) {
+  unsigned base_count=FzeroBsTracks() ? 5 : 3;
+  if (base && n < base_count) {
     if (pack)
       *pack = base;
     return &base->cups[n];
   }
   if (base)
-    n -= base->cup_count;
+    n -= base_count;
   for (unsigned i = 0; i < imported_count; ++i) {
     const CpPack *p = imported[i].pack;
     if (n < p->cup_count) {
@@ -63,7 +65,7 @@ const CpCup *FzeroTracksRuntimeCup(unsigned n, const CpPack **pack) {
   return NULL;
 }
 unsigned FzeroTracksRuntimeCount(void) {
-  unsigned n = FzeroDeluxeActive() ? 5 : 3;
+  unsigned n = FzeroBsTracks() ? 5 : 3;
   for (unsigned i = 0; i < imported_count; ++i)
     n += imported[i].pack->cup_count;
   return n;
@@ -178,16 +180,25 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
     fprintf(stderr, "[track-library] extracted %s: %u courses; donor code discarded\n", p->id,
             p->track_count);
   }
-  if (!FzeroDeluxePrepare(rom, size, deluxe, deluxe_path))
+  (void)deluxe;
+  if (!FzeroDeluxePrepare(rom, size, FzeroBsCars() || FzeroBsTracks(), deluxe_path))
     return false;
-  if (imported_count) {
+  if (!FzeroGameplayPrepare(rom,size)) return false;
+  if (FzeroTracksActive()) {
     /* The canonical native interrupt module remains selected. Resource
      * callbacks run at the same loader sites for every imported pack. */
     interp_bridge_set_scheduler_aot_policy(0);
     /* Snapshot indices depend on both resource bytes and stable IDs/order.
      * Hash only initialized manifest records, never a pointer or file path. */
-    uint8_t hashes[CP_PACKS * 32 + 1] = {0};
+    uint8_t hashes[CP_PACKS * 32 + 41] = {0};
     hashes[0] = (uint8_t)FzeroDeluxeActive();
+    const FzeroGameplaySettings *rules=FzeroGameplaySettingsCurrent();
+    for (unsigned j=0;j<4;++j) hashes[1+j]=(uint8_t)(rules->enabled>>(j*8));
+    hashes[5]=FzeroRuleEnabled(FZERO_RULE_TUNING)?(uint8_t)rules->tuning:0;
+    hashes[6]=FzeroRuleEnabled(FZERO_RULE_BOOST)?(uint8_t)rules->boost:0;
+    hashes[7]=FzeroRuleEnabled(FZERO_RULE_EXHAUST)?(uint8_t)rules->exhaust:0;
+    hashes[8]=(uint8_t)(FzeroBsCars() | (FzeroBsTracks()<<1));
+    memcpy(hashes+9,FzeroGameplaySignature(),32);
     for (unsigned i = 0; i < imported_count; ++i) {
       const CpPack *p = imported[i].pack;
       size_t length =
@@ -205,10 +216,10 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
         memcpy(data + pos, imported[i].courses[t].hash, 32);
         pos += 32;
       }
-      sha256_compute(data, length, hashes + 1 + i * 32);
+      sha256_compute(data, length, hashes + 41 + i * 32);
       free(data);
     }
-    sha256_compute(hashes, 1 + imported_count * 32, identity);
+    sha256_compute(hashes, 41 + imported_count * 32, identity);
   }
   FzeroTracksRuntimeSelect(0);
   const char *key = getenv("FZERO_CUP");
@@ -235,6 +246,11 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
 bool FzeroTracksSelectSaveRoot(void) {
   if (!FzeroDeluxeSelectSaveRoot())
     return false;
+  if (FzeroGameplaySettingsCurrent()->enabled) {
+    char hex[65],root[96]; cp_hash_format(FzeroGameplaySignature(),hex);
+    if(snprintf(root,sizeof(root),"%s/rules-%.16s",RtlSaveRoot(),hex)>=(int)sizeof(root))return false;
+    RtlEnsureSaveDir();RtlSetSaveRoot(root);RtlEnsureSaveDir();
+  }
   if (FzeroTracksActive() && strlen(RtlSaveRoot()) + 41 >= 96) {
     FzeroTracksReport(
         "Save root is too long for course records; use a shorter SNESRECOMP_SAVE_ROOT");
@@ -244,7 +260,7 @@ bool FzeroTracksSelectSaveRoot(void) {
   return true;
 }
 static bool cup_menu(const uint8_t *ram) {
-  return FzeroDeluxeActive() ? ram[0x54] == 1 && ram[0x55] == 1 && ram[0x56] == 2 && !ram[0x58]
+  return FzeroDeluxeActive() ? ram[0x54] == 1 && ram[0x55] == 1 && ram[0x56] == 2 && !ram[0x58] && !ram[0x14c98]
                              : ram[0x54] == 1 && ram[0x55] == 5 && !ram[0x58];
 }
 void FzeroTracksMenuState(uint8_t state[2], bool load) {
@@ -302,11 +318,11 @@ unsigned FzeroTracksMenuIndex(void) {
 }
 bool FzeroTracksMenuVisible(void) {
   return FzeroTracksActive() && g_ram[0x54] == 1 && !g_ram[0x58] &&
-         (FzeroDeluxeActive() ? g_ram[0x55] == 1 && (g_ram[0x56] == 2 || g_ram[0x56] == 3)
-                              : g_ram[0x55] == 5);
+         (FzeroDeluxeActive() ? g_ram[0x55] == 1 && g_ram[0x56] == 2
+                              : (g_ram[0x55] == 5 || g_ram[0x55] == 6));
 }
 bool FzeroTracksClassSelected(void) {
-  return FzeroDeluxeActive() && g_ram[0x56] == 3;
+  return FzeroDeluxeActive() ? g_ram[0x14c98] != 0 : g_ram[0x55] == 6;
 }
 void FzeroTracksRefreshCourse(void) {
   current_course();
