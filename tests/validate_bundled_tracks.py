@@ -35,7 +35,7 @@ def main():
            if not k.startswith(("FZERO_", "SNESRECOMP_", "SDL_", "LNG_"))}
     env.update(FZERO_TRACK_PACKS=str(user), FZERO_DELUXE_DATA="embedded", FZERO_ASPECT="21:9")
     route = "320-326:8,440-446:8,560-566:8,730-736:8,790-796:8,1160-1599:1"
-    menu_route = "320-326:8,440-446:8,560-566:8,650-652:64"
+    menu_route = "320-326:8,440-446:8,560-566:8,650-652:16"
     results = {}
 
     def run(name, enabled, cups=None, cup="", deluxe=True, configure=True):

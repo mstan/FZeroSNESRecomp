@@ -32,7 +32,7 @@ def main():
         donor=file.read_bytes()
         assert hashlib.sha256(donor).hexdigest()==expected,(file,'unexpected donor')
         image=bytearray(stock)
-        for start,end in [(0x40000,0x60000),(0x76200,0x76800),(0x7cd80,0x7ce00)]:
+        for start,end in [(0x40000,0x60000),(0x76180,0x76800),(0x7cd80,0x7ce00)]:
             image[start:end]=donor[start:end]
         # These addresses are shared HUD/exhaust OAM and fog assets.
         for start,end in [(0x5ec00,0x5f000),(0x46f80,0x47000)]:

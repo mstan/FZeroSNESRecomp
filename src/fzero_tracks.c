@@ -239,12 +239,39 @@ bool FzeroTracksSetPatch(const CpPack *p, const char *path) {
     }
     strcpy(patches[i], path); error_text[0] = 0; return true;
 }
-bool FzeroTracksSave(void) {
+static bool directory_exists(const char *path) {
 #ifdef _WIN32
-    if (_mkdir(root_path) && errno != EEXIST) return fail("Cannot create track library directory");
+    DWORD attributes = GetFileAttributesA(path);
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
 #else
-    if (mkdir(root_path, 0755) && errno != EEXIST) return fail("Cannot create track library directory");
+    struct stat info;
+    return !stat(path, &info) && S_ISDIR(info.st_mode);
 #endif
+}
+static bool ensure_directory(const char *path) {
+    if (directory_exists(path)) return true;
+    char parent[CP_PATH];
+    size_t length = strlen(path);
+    if (!length || length >= sizeof(parent)) return false;
+    memcpy(parent, path, length + 1);
+    while (length > 1 && (parent[length-1] == '/' || parent[length-1] == '\\'))
+        parent[--length] = 0;
+    char *last = NULL;
+    for (char *p = parent; *p; ++p)
+        if (*p == '/' || *p == '\\') last = p;
+    if (last && last > parent && last[-1] != ':') {
+        *last = 0;
+        if (!ensure_directory(parent)) return false;
+    }
+#ifdef _WIN32
+    if (!_mkdir(path)) return true;
+#else
+    if (!mkdir(path, 0755)) return true;
+#endif
+    return directory_exists(path);
+}
+bool FzeroTracksSave(void) {
+    if (!ensure_directory(root_path)) return fail("Cannot create track library directory");
     for (unsigned i = 0; i < catalog.count; ++i) if (!builtin(catalog.packs[i])) {
         if ((!bundled[i] && !write_line(catalog.packs[i]->id, ".path", patches[i])) ||
             !write_line(catalog.packs[i]->id, ".disabled", disabled[i] ? "1" : "0")) return false;

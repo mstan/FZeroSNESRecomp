@@ -154,6 +154,11 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   stat checks, real navigation, seven nonempty partial catalogs and cross-cohort
   snapshot restores pass. See `CGP_VEHICLE_RUNTIME.md`; broader qualification
   remains open before marking this complete.
+  Owner rejected the host-drawn car list. Restored the actual BS carousel and
+  information panel; Left/Right changes car columns and Up/Down scrolls leagues.
+  All 38 native-menu cases and 80 vehicle integration cases pass, plus a desktop
+  SDL gamepad route through all 14 leagues. Authored dim palettes are included.
+  Native numeric spec-card art and additive record-path stability remain open.
 
 <a id="retail-tuning"></a>
 - [ ] **B04 — Separate stock rebalances from added ships** — `beads-8wg.5.38`, P2.

@@ -213,7 +213,7 @@ static void run_one_frame(void) {
   /* This host replays HDMA during deferred scanout. The clock-driven engine
    * must not also consume its tables while the CPU runs ahead of that frame. */
   snes_set_hdma_beam_enabled(g_snes, false);
-  RtlSetPadState(0, FzeroTracksMenuInput(FzeroGameplayMenuInput(FzeroVehiclesInput(g_snes->input1_currentState),g_ram), g_ram));
+  RtlSetPadState(0, FzeroTracksMenuInput(FzeroGameplayMenuInput(g_snes->input1_currentState,g_ram), g_ram));
   const uint32_t previous_scene = g_ram[0x54] | (uint32_t)g_ram[0x55] << 8 | (uint32_t)g_ram[0x56] << 16;
   if (!s_initialized) {
     uint64_t reset_master = g_cpu.master_cycles;
@@ -556,6 +556,7 @@ static void session_reset(void) {
   interp_bridge_set_pre_opcode_hook(0x00dcc6, widened_projection);
   FzeroTracksInstallHooks();
   FzeroGameplayInstallHooks();
+  FzeroVehiclesInstallHooks();
   /* The runtime's own baseline is stock, not the shipped defaults: a host that
    * offers video settings calls FzeroSetViewport with them, and one that does
    * not (headless captures, tools) must stay at 4:3 unless FZERO_ASPECT opts

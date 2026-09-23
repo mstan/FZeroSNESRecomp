@@ -44,12 +44,14 @@ def main():
         vehicle=case.get('vehicle','blue-falcon');ident=NAMES.index(vehicle)
         frames=case.get('frames',1600)
         env=dict(clean,FZERO_TRACK_PACKS=str(folder/'packs'),FZERO_DELUXE_DATA='embedded',FZERO_BS_CARS=str(bs),
-                 FZERO_BS_TRACKS='0',FZERO_CGP_CARS=str(packs),FZERO_CGP_REBALANCE=str(rebalance),FZERO_RULES=case.get('rules',''),
+                 FZERO_BS_TRACKS=str(case.get('tracks',0)),FZERO_CGP_CARS=str(packs),FZERO_CGP_REBALANCE=str(rebalance),FZERO_RULES=case.get('rules',''),
                  FZERO_CUP=case.get('cup','cgp/cgp-1'),SNESRECOMP_SAVE_ROOT='s',
                  SNESRECOMP_INPUT_SCRIPT=case.get('route',ROUTE),SNESRECOMP_WRAM_DUMP=str(folder/'ram.bin'),
                  SNESRECOMP_FRAME_DUMP=str(folder/'frame.ppm'))
         if case.get('navigate') is None:env['FZERO_TEST_VEHICLE']=vehicle
         if case.get('lifecycle'):env.update(FZERO_LIFECYCLE_TEST='1',FZERO_VEHICLE_CROSS_STATE='1')
+        if case.get('rewind'):env.update(FZERO_REWIND_TEST='1',FZERO_VEHICLE_CROSS_STATE='1')
+        if case.get('probe'):env['FZERO_RULE_PROBE']='1'
         proc=subprocess.run([str(build/'FZeroSNESRecompHeadless.exe'),str(stock),str(frames)],
                             cwd=folder,env=env,capture_output=True,text=True,timeout=180)
         log=proc.stdout+proc.stderr;(folder/'run.log').write_text(log,encoding='utf-8')
@@ -67,19 +69,36 @@ def main():
                 group=GROUPS[ident] or (2 if ident in (0,2) else 3) * bool(rebalance&(1<<ident))
                 slot=SLOTS[ident];source=sources[group]
                 expected=b''.join(source[address-0x8000+slot*width:address-0x8000+(slot+1)*width] for address,width in FIELDS)
-                assert ram[0x14d47:0x14d47+len(expected)]==expected,(name,'handling record differs from authored slot')
+                assert frames == 570 or ram[0x14d47:0x14d47+len(expected)]==expected,(name,'handling record differs from authored slot')
+        if case.get('rewind'):assert 'rewind: actual ring restore and ten-frame resimulation identical' in log,name
+        if case.get('practice'):assert ram[0x58],(name,'not in Practice')
+        if case.get('probe'):assert 'rules-probe: PASS' in log,name
         assert '[MSU-1] enabled:' not in log,name
-        results[name]={'packs':packs,'rebalance':rebalance,'vehicle':vehicle,'frames':frames}
+        records=[p.parent.name for p in (folder/'s').rglob('records.bin')]
+        results[name]={'packs':packs,'rebalance':rebalance,'vehicle':vehicle,'frames':frames,'records':records}
         print(name,'PASS',flush=True)
     cases=[dict(name='all-'+v,vehicle=v) for v in NAMES]
     cases += [dict(name='rebalance-'+v,vehicle=v,packs=0,rebalance=15) for v in NAMES[:4]]
     cases += [dict(name=f'partial-{mask}',packs=mask) for mask in range(1,8)]
     cases += [dict(name='lifecycle-'+v,vehicle=v,rules='cgp-legend',lifecycle=True,frames=1850) for v in NAMES]
     cases += [dict(name='navigate-'+v,vehicle=v,navigate=True,frames=570,
-                   route='320-326:8'+''.join(f',{400+j*14}-{406+j*14}:32' for j in range(i)))
+                   route='320-326:8'+''.join(f',{400+j*30}-{403+j*30}:128' for j in range(i//4))+''.join(f',{480+j*20}-{483+j*20}:32' for j in range(i%4)))
               for i,v in enumerate(['blue-falcon','golden-fox','wild-goose','fire-stingray','moon-shadow',
                                      'great-star','dragon-bird','death-anchor','p-emerald','black-bull','white-cat','red-gazelle'])]
+    cases += [dict(name='rewind-'+v,vehicle=v,rewind=True,rules='cgp-legend') for v in NAMES]
+    cases += [dict(name='practice-'+v,vehicle=v,practice=True,rewind=True,
+                   route=ROUTE+',300-306:32',rules='cgp-legend') for v in NAMES]
+    cases += [dict(name='provider-'+v+'-'+provider,vehicle=v,tracks=int(provider=='bs'),
+                   cup='bs-deluxe/bs-1' if provider=='bs' else 'bs-deluxe/knight',rewind=True)
+              for v in ('moon-shadow','p-emerald','white-cat') for provider in ('stock','bs')]
+    cases += [dict(name='probe-'+v,vehicle=v,rules='all',probe=True)
+              for v in ('moon-shadow','p-emerald','white-cat')]
     with ThreadPoolExecutor(max_workers=3) as pool:list(pool.map(run,cases))
+    for prefix in ('all-', 'practice-'):
+        keys=[results[prefix+v]['records'] for v in NAMES if prefix+v in results]
+        if len(keys)==len(NAMES):
+            assert all(len(k)==1 for k in keys),(prefix,keys)
+            assert len({k[0] for k in keys})==len(NAMES),(prefix,'vehicle records collide')
     assert stock.read_bytes()==original
     (out/('validation'+('-'+a.filter if a.filter else '')+'.json')).write_text(json.dumps(results,indent=2)+'\n')
 

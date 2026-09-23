@@ -322,21 +322,23 @@ uint16_t FzeroTracksMenuInput(uint16_t input, const uint8_t *ram) {
     menu_hold = 0;
     return input;
   }
-  uint16_t direction = input & 0xf0;
+  /* A single vertical list, including every enabled pack. Horizontal input
+   * belongs to the native menu and must not page through the cup catalog. */
+  uint16_t direction = input & 0x34;
   bool step = direction &&
-              (direction != (menu_last_input & 0xf0) || (++menu_hold >= 24 && menu_hold % 6 == 0));
-  if (direction != (menu_last_input & 0xf0))
+              (direction != (menu_last_input & 0x34) || (++menu_hold >= 24 && menu_hold % 6 == 0));
+  if (direction != (menu_last_input & 0x34))
     menu_hold = 0;
   if (step) {
     unsigned count = FzeroTracksRuntimeCount();
-    bool back = (direction & (16 | 64)) != 0;
+    bool back = (direction & 16) != 0;
     FzeroTracksRuntimeSelect((menu_index + count + (back ? -1 : 1)) % count);
     fprintf(stderr, "[track-library] menu %u/%u: %s\n", menu_index + 1, count, active_cup->name);
   }
   menu_last_input = input;
   unsigned slot = imported_pack(active_pack) ? 0 : active_cup->slot;
   g_ram[FzeroDeluxeActive() ? 0x90 : 0x5a] = (uint8_t)slot;
-  return input & ~0xf0;
+  return input & ~0x34;
 }
 unsigned FzeroTracksMenuIndex(void) {
   return menu_index;
@@ -354,11 +356,16 @@ void FzeroTracksRefreshCourse(void) {
   uint8_t vehicle_key[32];
   const uint8_t *key=course?cup_hash:NULL;
   const char *vehicle=FzeroVehicleIdentity();
-  if(vehicle && active_pack && active_cup) {
+  if(vehicle && g_ram[0x54] != 0 && active_pack && active_cup) {
     uint8_t data[32+3*CP_ID]={0};
     if(key)memcpy(data,key,32);
-    memcpy(data+32,active_pack->id,strlen(active_pack->id));
-    memcpy(data+32+CP_ID,active_cup->id,strlen(active_cup->id));
+    /* Practice uses the native course selector. Its records must not follow
+     * whichever unrelated GP cup happened to be selected in the launcher. */
+    const char *pack_id = g_ram[0x58] ? (FzeroDeluxeActive() ? "bs-deluxe" : "retail")
+                                     : active_pack->id;
+    const char *cup_id = g_ram[0x58] ? "practice" : active_cup->id;
+    memcpy(data+32,pack_id,strlen(pack_id));
+    memcpy(data+32+CP_ID,cup_id,strlen(cup_id));
     memcpy(data+32+2*CP_ID,vehicle,strlen(vehicle));
     sha256_compute(data,sizeof(data),vehicle_key);key=vehicle_key;
   }

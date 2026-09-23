@@ -3,10 +3,10 @@
 #include "content_pack.h"
 #include "cpu_state.h"
 #include "fzero_gameplay.h"
-#include "fzero_menu_font.inc"
 #include "sha256.h"
 #include "snes/cart.h"
 #include "snes/interp_bridge.h"
+#include "snes/ppu.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,8 +39,7 @@ static const unsigned menu_order[] = {0, 2, 1, 3, 4, 6, 5, 7, 8, 9, 10, 11};
 static uint8_t *stock_image, *art[3], *images[4];
 static FzeroGameplaySettings choices, image_settings[4];
 static unsigned roster[12], count, selected_image = 99;
-static uint16_t last_input;
-static unsigned hold;
+static void menu_resources(bool upload);
 static uint8_t race_acceleration[4][4][29], race_turn[4][4][30];
 enum { IMAGE_SIZE = 0x400000, ID_ADDRESS = 0x14dff };
 
@@ -170,8 +169,6 @@ bool FzeroVehiclesLoad(const uint8_t *stock, size_t size, char *error,
   }
   count = 0;
   selected_image = 99;
-  last_input = 0;
-  hold = 0;
   choices = *FzeroGameplaySettingsCurrent();
   if (!FzeroVehiclesActive())
     return true;
@@ -255,7 +252,7 @@ bool FzeroVehiclesPrepare(uint8_t **rom, size_t *size, char *error,
     memcpy(base + 0xf0063 + slot * 256, stock_image + 0x149ab + slot * 19, 19);
     memcpy(base + 0xf0076 + slot * 256, stock_image + 0x14a37 + slot * 19, 19);
   }
-  uint8_t identity[4 * 32 + 8] = {1, 0, 0, 0};
+  uint8_t identity[4 * 32 + 8] = {2, 0, 0, 0};
   identity[4] = (uint8_t)choices.vehicle_packs;
   identity[5] = (uint8_t)choices.stock_rebalance;
   bool tracks = FzeroBsTracks(), ok = true;
@@ -352,6 +349,9 @@ bool FzeroVehiclesPrepare(uint8_t **rom, size_t *size, char *error,
       label[15] = 0;
       size_t n = strlen(vehicles[id].name);
       memcpy(label + (15 - n) / 2, vehicles[id].name, n);
+      for (unsigned j = 0; j < 15; ++j)
+        if (label[j] == '.')
+          label[j] = '_';
     }
     if (common) {
       memcpy(images[group] + 0x14ad6, raw[common] + 0x14ad6, 29);
@@ -405,158 +405,185 @@ void FzeroVehiclesSync(void) {
   memcpy(g_snes->cart->rom, images[group], IMAGE_SIZE);
   FzeroGameplayActivateVehicles(&image_settings[group], g_snes->cart->rom);
   selected_image = group;
+  menu_resources(false);
   fprintf(stderr, "[vehicles] active %s (cohort %u)\n", vehicles[id].id, group);
 }
 void FzeroVehiclesLoaded(void) {
   selected_image = 99;
-  last_input = 0;
-  hold = 0;
   FzeroVehiclesSync();
 }
-static bool menu(void) {
-  return count && g_ram[0x54] == 1 && g_ram[0x55] == 1 && g_ram[0x56] == 0;
+
+/* Two native screen columns are a viewport onto the additive roster. The
+ * guest still owns its cursor, slide, dimming, confirmation and info panel.
+ * Page bindings live in WRAM so rewind/snapshots restore the same viewport. */
+enum {
+  MENU_STATE = 0x14ce0,
+  MENU_ART = 0x300000,
+  MENU_PALETTES = 0x340000,
+  MENU_CARDS = 0x341000
+};
+static unsigned page_count(void) { return (count + 3) / 4; }
+static unsigned page(unsigned column) {
+  unsigned value = g_ram[MENU_STATE + 1 + column];
+  return value < page_count() ? value : 0;
 }
-uint16_t FzeroVehiclesInput(uint16_t input) {
-  if (!menu()) {
-    last_input = input;
-    hold = 0;
-    return input;
-  }
-  unsigned id = FzeroVehicleSelected(), index = 0;
-  while (index < count && roster[index] != id)
-    ++index;
-  if (index == count)
-    index = 0;
-  uint16_t direction = input & 0xf4;
-  bool step = direction && (direction != (last_input & 0xf4) ||
-                            (++hold >= 24 && hold % 6 == 0));
-  if (direction != (last_input & 0xf4))
-    hold = 0;
-  if (step) {
-    int distance = (direction & (64 | 128)) ? 4 : 1;
-    if (direction & (16 | 64))
-      distance = -distance;
-    index = (index + count + distance) % count;
-  }
-  const char *test = getenv("FZERO_TEST_VEHICLE");
-  if (test)
-    for (unsigned i = 0; i < count; ++i)
-      if (!strcmp(test, vehicles[roster[i]].id))
-        index = i;
-  id = roster[index];
-  g_ram[ID_ADDRESS] = (uint8_t)id;
-  FzeroVehiclesSync();
-  unsigned slot = vehicles[id].slot, row = slot == 1 ? 2 : slot == 2 ? 1 : slot;
-  memcpy(g_ram + 0x14d00, g_snes->cart->rom + 0xf0000 + slot * 256, 256);
-  g_ram[0x14c84] = (uint8_t)row;
-  g_ram[0x14c85] = 0;
-  g_ram[0x14c88] = g_ram[0x14c89] = 0;
-  last_input = input;
-  return input & ~0xf4;
+static unsigned menu_id(unsigned position) {
+  if (count <= 4 && position >= 4)
+    return 99;
+  unsigned index = page(position / 4) * 4 + position % 4;
+  return index < count ? roster[index] : 99;
 }
-typedef struct VehicleCanvas {
-  uint32_t *pixels;
-  size_t pitch;
-  unsigned scale, extra;
-} VehicleCanvas;
-static void box(VehicleCanvas c, int x, int y, int w, int h, uint32_t color) {
-  x += (int)c.extra;
-  for (int yy = y * (int)c.scale; yy < (y + h) * (int)c.scale; ++yy) {
-    uint32_t *row = (uint32_t *)((uint8_t *)c.pixels + yy * c.pitch);
-    for (int xx = x * (int)c.scale; xx < (x + w) * (int)c.scale; ++xx)
-      row[xx] = color;
-  }
+static unsigned read16(const uint8_t *p) { return p[0] | (unsigned)p[1] << 8; }
+static unsigned address(unsigned offset) {
+  return ((offset / 0x8000) << 16) | 0x8000 | (offset & 0x7fff);
 }
-static void label(VehicleCanvas c, int x, int y, const char *s,
-                  uint32_t color) {
-  for (unsigned i = 0; s[i]; ++i) {
-    unsigned ch = (unsigned char)s[i];
-    if (ch < 32 || ch > 126)
-      ch = '?';
-    for (unsigned yy = 0; yy < 8; ++yy)
-      for (unsigned xx = 0; xx < 8; ++xx)
-        if (FONT8X8[ch - 32][yy] & (1u << xx))
-          box(c, x + (int)i * 8 + (int)xx, y + (int)yy, 1, 1, color);
-  }
+static void pointer(uint8_t *p, unsigned offset) {
+  unsigned bus = address(offset);
+  p[0] = bus;
+  p[1] = bus >> 8;
+  p[2] = bus >> 16;
 }
-static void preview(VehicleCanvas c, unsigned id, int x, int y, unsigned zoom) {
-  unsigned group = group_for(id), slot = vehicles[id].slot;
-  const uint8_t *source = group ? art[group - 1] : stock_image;
-  const uint8_t *tiles = source + 0x41680 + slot * 0x8000,
-                *palette = source + 0x7cd80 + slot * 32;
-  /* Six native 16x16 objects, DMA'd as their two 8-pixel tile rows. */
-  static const unsigned rows[] = {0, 2, 1, 3};
-  for (unsigned tile = 0; tile < 24; ++tile)
-    for (unsigned yy = 0; yy < 8; ++yy)
-      for (unsigned xx = 0; xx < 8; ++xx) {
-        unsigned color = 0;
-        for (unsigned bit = 0; bit < 4; ++bit)
-          color |= ((tiles[tile * 32 + yy * 2 + (bit & 1) + (bit / 2) * 16] >>
-                     (7 - xx)) &
-                    1)
-                   << bit;
-        if (!color)
-          continue;
-        unsigned rgb = palette[color * 2] | palette[color * 2 + 1] << 8;
-        uint32_t rgba = 0xff000000u | (((rgb & 31) * 255 / 31) << 16) |
-                        ((((rgb >> 5) & 31) * 255 / 31) << 8) |
-                        (((rgb >> 10) & 31) * 255 / 31);
-        box(c, x + (int)((tile % 6 * 8 + xx) * zoom),
-            y + (int)((rows[tile / 6] * 8 + yy) * zoom), (int)zoom, (int)zoom,
-            rgba);
+static void menu_resources(bool upload) {
+  if (!count || !g_snes || !g_snes->cart || !images[0])
+    return;
+  uint8_t *rom = g_snes->cart->rom;
+  static const unsigned tile_base[8] = {0, 0x30, 0x60, 0x0a,
+                                        5, 0x35, 0x65, 0x3a};
+  static const unsigned tile_source[15] = {
+      0x55e0, 0x5600, 0x5620, 0x5640, 0x5660, 0x56e0, 0x5700, 0x5720,
+      0x5740, 0x5760, 0x5680, 0x56a0, 0x56c0, 0x5780, 0x57a0};
+  for (unsigned position = 0; position < 8; ++position) {
+    unsigned id = menu_id(position), slot = id < 12 ? vehicles[id].slot : 0;
+    unsigned group = id < 12 ? group_for(id) : 0;
+    const uint8_t *source = group ? art[group - 1] : stock_image;
+    unsigned bank = MENU_ART + position * 0x8000;
+    memcpy(rom + bank, source + 0x40000 + slot * 0x8000, 0x8000);
+    unsigned normal = MENU_PALETTES + position * 32, dim = normal + 256;
+    memcpy(rom + normal, source + 0x7cd80 + slot * 32, 32);
+    memcpy(rom + dim, source + 0x76180 + slot * 32, 32);
+    if (id >= 12) {
+      memset(rom + bank, 0, 0x8000);
+      memset(rom + normal, 0, 32);
+      memset(rom + dim, 0, 32);
+    }
+    /* Palette setup contains the same sources as the selection tables. */
+    for (unsigned entry = 0; entry < 16; ++entry) {
+      const uint8_t *original = images[0] + 0xf42a2 + entry * 6;
+      for (unsigned kind = 0; kind < 2; ++kind) {
+        const uint8_t *lookup =
+            images[0] + (kind ? 0xf44fc : 0xf44dc) + position * 4;
+        if (!memcmp(original, lookup, 3))
+          pointer(rom + 0xf42a2 + entry * 6, kind ? dim : normal);
       }
+    }
+    pointer(rom + 0xf44dc + position * 4, normal);
+    pointer(rom + 0xf44fc + position * 4, dim);
+    rom[0xf41aa + position] = (uint8_t)(address(bank) >> 16);
+    char *label = (char *)rom + 0xf5b20 + position * 16;
+    memset(label, ' ', 15);
+    label[15] = 0;
+    if (id < 12) {
+      size_t n = strlen(vehicles[id].name);
+      memcpy(label + (15 - n) / 2, vehicles[id].name, n);
+      for (unsigned j = 0; j < 15; ++j)
+        if (label[j] == '.')
+          label[j] = '_';
+    }
+    unsigned row = slot == 1 ? 2 : slot == 2 ? 1 : slot;
+    const uint8_t *card = images[0] + 0xf5ba0 + row * 4;
+    unsigned card_offset = (unsigned)card[2] * 0x8000 + (read16(card) & 0x7fff);
+    memcpy(rom + MENU_CARDS + position * 0x580, images[0] + card_offset, 0x580);
+    pointer(rom + 0xf5ba0 + position * 4, MENU_CARDS + position * 0x580);
+    if (!upload)
+      continue;
+    /* Native static previews are 5x3 BG tiles, with their own authored dim
+     * palette. Reuse that layout rather than drawing a host overlay. */
+    for (unsigned tile = 0; tile < 15; ++tile) {
+      unsigned dest =
+          0x4000 + (tile_base[position] + tile / 5 * 16 + tile % 5) * 32;
+      const uint8_t *pixels = rom + bank + tile_source[tile];
+      memcpy(g_ram + 0x18000 + dest, pixels, 32);
+      for (unsigned j = 0; j < 16; ++j)
+        g_ppu->vram[dest / 2 + j] = read16(pixels + j * 2);
+    }
+    const uint8_t *dest = rom + 0xf451c + position * 4;
+    unsigned ram_address = (dest[2] == 0x7f ? 0x10000 : 0) + read16(dest);
+    memcpy(g_ram + ram_address, rom + dim, 32);
+  }
 }
-void FzeroVehiclesOverlay(uint32_t *pixels, unsigned width, unsigned height,
-                          size_t pitch) {
-  if (!count || !pixels || g_ram[0x54] != 1 || g_ram[0x55] != 1 ||
-      g_ram[0x56] > 1 || height < 224 || height % 224)
-    return;
-  unsigned scale = height / 224;
-  if (width / scale < 256)
-    return;
-  VehicleCanvas c = {pixels, pitch, scale, (width / scale - 256) / 2};
-  for (unsigned y = 0; y < height; ++y) {
-    uint32_t *row = (uint32_t *)((uint8_t *)pixels + y * pitch);
-    for (unsigned x = 0; x < width; ++x)
-      row[x] = 0xff000000;
+static void menu_hook(CpuState *cpu, uint32_t pc) {
+  if (pc == 0x1edd01) {
+    g_ram[MENU_STATE] = 1;
+    unsigned index = 0;
+    while (index + 1 < count && roster[index] != FzeroVehicleSelected())
+      ++index;
+    g_ram[MENU_STATE + 1] = (uint8_t)(index / 4);
+    g_ram[MENU_STATE + 2] = (uint8_t)((index / 4 + 1) % page_count());
+    FzeroVehiclesSync();
+    menu_resources(true);
+  } else if (pc == 0x1ec76e) {
+    unsigned index = 0;
+    while (index + 1 < count && roster[index] != FzeroVehicleSelected())
+      ++index;
+    g_ram[0x14c84] = (uint8_t)(index % 4);
+    g_ram[0x14c85] = 0;
+    g_ram[0x14c86] = g_ram[0x14c87] = 0;
+    g_ram[0x14c88] = g_ram[0x14c89] = 0;
+  } else if (pc == 0x1ed90a) {
+    unsigned old = read16(g_ram + 0x14c84) & 7;
+    unsigned next = cpu->A & 7, column = old / 4,
+             rows = count - page(column) * 4;
+    if (rows > 4)
+      rows = 4;
+    unsigned buttons = read16(g_ram + 0x67);
+    if ((buttons & 0x2f00) == 0x2000) {
+      unsigned index = (page(column) * 4 + old % 4 + 1) % count;
+      if (index / 4 != page(column))
+        column ^= 1;
+      g_ram[MENU_STATE + 1 + column] = (uint8_t)(index / 4);
+      next = column * 4 + index % 4;
+    } else if ((buttons & 0x300) == 0x100 || (buttons & 0x300) == 0x200) {
+      if (page_count() > 1) {
+        unsigned target =
+            (page(column) + page_count() + ((buttons & 0x200) ? -1 : 1)) %
+            page_count();
+        column ^= 1;
+        g_ram[MENU_STATE + 1 + column] = (uint8_t)target;
+        rows = count - target * 4;
+        if (rows > 4)
+          rows = 4;
+        next = column * 4 + ((old % 4 < rows) ? old % 4 : rows - 1);
+      } else
+        next = old;
+    } else {
+      next = column * 4 + ((next % 4 < rows) ? next % 4 : rows - 1);
+    }
+    const char *test = getenv("FZERO_TEST_VEHICLE");
+    if (test)
+      for (unsigned i = 0; i < count; ++i)
+        if (!strcmp(test, vehicles[roster[i]].id)) {
+          if (page(column) != i / 4)
+            column ^= 1;
+          g_ram[MENU_STATE + 1 + column] = (uint8_t)(i / 4);
+          next = column * 4 + i % 4;
+        }
+    cpu->A = (uint16_t)next;
+    unsigned id = menu_id(next);
+    g_ram[ID_ADDRESS] = (uint8_t)id;
+    FzeroVehiclesSync();
+    if (next != old)
+      menu_resources(true);
+  } else if (pc == 0x1edb0c) {
+    /* Native info/handling record lookup uses the physical racing slot. */
+    cpu->A = (uint16_t)vehicles[FzeroVehicleSelected()].slot;
+  } else if (pc == 0x1ec81b) {
+    cpu->A = (cpu->A & 0xff00) | vehicles[FzeroVehicleSelected()].slot;
   }
-  unsigned id = FzeroVehicleSelected(), index = 0;
-  while (index < count && roster[index] != id)
-    ++index;
-  if (index == count)
-    index = 0;
-  label(c, 16, 16, "SELECT YOUR CAR", 0xffc0ffff);
-  if (g_ram[0x56] == 1) {
-    label(c, 16, 46, vehicles[id].name, 0xffffff00);
-    preview(c, id, 72, 63, 2);
-    bool cgp = group_for(id) != 0;
-    label(c, 24, 139, cgp ? "CGP HANDLING" : "ORIGINAL HANDLING", 0xffc0ffff);
-    label(c, 24, 157, cgp ? "ENERGY BOOST" : "ORIGINAL S-JETS", 0xffc0ffff);
-    label(c, 24, 191, "START TO CONTINUE", 0xffffff00);
+}
+void FzeroVehiclesInstallHooks(void) {
+  if (!count)
     return;
-  }
-  unsigned first = index / 4 * 4;
-  char page[16];
-  snprintf(page, sizeof(page), "%u/%u", index / 4 + 1, (count + 3) / 4);
-  label(c, 208, 16, page, 0xff80c8e8);
-  for (unsigned row = 0; row < 4 && first + row < count; ++row) {
-    unsigned item = roster[first + row];
-    int y = 40 + (int)row * 38;
-    bool selected = item == id;
-    if (selected)
-      box(c, 8, y, 240, 36, 0xff102838);
-    preview(c, item, 16, y + 2, 1);
-    label(c, 72, y + 5, vehicles[item].name,
-          selected ? 0xffffff00 : 0xffc0ffff);
-    unsigned group = group_for(item);
-    char origin[24];
-    if (item < 4)
-      snprintf(origin, sizeof(origin), "%s",
-               group ? "CGP REBALANCE" : "ORIGINAL");
-    else
-      snprintf(origin, sizeof(origin), "CGP P%u", group);
-    label(c, 72, y + 20, origin, 0xff80a8c8);
-  }
-  label(c, 16, 198, "< > PAGE   UP/DOWN SHIP", 0xff80c8e8);
-  label(c, 16, 212, "START TO SELECT", 0xffffff00);
+  const unsigned sites[] = {0x1edd01, 0x1ec76e, 0x1ed90a, 0x1edb0c, 0x1ec81b};
+  for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
+    interp_bridge_set_pre_opcode_hook(sites[i], menu_hook);
 }

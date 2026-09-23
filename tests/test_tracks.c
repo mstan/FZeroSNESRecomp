@@ -7,11 +7,13 @@
 #include <direct.h>
 #define MKDIR(p) _mkdir(p)
 #define CHDIR(p) _chdir(p)
+#define RMDIR(p) _rmdir(p)
 #else
 #include <sys/stat.h>
 #include <unistd.h>
 #define MKDIR(p) mkdir(p,0755)
 #define CHDIR(p) chdir(p)
+#define RMDIR(p) rmdir(p)
 #endif
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"%d: %s (%s)\n",__LINE__,#x,FzeroTracksError());exit(1); } } while (0)
 static void write_file(const char *path,const void *bytes,size_t n) {
@@ -25,6 +27,19 @@ static void manifest(const char *path,const char *id) {
     CHECK(!fclose(f));
 }
 int main(void) {
+    /* A clean portable install need not already contain mods/track-packs.
+     * Remove only these empty test directories; never recurse over a root. */
+    RMDIR("test-new-library/mods/track-packs");
+    RMDIR("test-new-library/mods");
+    RMDIR("test-new-library");
+    CHECK(FzeroTracksInit("test-new-library/mods/track-packs",true));
+    CHECK(FzeroTracksSave());
+    CHECK(!CHDIR("test-new-library/mods/track-packs"));
+    CHECK(!CHDIR("../../.."));
+    write_file("test-library-file","not a directory",15);
+    CHECK(FzeroTracksInit("test-library-file/track-packs",true));
+    CHECK(!FzeroTracksSave());
+    CHECK(!remove("test-library-file"));
     const char *root="test-course-discovery";MKDIR(root);
     remove("test-course-discovery/duplicate.ini");remove("test-course-discovery/a.disabled");
     remove("test-course-discovery/library.disabled");remove("test-course-discovery/a.path");

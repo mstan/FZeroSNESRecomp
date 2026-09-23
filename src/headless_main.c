@@ -22,6 +22,7 @@
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "sha256.h"
+#include "snes_rewind.h"
 #include "snes/apu.h"
 #include "snes/cart.h"
 #include "snes/interp_bridge.h"
@@ -442,6 +443,46 @@ int main(int argc, char **argv) {
 
   for (long frame = 0; frame < frame_limit; frame++) {
     replay_wram_before(frame);
+    if (getenv("FZERO_REWIND_TEST") && frame == save_frame) {
+      size_t cap = 2u * 1024u * 1024u;
+      uint8_t *initial = malloc(cap);
+      size_t length = initial ? RtlSaveSnapshotToMemory(initial, cap) : 0;
+      if (!length) return 8;
+      static uint8_t initial_ram[0x20000];
+      memcpy(initial_ram, g_ram, sizeof(initial_ram));
+      uint64_t initial_master = g_cpu.master_cycles;
+      snes_rewind_set_defaults(1, 16, 1);
+      snes_rewind_configure();
+      snes_rewind_note_frame();
+      for (long n = frame; n < frame + 10; ++n) {
+        (void)RtlRunFrame(scripted_input(input_spans, input_span_count, n));
+        if (g_fail || !FzeroLastLleResult()) return 8;
+        FzeroDrawPpuFrame();
+        snes_rewind_note_frame();
+      }
+      memcpy(replay_expected, g_ram, sizeof(replay_expected));
+      replay_master = g_cpu.master_cycles;
+      if (getenv("FZERO_VEHICLE_CROSS_STATE") && FzeroVehicleCount()>4) {
+        g_ram[0x14dff]=FzeroVehicleSelected()>=4?0:4;
+        FzeroVehiclesLoaded();
+      }
+      if (!snes_rewind_open()) return 8;
+      for (unsigned i=0;i<10;++i) snes_rewind_step(-1);
+      snes_rewind_commit();
+      if (memcmp(initial_ram,g_ram,sizeof(initial_ram)) || initial_master!=g_cpu.master_cycles)
+        return 8;
+      for (long n = frame; n < frame + 10; ++n) {
+        (void)RtlRunFrame(scripted_input(input_spans, input_span_count, n));
+        if (g_fail || !FzeroLastLleResult()) return 8;
+        FzeroDrawPpuFrame();
+      }
+      if (memcmp(replay_expected,g_ram,sizeof(replay_expected)) || replay_master!=g_cpu.master_cycles)
+        return 8;
+      if (!RtlLoadSnapshotFromMemory(initial,length)) return 8;
+      free(initial);
+      snes_rewind_shutdown();
+      fputs("rewind: actual ring restore and ten-frame resimulation identical (RAM and master clock)\n",stderr);
+    }
     /* Private integration check: inject a completed results state, then let
      * the unmodified GP transition routine advance/load/finish the cup.
      * This tests queue boundaries, not driving or finish-line detection. */

@@ -34,7 +34,6 @@ static void text(Canvas c, int x, int y, const char *s, unsigned limit, uint32_t
   }
 }
 void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch) {
-  FzeroVehiclesOverlay(pixels,width,height,pitch);
   if (!pixels || !FzeroTracksMenuVisible() || height < 224 || height % 224)
     return;
   static bool logged;
@@ -83,5 +82,5 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
   if (choosing_class)
     text(c, 115, 168, ">", 1, 0xffffff00);
   box(c, 106, 197, 140, 8, 0xff000000);
-  text(c, 108, 197, choosing_class ? "CHOOSE CLASS" : "< > MORE LEAGUES", 17, 0xff80c8e8);
+  text(c, 108, 197, choosing_class ? "CHOOSE CLASS" : "UP/DOWN TO SELECT", 17, 0xff80c8e8);
 }

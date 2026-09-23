@@ -251,6 +251,21 @@ bool FzeroRulesProbe(void) {
     CHECK((c.A & 255) == 10);
   }
   if (probe_rule(FZERO_RULE_DMAG)) {
+    /* Every damage-mask input is compared with the independently assembled
+     * source. Keeping the damage bit clear must not mask a genuine pit. */
+    static const unsigned masks[] = {0x0098b1,0x0098bc,0x0098ce,0x0098f1,0x0098f9};
+    if (FzeroRuleEnabled(FZERO_RULE_DMAG))
+      for (unsigned site = 0; site < sizeof(masks)/sizeof(*masks); ++site)
+        for (unsigned flags = 0; flags < 256; ++flags) {
+          CpuState actual = state(0x30), original = state(0x30);
+          actual.A = original.A = (uint16_t)flags;
+          CHECK(fragment(&actual, masks[site], masks[site]+2, 0, false));
+          reference_fragment = true;
+          CHECK(fragment(&original, masks[site], masks[site]+2, 0, false));
+          reference_fragment = false;
+          CHECK(actual.A == original.A && actual._flag_Z == original._flag_Z &&
+                actual._flag_N == original._flag_N);
+        }
     CpuState c = state(0x30);
     g_ram[0xd50] = 8;
     g_ram[0xd51] = 0;
@@ -265,8 +280,18 @@ bool FzeroRulesProbe(void) {
                    FzeroDeluxeActive() ? 0x1eacc6 : 0x0092f9, 0,
                    FzeroDeluxeActive()));
     CHECK(read_word(0x17) == 0x220);
+    fprintf(stderr, "rules-probe: grounded grip, turning, strafe and damage masks PASS\n");
   }
   if (probe_rule(FZERO_RULE_UP_MAGNET)) {
+    static const unsigned landing_heights[] = {0,0x3ff,0x400,0x800,0x7fff,0xbfff,0xc000,0xffff};
+    for (unsigned i = 0; i < sizeof(landing_heights)/sizeof(*landing_heights); ++i) {
+      CpuState c = state(0x10);
+      c.A = (uint16_t)landing_heights[i];
+      word(0x29, 0x400);
+      CHECK(fragment(&c, 0x009c55, 0x009c8c, 0x009c5b, false));
+      CHECK(stopped == ((landing_heights[i] < 0x400 || landing_heights[i] >= 0xc000)
+                            ? 0x009c8c : 0x009c5b));
+    }
     static const unsigned tiles[] = {0xb5, 0xb6, 0xcc, 0xcd, 0xcf, 0xd0};
     static const unsigned heights[] = {0, 0x100, 0x6f00, 0x7000, 0x8000};
     static const unsigned velocities[] = {0, 0x200, 0xff00, 0x8000};

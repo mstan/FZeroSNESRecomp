@@ -1210,6 +1210,7 @@ static void overlay_pump_events(int *running, SDL_GameController **pad,
 static SDL_Joystick *g_selftest_pad;
 static char g_selftest_guid[40];
 static long g_selftest_frame = -1;
+static bool g_menu_pad_replay;
 static int g_selftest_phase; /* 0 idle, 1 browser, 2 rewind */
 static int g_selftest_via_keyboard;
 /* bit 0 browser from the pad, bit 1 rewind from the pad, bit 2 browser from
@@ -1253,7 +1254,8 @@ static void selftest_push_key(SDL_Keycode key) {
 static void selftest_attach(void) {
   const char *v = getenv("FZERO_OVERLAY_SELFTEST");
   g_selftest_frame = v && v[0] ? strtol(v, NULL, 0) : -1;
-  if (g_selftest_frame < 0) return;
+  g_menu_pad_replay = getenv("FZERO_MENU_PAD_REPLAY") != NULL;
+  if (g_selftest_frame < 0 && !g_menu_pad_replay) return;
 #if SNESRECOMP_SDL3
   SDL_VirtualJoystickDesc desc;
   SDL_INIT_INTERFACE(&desc);
@@ -1283,6 +1285,21 @@ static void selftest_attach(void) {
 /* Once per simulated frame. */
 static void selftest_main_tick(long frame) {
   if (!g_selftest_pad) return;
+  if (g_menu_pad_replay) {
+    /* Exercise the actual SDL gamepad path, including the user's button
+     * mapping, instead of substituting the final guest input word. */
+    static const unsigned buttons[12] = {0,2,4,6,11,12,13,14,1,3,9,10};
+    uint32_t input = FzeroReplayInput((unsigned)frame);
+    selftest_release_all();
+    for (unsigned bit = 0; bit < 12; ++bit)
+      if (input & (1u << bit)) selftest_set((int)buttons[bit], 1);
+#if SNESRECOMP_SDL3
+    SDL_UpdateJoysticks();
+#else
+    SDL_JoystickUpdate();
+#endif
+    return;
+  }
   if (frame == g_selftest_frame) {
     fprintf(stderr, "[fzero-overlay-selftest] frame %ld: Select+R\n", frame);
     g_selftest_phase = 1;
@@ -2038,7 +2055,7 @@ int main(int argc, char **argv) {
       uint32_t input = keyboard_input() | controller_input(pad) |
                        debug_server_get_controller_inputs() | (1u << 30) |
                        debug_server_get_controller_active_mask();
-      if (FzeroReplayHasInput()) input = FzeroReplayInput((unsigned)frames);
+      if (FzeroReplayHasInput() && !g_menu_pad_replay) input = FzeroReplayInput((unsigned)frames);
       /* Seat 0's word, before the guest sees it: the overlays are a player-1
        * facility, and the press that closed one must neither reach the game
        * nor re-open the panel. */

@@ -69,7 +69,8 @@ def main():
             if source.name == 'Dynamic_Spin_Amount.asm' and deluxe:
                 body = body.replace('LDA $FAE5,X', 'LDA.l $7F4D60').replace('LDA $FADD,X', 'LDA.l $7F4D5E')
             if source.name == 'CGP_Boost.asm':
-                # Eight cars; repeat the chosen four-value profile for BS cars.
+                # Retained for private legacy-profile oracle tests. Production
+                # BS mode excludes these profiles; CGP uses four-slot cohorts.
                 for label, directive in [('boost_drain','dw'),('duration_table','db')]:
                     pattern = rf'({label}:\s*{directive}\s+)([^;\n]+)'
                     body = re.sub(pattern, lambda m: m[1]+m[2].strip()+', '+m[2].strip(), body)
@@ -80,8 +81,6 @@ def main():
                 body = body[:start] + '  LDA $0ADF\n  CMP #$FF\n' + body[end:]
             writes = assemble(args.asar.resolve(), source, args.work / f'{int(deluxe)}-{i}', 0x30+i, body)
             omitted = set()
-            if source.name == 'CGP_Boost.asm':
-                omitted.add(0x5ec94)  # Preserve the shared HUD's sprite ownership/layout.
             if source.name == 'Legend_Difficulty.asm':
                 omitted |= {0x5432,0x18819,0x1882a,0x18841,0x189e1}
             if source.name == 'CGP_Illusion.asm':
