@@ -1,5 +1,20 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.4 - tester build
+
+- Add Bower League, restore MAX to Mods (default off), and restore the CGP
+  leagues' authored names. All packs together provide 16 cups / 80 versions,
+  including untouched originals and separately selectable CGP revisions.
+- Add coherent CGP vehicle packs and separate original-car rebalances. Grand
+  Prix uses each enabled CGP set's three rivals; Practice allows any enabled
+  opponent. Stock BS vehicles remain a separate mode.
+- Preserve the native car selector with continuous columns and side previews.
+  Extend Practice to every enabled cup/course and fix its doubled heading.
+- Fix targeted Marine City trampoline and Lightning railroad landings,
+  results-screen rendering, and missing launcher fonts, logo and controller art.
+- Replace Volcania with the author's approved venue revision.
+- Include TESTER_NOTES.md with defaults, known limitations and testing guidance.
+
 ## 1.8.3-fzero-55-preview.3 - local sharing build
 
 - Add a Title screen dropdown to Community Grand Prix: Original (default)

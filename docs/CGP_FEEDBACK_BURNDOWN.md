@@ -6,6 +6,12 @@ Date: 2026-09-23. Branch: `fzero-55`. Baseline: `ced5d72` (preview.3).
 Matthew approved beginning the full burndown, including fixes, asset replacement
 and a validated local Windows build. Work solo. Keep commits local; no pushes.
 
+Later authorization (2026-09-23): Matthew requested committing and pushing all
+work to the `fzero-55` branches and producing a new local Windows ZIP for testers.
+Preview.4 delivery is tracked in `beads-8wg.5.49`; it does not close unfinished
+items below. See [tester notes](TESTER_NOTES_FZERO55.md) for remaining limitations.
+No GitHub release upload was requested.
+
 Planning issue: `beads-8wg.5.34`. The 12 work items below belong directly under
 `beads-8wg.5` (Game: F-Zero), under `beads-8wg` (System: SNES), in the central
 database at `F:\Software\beads\issues`. Beads owns status; this file is the

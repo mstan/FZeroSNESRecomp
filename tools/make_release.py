@@ -109,10 +109,13 @@ for filename in ("README.md", "PARSE_MANIFEST.md"):
 shutil.copytree(ROOT / "mods/cgp-source", stage / "mods/cgp-source")
 shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
 shutil.copy2(ROOT / "docs/BOWER_AND_CGP_LEAGUES.md", stage / "docs/BOWER_AND_CGP_LEAGUES.md")
+shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own\n"
     "F-Zero (USA) ROM in the launcher. No ROM is included.\n\n"
+    "Read TESTER_NOTES.md for this preview's defaults, known limitations and\n"
+    "useful test cases. Use a new folder and keep your older builds/saves.\n\n"
     "Settings > Display contains aspect choices and shader presets including\n"
     "CRT Soft. Shaders start OFF (None). Browse imports a custom .glslp or\n"
     ".glsl shader; selecting one uses the OpenGL presentation path.\n\n"

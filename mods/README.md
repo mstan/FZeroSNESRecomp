@@ -116,8 +116,8 @@ times. Changes to other installed packs do not change that namespace.
 This prototype supports Grand Prix cups containing **one to five courses**.
 A contributor can supply a single-course pack, several cups, or a selected
 subset of a donor's courses. Each independently supplied patch needs its own
-manifest. Imported Practice selection and a combined records browser are not
-implemented yet. Save states require the same installed course catalog and
+manifest. Practice supports every enabled cup and course, including any enabled
+rival car; a combined records browser is not implemented yet. Save states require the same installed course catalog and
 base engine and gameplay rules; adding/removing packs preserves records but
 invalidates old library snapshots. Changed gameplay rules use a separate save
 and records namespace. Native original BS Practice courses are unavailable
