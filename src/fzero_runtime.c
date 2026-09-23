@@ -208,6 +208,9 @@ static bool run_main_slice(uint64_t deadline) {
 }
 
 static void run_one_frame(void) {
+  /* This host replays HDMA during deferred scanout. The clock-driven engine
+   * must not also consume its tables while the CPU runs ahead of that frame. */
+  snes_set_hdma_beam_enabled(g_snes, false);
   RtlSetPadState(0, FzeroTracksMenuInput(FzeroGameplayMenuInput(g_snes->input1_currentState,g_ram), g_ram));
   const uint32_t previous_scene = g_ram[0x54] | (uint32_t)g_ram[0x55] << 8 | (uint32_t)g_ram[0x56] << 16;
   if (!s_initialized) {
@@ -412,6 +415,10 @@ void FzeroDrawPpuFrame(void) {
   bool active[8] = {false};
   uint8_t cpu_ppu_registers[PPU_SAVESTATE_REGS_SIZE];
   uint16_t cpu_oam[0x100];
+  uint16_t cpu_cgram[0x100];
+  uint8_t cpu_cgram_pointer = g_ppu->cgramPointer;
+  uint8_t cpu_cgram_buffer = g_ppu->cgramBuffer;
+  bool cpu_cgram_second_write = g_ppu->cgramSecondWrite;
   uint8_t cpu_high_oam[0x20];
   DmaChannel cpu_dma_channels[8];
   uint8_t post_wrap_event = 0;
@@ -421,6 +428,10 @@ void FzeroDrawPpuFrame(void) {
    * and restore it once the deferred frame has been walked. */
   memcpy(cpu_ppu_registers, g_ppu, sizeof(cpu_ppu_registers));
   memcpy(cpu_oam, g_ppu->oam, sizeof(cpu_oam));
+  /* The BS carousel rewrites shared palettes between rows. Those raster
+   * colors and the CGRAM write latch belong only to this scanout; leaving
+   * them live recolors (or blanks) other cars on the following frame. */
+  memcpy(cpu_cgram, g_ppu->cgram, sizeof(cpu_cgram));
   memcpy(cpu_high_oam, g_ppu->highOam, sizeof(cpu_high_oam));
   memcpy(cpu_dma_channels, g_dma->channel, sizeof(cpu_dma_channels));
 
@@ -438,8 +449,8 @@ void FzeroDrawPpuFrame(void) {
     fputc('\n', stderr);
     for (int c = 0; c < 8; ++c) if (s_frame_hdmaen & (1u << c)) {
       const DmaChannel *d = &s_frame_dma_channels[c];
-      fprintf(stderr, "[fzero-hdma] channel=%d bank=%02x address=%04x indirect=%d indbank=%02x mode=%d live_enable=%02x\n",
-              c, d->aBank, d->aAdr, d->indirect, d->indBank, d->mode,
+      fprintf(stderr, "[fzero-hdma] channel=%d reg=%02x bank=%02x address=%04x indirect=%d indbank=%02x mode=%d live_enable=%02x\n",
+              c, d->bAdr, d->aBank, d->aAdr, d->indirect, d->indBank, d->mode,
               g_snesrecomp_last_hdmaen);
     }
   }
@@ -527,6 +538,10 @@ void FzeroDrawPpuFrame(void) {
 
   memcpy(g_ppu, cpu_ppu_registers, sizeof(cpu_ppu_registers));
   memcpy(g_ppu->oam, cpu_oam, sizeof(cpu_oam));
+  memcpy(g_ppu->cgram, cpu_cgram, sizeof(cpu_cgram));
+  g_ppu->cgramPointer = cpu_cgram_pointer;
+  g_ppu->cgramBuffer = cpu_cgram_buffer;
+  g_ppu->cgramSecondWrite = cpu_cgram_second_write;
   memcpy(g_ppu->highOam, cpu_high_oam, sizeof(cpu_high_oam));
   memcpy(g_dma->channel, cpu_dma_channels, sizeof(cpu_dma_channels));
 }

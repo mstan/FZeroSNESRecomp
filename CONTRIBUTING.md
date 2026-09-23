@@ -79,6 +79,17 @@ Report the `fzero_native:` summary line and say whether the final frame
 still renders correctly. A `PASS` with a garbled frame is not a pass —
 the qualification gate measures activity, not correctness.
 
+For BS car-select or HDMA changes, also run the rendered carousel regression
+with your local stock ROM:
+
+```bash
+python tests/validate_car_select.py --build build --stock fzero.sfc --out captures/car-select
+```
+
+It checks every selection on both pages, stable colors and visibility for
+unselected cars, and unchanged menu graphics with all three CGP profiles.
+Its ROM and rendered captures stay local.
+
 ## Windows release
 
 Update `VERSION` and `CHANGELOG.md`, regenerate using the native analysis backend
