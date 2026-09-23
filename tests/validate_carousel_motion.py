@@ -51,6 +51,7 @@ def main():
         outputs.append(folder)
     report = []
     text_reference = None
+    moving_frames = []
     sheet = Image.new("RGB", (256 * 5, 242 * 6))
     draw = ImageDraw.Draw(sheet)
     for i, press in enumerate(presses):
@@ -62,6 +63,8 @@ def main():
             assert data == (outputs[1] / path.name).read_bytes(), (frame, "rewind changed presentation")
             ram = data[RAM:RAM + 0x20000]
             picture = Image.frombytes("RGBA", (256, 224), data[PIXELS:RAM], "raw", "BGRA")
+            for caption in ((112, 85, 240, 105), (112, 125, 240, 145)):
+                assert picture.crop(caption).convert("RGB").getbbox(), (frame, "native text disappeared")
             text_area = picture.crop((104, 0, 256, 224)).tobytes()
             if text_reference is None:
                 text_reference = text_area
@@ -84,12 +87,32 @@ def main():
         assert positions == sorted(positions, reverse=i < 3), (press, "wrong-way animation", positions)
         assert (positions[0] > 28) == (i < 3), (press, positions)
         report.append(dict(direction="right" if i < 3 else "left", identity=target, positions=positions))
+        moving_frames.extend(frame for frame, _ in moving)
         for j, (frame, _) in enumerate(moving[:5]):
             data = (outputs[0] / f"capture-{frame:06}.bin").read_bytes()
             image = Image.frombytes("RGBA", (256, 224), data[PIXELS:RAM], "raw", "BGRA").convert("RGB")
             sheet.paste(image, (j * 256, i * 242 + 18))
             draw.text((j * 256 + 8, i * 242 + 2), f"{report[-1]['direction']} / frame {frame}", fill="white")
     sheet.save(out / "motion.png")
+    # The desktop uses the enhanced compositor even outside a race. Verify
+    # native, wide and HD paths against the PPU throughout the animation.
+    for aspect, scale in (("4:3", 1), ("21:9", 1), ("21:9", 2)):
+        rendered = out / f"render-{aspect.replace(':', '-')}-{scale}"
+        rendered.mkdir()
+        captures = [outputs[0] / f"capture-{frame:06}.bin" for frame in moving_frames]
+        env = dict(clean)
+        if scale > 1:
+            env["FZERO_HD_SCALE"] = str(scale)
+        proc = subprocess.run([str(build / "FZeroRenderCapture.exe"), "--sequence", aspect, str(rendered),
+                               *map(str, captures)], env=env, capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        for capture in captures:
+            image = Image.open(rendered / capture.with_suffix(".ppm").name).convert("RGB")
+            extra = (image.width - 256 * scale) // 2
+            native = Image.frombytes("RGBA", (256, 224), capture.read_bytes()[PIXELS:RAM], "raw", "BGRA").convert("RGB")
+            expected = native.resize((256 * scale, 224 * scale), Image.Resampling.NEAREST)
+            assert image.crop((extra, 0, extra + 256 * scale, 224 * scale)).tobytes() == expected.tobytes(), \
+                (capture.name, aspect, scale, "enhanced/HD differs from native menu")
     (out / "validation.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print("Six directional transitions, both wraps, stable cursor and mid-slide rewind: PASS")
 

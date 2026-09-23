@@ -616,6 +616,10 @@ static void menu_resources(bool upload) {
  */
 enum { PANE_TILES = 0x4000, PANE_TILE_WORDS = (12 * 15 + 1) * 16 };
 static uint16_t pane_map_backup[1024], pane_tiles_backup[PANE_TILE_WORDS];
+static uint16_t pane_obj_backup[512];
+static unsigned pane_obj_base;
+static const unsigned pane_sprite_x[] = {0, 16, 32, 0, 16, 32, 48, 48};
+static const unsigned pane_sprite_y[] = {0, 0, 0, 16, 16, 16, 0, 16};
 static bool pane_active;
 static int pane_offset(const uint8_t *ram) {
   int column = (ram[0x14c84] & 4) / 4;
@@ -650,6 +654,29 @@ void FzeroVehiclesBeginFrame(Ppu *ppu, const uint8_t *ram) {
   }
   memset(ppu->vram + PANE_TILES + 12 * 15 * 16, 0, 32);
   int offset = pane_offset(ram);
+  /* Only the six selected-car sprites own these two uploaded tile rows.
+   * Clip their pixels, not the entire OBJ layer: the text also uses OBJs. */
+  pane_obj_base = (((ppu->obsel & 7) << 13) + (((ppu->obsel & 0x18) + 8) << 9) + 0xe00) & 0x7fff;
+  memcpy(pane_obj_backup, ppu->vram + pane_obj_base, sizeof(pane_obj_backup));
+  for (unsigned sprite = 0; sprite < 6; ++sprite) {
+    unsigned attr = ppu->oam[sprite * 2 + 1];
+    unsigned base = ((ppu->obsel & 7) << 13);
+    if (attr & 0x100) base += (((ppu->obsel & 0x18) + 8) << 9);
+    for (unsigned y = 0; y < 16; ++y)
+      for (unsigned x = 0; x < 16; ++x) {
+        int screen_x = 28 + (int)pane_sprite_x[sprite] + offset + (int)x;
+        if (screen_x >= 0 && screen_x < 104) continue;
+        unsigned cx = attr & 0x4000 ? 15 - x : x;
+        unsigned cy = attr & 0x8000 ? 15 - y : y;
+        unsigned tile = ((((attr & 255) >> 4) + cy / 8) << 4) |
+                        (((attr & 15) + cx / 8) & 15);
+        unsigned word = (base + tile * 16 + (cy & 7)) & 0x7fff;
+        if (word < pane_obj_base || word + 8 >= pane_obj_base + 512) continue;
+        uint16_t mask = (uint16_t)~(0x101u << (7 - (cx & 7)));
+        ppu->vram[word] &= mask;
+        ppu->vram[word + 8] &= mask;
+      }
+  }
   unsigned column = (ram[0x14c84] & 4) / 4;
   for (int relative = -2; relative <= 2; ++relative) {
     int x = 32 + relative * 56;
@@ -678,16 +705,10 @@ void FzeroVehiclesRaster(Ppu *ppu, const uint8_t *ram, unsigned line) {
   if (!pane_active) return;
   int offset = pane_offset(ram);
   ppu->hScroll[1] = (uint16_t)-offset;
-  /* The original selected OBJ never approached the pane from both sides.
-   * Clip the incoming ship to the same window as its neighboring BG tiles. */
-  ppu->windowsel = (ppu->windowsel & ~0xf0000u) | 0x20000u;
-  ppu->screenWindowed[0] |= 16;
   unsigned selected_row = ram[0x14c84] & 3;
-  static const unsigned sprite_x[] = {0, 16, 32, 0, 16, 32, 48, 48};
-  static const unsigned sprite_y[] = {0, 0, 0, 16, 16, 16, 0, 16};
   for (unsigned i = 0; i < 8; ++i) {
-    int x = 28 + (int)sprite_x[i] + offset;
-    unsigned y = 44 + selected_row * 40 + sprite_y[i];
+    int x = 28 + (int)pane_sprite_x[i] + offset;
+    unsigned y = 44 + selected_row * 40 + pane_sprite_y[i];
     ppu->oam[i * 2] = (uint16_t)((y << 8) | (x & 255));
     unsigned shift = (i % 4) * 2;
     ppu->highOam[i / 4] = (uint8_t)((ppu->highOam[i / 4] & ~(3u << shift)) |
@@ -711,6 +732,7 @@ void FzeroVehiclesEndFrame(Ppu *ppu) {
   if (!pane_active) return;
   memcpy(ppu->vram + 0x400, pane_map_backup, sizeof(pane_map_backup));
   memcpy(ppu->vram + PANE_TILES, pane_tiles_backup, sizeof(pane_tiles_backup));
+  memcpy(ppu->vram + pane_obj_base, pane_obj_backup, sizeof(pane_obj_backup));
   pane_active = false;
 }
 static void menu_hook(CpuState *cpu, uint32_t pc) {

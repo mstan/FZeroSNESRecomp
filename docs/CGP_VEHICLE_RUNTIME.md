@@ -85,7 +85,8 @@ Up/Down, Select, partial-column behavior and circular wrapping are unchanged.
 The native slide counter supplies motion; direction is stored at WRAM
 `$7F:4CE7` for snapshots/rewind. During car-select scanout only, authored BG
 tiles, row palettes and selected OBJ positions are arranged into that strip.
-The original window also clips the incoming OBJ away from the text. Temporary
+The selected car's six sprite tiles are clipped at the pane edge; other OBJ
+tiles, including both native text labels, stay visible. Temporary
 VRAM changes are restored after capturing/drawing the frame, so guest VRAM,
 other menu panels, stock BS mode and racing resources remain intact.
 
@@ -137,9 +138,11 @@ open; these checks are not a claim of complete CGP donor parity.
 Follow-up continuity validation: `validate_carousel_motion.py` checks each
 intermediate frame of six directional transitions, including both wrap points.
 Sprite positions move monotonically in the requested direction, the cursor
-keeps its side/orientation, and the text area remains pixel-identical. Full raw
+keeps its side/orientation, both native captions remain visible, and the text
+area remains pixel-identical. Native, widescreen and HD compositor output
+matches the PPU through all 24 intermediate transition frames. Full raw
 captures match before/after an actual rewind performed in the middle of a
-slide. Evidence: `carousel-motion-clipped/motion.png` and `validation.json`.
+slide. Evidence: `carousel-motion-render-qualified/motion.png` and `validation.json`.
 The 38 native-menu cases, twelve mixed Practice player routes and 12 CTest
 checks also pass after the continuity correction.
 
