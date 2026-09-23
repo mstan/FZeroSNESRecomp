@@ -82,6 +82,47 @@ static void accum(CpuState *cpu, unsigned value) {
 static uint8_t rom8(unsigned pc) {
   return cpu_read8(&g_cpu, (uint8_t)(pc >> 16), (uint16_t)pc);
 }
+static unsigned feature_for_rule(FzeroRule rule) {
+  return rule == FZERO_RULE_DMAG ? FZERO_COURSE_GRIP_MAGNETS
+         : rule == FZERO_RULE_UP_MAGNET ? FZERO_COURSE_UP_MAGNETS
+         : rule == FZERO_RULE_RAINBOW ? FZERO_COURSE_RAINBOW : 0;
+}
+static bool effective_rule(FzeroRule rule) {
+  const FzeroCourse *course = FzeroTracksCurrentCourse();
+  return FzeroRuleEnabled(rule) ||
+         (course && (course->required & feature_for_rule(rule)));
+}
+static bool available_rule(FzeroRule rule) {
+  return FzeroRuleEnabled(rule) ||
+         (FzeroTracksRequiredFeatures() & feature_for_rule(rule));
+}
+static void up_magnet(CpuState *cpu) {
+  unsigned actor = cpu->X & 255, tile = r16(0xcd0 + actor);
+  unsigned velocity = r16(0xbb0 + actor), result;
+  bool up = tile == 0xb6 || (tile >= 0xcc && tile < 0xd0);
+  if (!up) {
+    unsigned amount = tile >= 0xd0 ? 0x60 : 0x61;
+    result = (velocity - amount) & 65535;
+    cpu->_flag_C = velocity >= amount;
+  } else {
+    static const unsigned gain[] = {7, 8, 5}, limit[] = {0x190, 0x200, 0x120};
+    unsigned tilt = actor ? 1 : (g_ram[0xb10] & 12) >> 2;
+    if (tilt > 2) tilt = 0;
+    unsigned height = r16(0xbc0 + actor);
+    unsigned strength = height <= 0x7000 ? (0x7000 - height) >> 10 : 0;
+    cpu_write16(cpu, 0, 0x4202, (uint16_t)strength);
+    cpu_write16(cpu, 0, 0x4203, (uint16_t)gain[tilt]);
+    unsigned gravity = r16(0x14);
+    unsigned fall = (velocity - gravity) & 65535;
+    unsigned product = strength * gain[tilt];
+    result = (fall + product + (velocity >= gravity)) & 65535;
+    cpu->_flag_V = ((~(fall ^ product) & (fall ^ result)) & 0x8000) != 0;
+    cpu->_flag_C = result >= limit[tilt];
+    if (!((result - limit[tilt]) & 0x8000)) result = limit[tilt];
+  }
+  accum(cpu, result);
+  interp_bridge_pre_opcode_redirect(0x009c71);
+}
 static void apply(uint8_t *rom, unsigned patch) {
   const RulePatch *p = &rule_patches[FzeroDeluxeActive()][patch];
   for (unsigned i = 0; i < p->count; ++i)
@@ -231,11 +272,84 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
     break;
   }
   case 0x008976:
-    if (FzeroRuleEnabled(FZERO_RULE_RAINBOW)) {
-      g_ram[0xadf] = rainbow() ? 255 : 0;
+    if (available_rule(FZERO_RULE_RAINBOW)) {
+      const FzeroCourse *course = FzeroTracksCurrentCourse();
+      bool required = course && (course->required & FZERO_COURSE_RAINBOW);
+      g_ram[0xadf] = required || (FzeroRuleEnabled(FZERO_RULE_RAINBOW) && rainbow()) ? 255 : 0;
       if (g_ram[0xadf])
         g_ram[0x1075] = 0;
     }
+    break;
+  case 0x009c55:
+    if (effective_rule(FZERO_RULE_UP_MAGNET)) {
+      unsigned height = cpu->A & 65535;
+      cpu->_flag_C = height >= r16(0x29);
+      bool landed = !cpu->_flag_C;
+      if (!landed) {
+        cpu->_flag_C = height >= 0xc000;
+        landed = cpu->_flag_C;
+      }
+      interp_bridge_pre_opcode_redirect(landed ? 0x009c8c : 0x009c5b);
+    }
+    break;
+  case 0x009c6b:
+    if (effective_rule(FZERO_RULE_UP_MAGNET)) up_magnet(cpu);
+    break;
+  case 0x0098b1:
+  case 0x0098bc:
+  case 0x0098ce:
+  case 0x0098f1:
+  case 0x0098f9:
+    if (effective_rule(FZERO_RULE_DMAG)) {
+      unsigned mask = pc == 0x0098ce ? 0x14
+                      : pc == 0x0098bc || pc == 0x0098f1 ? 0xf4 : 4;
+      if (pc == 0x0098f9) cpu->_flag_Z = !(cpu->A & mask);
+      else accum(cpu, cpu->A & mask);
+      interp_bridge_pre_opcode_redirect(pc + 2);
+    }
+    break;
+  case 0x009292:
+    if (effective_rule(FZERO_RULE_DMAG) && !(g_ram[0xd51] & 128) && (g_ram[0xd50] & 8)) {
+      w16(0x17, 0x220);
+      g_ram[0xad3] |= 0x80;
+      interp_bridge_pre_opcode_redirect(0x0092f9);
+    }
+    break;
+  case 0x009b59:
+    if (effective_rule(FZERO_RULE_DMAG)) {
+      cpu->X = 0;
+      accum(cpu, (g_ram[0xd50] & 8) ? g_ram[0xd50] : g_ram[0xe1]);
+      interp_bridge_pre_opcode_redirect((g_ram[0xd50] & 8) || !g_ram[0xe1] ? 0x009b85 : 0x009b5f);
+    }
+    break;
+  case 0x0091e6:
+    if (g_ram[0xadf] && effective_rule(FZERO_RULE_RAINBOW)) {
+      g_ram[0x14] = 0x38;
+      g_ram[0x02] = 0;
+      accum(cpu, g_ram[0xb10 + (cpu->X & 255)]);
+      interp_bridge_pre_opcode_redirect(0x0091eb);
+    }
+    break;
+  case 0x0098f5:
+    if (g_ram[0xadf] && effective_rule(FZERO_RULE_RAINBOW)) {
+      unsigned flags = g_ram[0] & 0x8c;
+      if (flags & 128) {
+        g_ram[0xc3] |= 0x40;
+        g_ram[0xcf] = 6;
+        g_ram[0xf38] = g_ram[0xd40];
+      }
+      interp_bridge_pre_opcode_redirect(flags && !(flags & 128) ? 0x00992d : 0x009967);
+    }
+    break;
+  case 0x00ba20:
+    if (g_ram[0xadf] && effective_rule(FZERO_RULE_RAINBOW)) {
+      accum(cpu, 0);
+      interp_bridge_pre_opcode_redirect(0x00ba25);
+    }
+    break;
+  case 0x00e70b:
+    if (!cpu->X && g_ram[0xadf] && effective_rule(FZERO_RULE_RAINBOW))
+      interp_bridge_pre_opcode_redirect(0x00e716);
     break;
   case 0x1ec740:
     if (!cars)
@@ -246,7 +360,8 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
       accum(cpu, cpu->A & 3);
     break;
   case 0x00b890: {
-    bool magnet = FzeroRuleEnabled(FZERO_RULE_DMAG) && !(g_ram[0xd51] & 128) &&
+    if (!effective_rule(FZERO_RULE_DMAG) && !FzeroRuleEnabled(FZERO_RULE_TUNING)) break;
+    bool magnet = effective_rule(FZERO_RULE_DMAG) && !(g_ram[0xd51] & 128) &&
                   (g_ram[0xd50] & 8);
     unsigned car = g_ram[0x52] & 7, speed = r16(0xb20) >> 7;
     unsigned value;
@@ -264,6 +379,7 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
     break;
   }
   case 0x00b8e6: {
+    if (!effective_rule(FZERO_RULE_DMAG)) break;
     unsigned speed = r16(0xb20) >> 7;
     unsigned value =
         !(g_ram[0xd51] & 128) && (g_ram[0xd50] & 8)
@@ -326,7 +442,7 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
     }
     break;
   case 0x1eac6d:
-    if (!(g_ram[0xd51] & 128) && (g_ram[0xd50] & 8)) {
+    if (effective_rule(FZERO_RULE_DMAG) && !(g_ram[0xd51] & 128) && (g_ram[0xd50] & 8)) {
       w16(0x17, 0x220);
       g_ram[0xad3] |= 0x80;
       interp_bridge_pre_opcode_redirect(0x1eacc6);
@@ -374,15 +490,28 @@ void FzeroGameplayInstallHooks(void) {
     interp_bridge_set_pre_opcode_hook(0x1ec740, rule_hook);
     interp_bridge_set_pre_opcode_hook(0x1ed04f, rule_hook);
   }
-  if (FzeroRuleEnabled(FZERO_RULE_RAINBOW))
+  if (available_rule(FZERO_RULE_RAINBOW)) {
     interp_bridge_set_pre_opcode_hook(0x008976, rule_hook);
+    const unsigned sites[] = {0x0091e6, 0x0098f5, 0x00ba20, 0x00e70b};
+    for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
+      interp_bridge_set_pre_opcode_hook(sites[i], rule_hook);
+  }
+  if (available_rule(FZERO_RULE_UP_MAGNET)) {
+    interp_bridge_set_pre_opcode_hook(0x009c55, rule_hook);
+    interp_bridge_set_pre_opcode_hook(0x009c6b, rule_hook);
+  }
   if (FzeroRuleEnabled(FZERO_RULE_CREDITS))
     interp_bridge_set_pre_opcode_hook(0x039b9f, rule_hook);
   if (FzeroRuleEnabled(FZERO_RULE_MSU))
     interp_bridge_set_pre_opcode_hook(CGP_MSU_SELECTOR, rule_hook);
-  if (FzeroRuleEnabled(FZERO_RULE_DMAG))
+  if (available_rule(FZERO_RULE_DMAG)) {
     interp_bridge_set_pre_opcode_hook(0x00b8e6, rule_hook);
-  if (FzeroRuleEnabled(FZERO_RULE_TUNING) || FzeroRuleEnabled(FZERO_RULE_DMAG))
+    const unsigned sites[] = {0x0098b1, 0x0098bc, 0x0098ce, 0x0098f1, 0x0098f9, 0x009b59};
+    for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
+      interp_bridge_set_pre_opcode_hook(sites[i], rule_hook);
+    if (!FzeroDeluxeActive()) interp_bridge_set_pre_opcode_hook(0x009292, rule_hook);
+  }
+  if (FzeroRuleEnabled(FZERO_RULE_TUNING) || available_rule(FZERO_RULE_DMAG))
     interp_bridge_set_pre_opcode_hook(0x00b890, rule_hook);
   if (FzeroDeluxeActive()) {
     if (FzeroRuleEnabled(FZERO_RULE_TUNING) ||
@@ -390,7 +519,7 @@ void FzeroGameplayInstallHooks(void) {
       interp_bridge_set_pre_opcode_hook(0x1eacf0, rule_hook);
     if (FzeroRuleEnabled(FZERO_RULE_EXHAUST))
       interp_bridge_set_pre_opcode_hook(0x1eadde, rule_hook);
-    if (FzeroRuleEnabled(FZERO_RULE_DMAG))
+    if (available_rule(FZERO_RULE_DMAG))
       interp_bridge_set_pre_opcode_hook(0x1eac6d, rule_hook);
   }
   if (FzeroRuleEnabled(FZERO_RULE_LEGEND)) {

@@ -2,6 +2,7 @@
 #include "fzero_course.h"
 #include "content_pack.h"
 const FzeroCourse *FzeroTracksCurrentCourse(void);
+unsigned FzeroTracksRequiredFeatures(void);
 void FzeroTracksRefreshCourse(void);
 void FzeroTracksInstallHooks(void);
 bool FzeroTracksRuntimeSelect(unsigned index);

@@ -37,6 +37,13 @@ const char *FzeroTracksActiveId(void) {
 const FzeroCourse *FzeroTracksCurrentCourse(void) {
   return course;
 }
+unsigned FzeroTracksRequiredFeatures(void) {
+  unsigned features = 0;
+  for (unsigned i = 0; i < imported_count; ++i)
+    for (unsigned j = 0; j < imported[i].pack->track_count; ++j)
+      features |= imported[i].courses[j].required;
+  return features;
+}
 static bool imported_pack(const CpPack *p) {
   for (unsigned i = 0; i < imported_count; ++i)
     if (imported[i].pack == p)

@@ -20,6 +20,14 @@
     }                                                                          \
   } while (0)
 static unsigned stopped;
+static bool reference_fragment;
+static bool probe_rule(FzeroRule rule) {
+  const FzeroCourse *course = FzeroTracksCurrentCourse();
+  unsigned feature = rule == FZERO_RULE_DMAG ? FZERO_COURSE_GRIP_MAGNETS
+                     : rule == FZERO_RULE_UP_MAGNET ? FZERO_COURSE_UP_MAGNETS
+                     : rule == FZERO_RULE_RAINBOW ? FZERO_COURSE_RAINBOW : 0;
+  return FzeroRuleEnabled(rule) || (course && (course->required & feature));
+}
 static void stop(CpuState *cpu, uint32_t pc) {
   (void)cpu;
   stopped = pc;
@@ -44,8 +52,10 @@ static CpuState state(unsigned p) {
 static bool fragment(CpuState *c, unsigned start, unsigned end,
                      unsigned alternate, bool long_return) {
   stopped = 0;
-  FzeroGameplayInstallHooks();
-  FzeroTracksInstallHooks();
+  if (!reference_fragment) {
+    FzeroTracksInstallHooks();
+    FzeroGameplayInstallHooks();
+  }
   if (end)
     interp_bridge_set_pre_opcode_hook(end, stop);
   if (alternate)
@@ -240,7 +250,7 @@ bool FzeroRulesProbe(void) {
     CHECK(fragment(&c, 0x00bc6d, 0x00bc72, 0, false));
     CHECK((c.A & 255) == 10);
   }
-  if (FzeroRuleEnabled(FZERO_RULE_DMAG)) {
+  if (probe_rule(FZERO_RULE_DMAG)) {
     CpuState c = state(0x30);
     g_ram[0xd50] = 8;
     g_ram[0xd51] = 0;
@@ -256,7 +266,45 @@ bool FzeroRulesProbe(void) {
                    FzeroDeluxeActive()));
     CHECK(read_word(0x17) == 0x220);
   }
-  if (FzeroRuleEnabled(FZERO_RULE_RAINBOW)) {
+  if (probe_rule(FZERO_RULE_UP_MAGNET)) {
+    static const unsigned tiles[] = {0xb5, 0xb6, 0xcc, 0xcd, 0xcf, 0xd0};
+    static const unsigned heights[] = {0, 0x100, 0x6f00, 0x7000, 0x8000};
+    static const unsigned velocities[] = {0, 0x200, 0xff00, 0x8000};
+    unsigned cases = 0;
+    for (unsigned actor = 0; actor <= 2; actor += 2)
+      for (unsigned tilt = 0; tilt < 3; ++tilt)
+        for (unsigned t = 0; t < sizeof(tiles)/sizeof(*tiles); ++t)
+          for (unsigned h = 0; h < sizeof(heights)/sizeof(*heights); ++h)
+            for (unsigned v = 0; v < sizeof(velocities)/sizeof(*velocities); ++v) {
+              CpuState c = state(0x10);
+              c.X = (uint16_t)actor;
+              word(0xcd0 + actor, tiles[t]);
+              word(0xbc0 + actor, heights[h]);
+              word(0xbb0 + actor, velocities[v]);
+              word(0x14, 0x18);
+              g_ram[0xb10] = (uint8_t)(tilt * 4);
+              CHECK(fragment(&c, 0x009c6b, 0x009c71, 0, false));
+              if (FzeroRuleEnabled(FZERO_RULE_UP_MAGNET)) {
+                /* The independently assembled author ASM is our oracle.
+                 * Required-only runs use the same host hook without copying
+                 * the global patch over unrelated native courses. */
+                CpuState original = state(0x10);
+                original.X = (uint16_t)actor;
+                reference_fragment = true;
+                CHECK(fragment(&original, 0x009c6b, 0x009c71, 0, false));
+                reference_fragment = false;
+                if (original.A != c.A || original._flag_C != c._flag_C) {
+                  fprintf(stderr, "magnet mismatch actor=%u tilt=%u tile=%x height=%x velocity=%x host=%x/%u asm=%x/%u\n",
+                          actor,tilt,tiles[t],heights[h],velocities[v],c.A,c._flag_C,original.A,original._flag_C);
+                  return false;
+                }
+              }
+              ++cases;
+            }
+    fprintf(stderr, "rules-probe: up-magnet cases=%u%s PASS\n", cases,
+            FzeroRuleEnabled(FZERO_RULE_UP_MAGNET) ? " ASM parity" : " course-required");
+  }
+  if (probe_rule(FZERO_RULE_RAINBOW)) {
     for (unsigned rainbow = 0; rainbow < 2; ++rainbow) {
       CpuState c = state(0x30);
       g_ram[0xadf] = rainbow ? 255 : 0;

@@ -46,6 +46,8 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
                         "sky_front", "minimaps", "map_positions", "terrain",      "gradients",
                         "opponents", "shortcuts", "palette_cycles"};
   uint32_t vals[18] = {0}, seen = 0;
+  uint8_t required = 0, course_required[128] = {0};
+  unsigned last_required = 0;
   bool format = false, ok = true;
   char line[160];
   while (ok && fgets(line, sizeof(line), f)) {
@@ -64,6 +66,29 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
       break;
     }
     *v++ = 0;
+    if (!strcmp(line, "require")) {
+      char *feature = strchr(v, '|');
+      if (!feature) { ok = false; break; }
+      *feature++ = 0;
+      unsigned flag = !strcmp(feature, "grip-magnets") ? FZERO_COURSE_GRIP_MAGNETS
+                      : !strcmp(feature, "up-magnets") ? FZERO_COURSE_UP_MAGNETS
+                      : !strcmp(feature, "rainbow-road") ? FZERO_COURSE_RAINBOW : 0;
+      if (!flag) {
+        fclose(f);
+        return fail(error, cap, "Unsupported required course feature");
+      }
+      uint8_t *destination = &required;
+      if (strcmp(v, "all")) {
+        char *end;
+        unsigned long slot = strtoul(v, &end, 10);
+        if (*v < '0' || *v > '9' || *end || slot >= 128) { ok = false; break; }
+        destination = &course_required[slot];
+        if (slot + 1 > last_required) last_required = (unsigned)slot + 1;
+      }
+      if (*destination & flag) { ok = false; break; }
+      *destination |= (uint8_t)flag;
+      continue;
+    }
     if (!strcmp(line, "format")) {
       if (format || strcmp(v, "fzero-course-1"))
         ok = false;
@@ -90,11 +115,13 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
     ok = false;
   fclose(f);
   if (!ok || !format || (seen & 0x1ffff) != 0x1ffff ||
-      ((seen & (1u << 17)) && !vals[17]))
+      ((seen & (1u << 17)) && !vals[17]) || last_required > vals[0])
     return fail(error, cap, "Invalid course extraction manifest");
   FzeroCourseLayout l = {vals[0],  vals[1],  vals[2],  vals[3],  vals[4],  vals[5],
                          vals[6],  vals[7],  vals[8],  vals[9],  vals[10], vals[11],
-                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17]};
+                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17], 0, {0}};
+  l.required = required;
+  memcpy(l.course_required, course_required, sizeof(course_required));
   *out = l;
   return true;
 }
@@ -307,6 +334,11 @@ bool FzeroCourseExtract(const uint8_t *r, size_t n, const FzeroCourseLayout *l, 
   if (ok)
     ok = palette_cycles(r, n, l, i, c);
   if (ok) {
+    c->required = l->required | l->course_required[i];
+    if (c->required & ~FZERO_COURSE_FEATURES) {
+      free(c);
+      return fail(e, cap, "Unsupported required course feature");
+    }
     sha256_compute((const uint8_t *)c, offsetof(FzeroCourse, hash), c->hash);
     if (c->has_palette_cycles) {
       uint8_t extended[32 + 16];
@@ -314,6 +346,13 @@ bool FzeroCourseExtract(const uint8_t *r, size_t n, const FzeroCourseLayout *l, 
       extended[32] = c->has_palette_cycles;
       extended[33] = c->palette_cycle_count;
       memcpy(extended + 34, c->palette_cycles, 14);
+      sha256_compute(extended, sizeof(extended), c->hash);
+    }
+    if (c->required) {
+      uint8_t extended[34];
+      memcpy(extended, c->hash, 32);
+      extended[32] = 0xc1;
+      extended[33] = c->required;
       sha256_compute(extended, sizeof(extended), c->hash);
     }
     *out = *c;

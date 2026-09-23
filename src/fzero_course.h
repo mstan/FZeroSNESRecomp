@@ -3,6 +3,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+enum {
+  FZERO_COURSE_GRIP_MAGNETS = 1,
+  FZERO_COURSE_UP_MAGNETS = 2,
+  FZERO_COURSE_RAINBOW = 4,
+  FZERO_COURSE_FEATURES = 7
+};
+
 /* Decoded resources, never executable donor bytes. One adapter feeds the
  * same retail/Deluxe race engine regardless of the number of installed packs. */
 typedef struct FzeroCourseLayout {
@@ -11,6 +18,7 @@ typedef struct FzeroCourseLayout {
   uint32_t sky_graphics, sky_back, sky_front, minimaps, map_positions;
   uint32_t terrain, gradients, opponents, shortcuts;
   uint32_t palette_cycles; /* Optional same-bank pointer16 table. */
+  uint8_t required, course_required[128];
 } FzeroCourseLayout;
 typedef struct FzeroCourse {
   uint8_t pool[0x2400], blocks[0x2200], grid[0x9000];
@@ -26,6 +34,7 @@ typedef struct FzeroCourse {
   uint8_t hash[32];
   /* Extensions follow the legacy hash region, preserving existing pack keys. */
   uint8_t has_palette_cycles, palette_cycle_count, palette_cycles[14];
+  uint8_t required;
 } FzeroCourse;
 bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error, size_t cap);
 bool FzeroCourseExtract(const uint8_t *rom, size_t size, const FzeroCourseLayout *layout,

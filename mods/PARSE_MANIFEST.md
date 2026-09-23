@@ -11,8 +11,9 @@ The game fingerprints the verified result of each loose IPS/BPS against the
 registry and neighboring manifests. MAX Classic and Modern are registered as
 equivalent course donors. Their normalized course hashes were compared;
 accepting equivalent revisions must never depend on their filenames or titles.
-CGP P1/P2/P3 are another verified equivalence group. Their 55 resource slots
-are identical across variants. The manifest exposes 40: slots 15-24 are the
+Historical CGP P1/P2/P3 share identical course resources. The bundled manifest
+now accepts only the author's revised P3test image, which replaces the retired
+Volcania venue; the old images are not accepted alternates. It exposes 40: slots 15-24 are the
 corrected BS courses and slots 25-54 are the new courses. Slots 0-14 are retail
 and do not create extra cups. CGP and the original BS track provider are
 mutually exclusive; BS vehicles are an independent option.
@@ -81,9 +82,9 @@ The game itself needs neither that tool nor an installed Python interpreter.
    known limitations rather than filling gaps with guessed addresses. To add
    an `alternate_target_sha256`, prove all extracted resources match for the
    declared courses and repeat relevant gameplay checks. Never commit patched
-   ROMs, decoded resource binaries or generated code. MAX Classic and CGP P1
-   IPS files are explicitly bundled under `assets/track-packs` with attribution;
-   preserve their original bytes and verified manifest identities. Do not
+  ROMs, decoded resource binaries or generated code. MAX Classic and the current
+  CGP IPS are explicitly bundled under `assets/track-packs` with attribution;
+  preserve verified manifest identities and record approved revisions. Do not
    include the archives' MSU/PCM soundtrack or redundant donor variants.
 
 ## Metadata format
@@ -147,6 +148,16 @@ Checkpoint arrays are bounded to avoid overlap in native WRAM. A layout does
 not carry a program, native dispatch address, hook PC or general memory-write
 instruction. The game supplies one shared set of canonical loader bindings.
 
+Optional repeated `require=<source-index-or-all>|<feature>` entries declare
+course mechanics implemented by the shared adapter. Supported features are
+`grip-magnets`, `up-magnets`, and `rainbow-road`. For example, CGP requires the
+first two for all its courses, and `require=52|rainbow-road` for Rainbow Road.
+These capabilities run only while the declaring course is active. They do not
+change any user mod switches or enable music, car tuning or difficulty.
+Unknown features, invalid indices and duplicate declarations are errors.
+Requirements are included in course hashes, separating incompatible records
+and snapshots. Layouts without requirements keep their existing hashes.
+
 This decoder covers the MAX/CGP FZEdit resource representation, not every
 F-Zero hack. These donors disable the separate native mine-list loader;
 terrain-encoded mines can still animate and modify road cells during a race.
@@ -161,6 +172,7 @@ The course manifest remains data-only. Do not turn it into an arbitrary ROM
 write or executable-hook format. Author-supplied gameplay ASM is separately
 reviewed and adapted to the common engines; see [cgp-source/README.md](cgp-source/README.md)
 for source coverage, table ownership, interaction rules and validation.
-Keep gameplay options off by default. A course pack must not silently enable
-music, tuning or new rules. Verify stock/BS car IDs, caller register widths,
+Keep optional gameplay switches off by default. Required, supported course
+capabilities must be declared in the layout and scoped to those courses;
+never silently enable global switches, music, tuning or difficulty. Verify stock/BS car IDs, caller register widths,
 return-stack balance and any shared renderer/HUD hooks before exposing a patch.

@@ -168,7 +168,8 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   In progress: found and fixed two missing property-table consumers (landing
   and recovery) and the forced-surface speed floor. Existing shortcut adapter
   covers the donor's rectangle crossing through canonical checkpoint effects.
-  Required up/grip magnet and Rainbow behavior is being made course-scoped.
+  Required up/grip magnet and Rainbow behavior now uses scoped layout
+  capabilities. See `CGP_COURSE_CAPABILITIES.md` for coverage and remaining gaps.
 
 <a id="trampoline"></a>
 - [ ] **B06 — Fix trampoline-exit death** — `beads-8wg.5.40`, P1.
@@ -194,6 +195,11 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   grounded grip, turning, strafe, damage and landing transitions. Include CPU
   behavior where applicable and preserve ordinary stock magnets. Declare any
   necessary course dependencies rather than merely exposing more switches.
+  Required-only race entry and 720 up-magnet cases pass on eight revised
+  courses; optional-ASM runs match accumulator/carry results. Native-course
+  frames/WRAM are unchanged by capability declarations in both engines;
+  required-Rainbow save/load resimulation and reset pass. Full hazard routes
+  and broader collision/landing transitions remain pending.
 
 <a id="legend"></a>
 - [ ] **B09 — Correct Legend AI and dependencies** — `beads-8wg.5.43`, P1.

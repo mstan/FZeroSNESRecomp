@@ -36,7 +36,42 @@ static unsigned resource(unsigned size) {
   pointer(t, addr(data));
   return addr(t);
 }
+static void requirements(void) {
+  const char *path = "course-requirements-test.layout";
+  const char *cases[] = {
+      "require=all|grip-magnets\nrequire=1|up-magnets\nrequire=1|rainbow-road\n",
+      "require=all|unknown\n", "require=2|up-magnets\n",
+      "require=128|up-magnets\n", "require=-1|up-magnets\n",
+      "require=+1|up-magnets\n", "require=|up-magnets\n",
+      "require=all|up-magnets\nrequire=all|up-magnets\n",
+      "require=1|up-magnets\nrequire=1|up-magnets\n"};
+  const char *fields[] = {"pools", "settings", "palettes", "maps", "graphics", "paths",
+                         "names", "sky_graphics", "sky_back", "sky_front", "minimaps",
+                         "map_positions", "terrain", "gradients", "opponents", "shortcuts"};
+  for (unsigned i = 0; i < sizeof(cases) / sizeof(*cases); ++i) {
+    FILE *f = fopen(path, "wb");
+    CHECK(f);
+    fprintf(f, "format=fzero-course-1\ncount=2\n%s", cases[i]);
+    for (unsigned j = 0; j < sizeof(fields) / sizeof(*fields); ++j)
+      fprintf(f, "%s=108000\n", fields[j]);
+    CHECK(!fclose(f));
+    FzeroCourseLayout layout = {0}, before = layout;
+    char error[256];
+    bool valid = FzeroCourseLayoutRead(path, &layout, error, sizeof(error));
+    CHECK(valid == (i == 0));
+    if (valid) {
+      CHECK(layout.required == FZERO_COURSE_GRIP_MAGNETS);
+      CHECK(!layout.course_required[0]);
+      CHECK(layout.course_required[1] == (FZERO_COURSE_UP_MAGNETS | FZERO_COURSE_RAINBOW));
+    } else {
+      CHECK(!memcmp(&layout, &before, sizeof(layout)));
+      if (i == 1) CHECK(strstr(error, "Unsupported required"));
+    }
+  }
+  CHECK(!remove(path));
+}
 int main(void) {
+  requirements();
   FzeroCourseLayout l = {0};
   l.count = 1;
   l.pools = resource(0x2400);
@@ -103,6 +138,17 @@ int main(void) {
   CHECK(colors[0] == 14 && colors[1] == 15 && colors[2] == 0);
   CHECK(colors[0xd0] == 0xde && colors[0xd2] == 0xd0);
   CHECK(!memcmp(colors + 0x10, before + 0x10, 0xc0));
+  *previous = *c;
+  l.required = FZERO_COURSE_GRIP_MAGNETS;
+  l.course_required[0] = FZERO_COURSE_UP_MAGNETS;
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(c->required == (FZERO_COURSE_GRIP_MAGNETS | FZERO_COURSE_UP_MAGNETS));
+  CHECK(memcmp(c->hash, previous->hash, 32));
+  l.course_required[0] = 128;
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  l.required = l.course_required[0] = 0;
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(!memcmp(c->hash, previous->hash, 32));
   *previous = *c;
   word(entries, 0x10); /* Shared HUD/car palette is forbidden. */
   CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));

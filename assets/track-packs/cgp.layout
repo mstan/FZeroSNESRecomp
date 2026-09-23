@@ -20,3 +20,7 @@ gradients=1095a8
 opponents=109760
 shortcuts=109684
 palette_cycles=109442
+# Native, course-scoped behavior; these never enable global tuning or music.
+require=all|grip-magnets
+require=all|up-magnets
+require=52|rainbow-road
