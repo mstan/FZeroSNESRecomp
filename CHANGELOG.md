@@ -1,5 +1,22 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.2 - local sharing build
+
+- Split BS Satellaview vehicles and original BS tracks into independent mods.
+  BS tracks appear under Track Packs; the eight-car roster works with any cup.
+- Include CGP's ten corrected BS courses alongside its thirty new courses.
+  CGP and original BS tracks are mutually exclusive, avoiding duplicate courses.
+- Add 19 opt-in CGP gameplay, cosmetic and fix mods, including P1/P2/P3 tuning,
+  energy boost and exhaust choices. These work independently of track packs.
+  BS cars keep their individual stat tables and exhaust positions; shared
+  physics and the adapted energy boost also apply to them.
+- Fix BS car-select palette corruption and disappearing previews caused by
+  duplicate scanline updates. All eight selections retain their colors.
+- Keep MAX hidden and disabled. Music remains optional, off by default and
+  absent from the ZIP. Rewind remains enabled with R; shoulders default to D/C.
+- Imported courses currently appear in Grand Prix; imported Practice courses
+  and a combined records browser remain future work.
+
 ## 1.8.3-fzero-55 - local branch build
 
 - Use F-Zero-specific keyboard defaults: R for rewind, D/C for L/R shoulders.
