@@ -8,10 +8,13 @@ Programming: Fennor Virastar
 Complete project credits and original release:
 https://romhackplaza.org/romhacks/f-zero-community-grand-prix-cgp-super-nintendo-romhack/
 
-Bundled input: F-Zero CGP P1/F-Zero CGP P1.ips from F-Zero CGP P1.zip
-SHA-256: 4ad667cda0841eb15c849f49ea22e2254d7852475a4e9c168da00974c1dc0d8e
-The IPS is preserved byte-for-byte. P1, P2 and P3 provide identical course
-resources. This adapter imports the 30 new courses and ten corrected
+Bundled input: IPS delta generated with tools/make_ips.py from the original
+F-Zero USA ROM and the author's F-Zero CGP P3test.sfc, supplied 2026-09-23.
+Donor SHA-256: 25383a9090265e6a4f007dc349fa224b6305c028e899c60069d63dc0bfc5ffb7
+IPS SHA-256: 6bbc07b92c45bc16d5fc10008295a671fa571ae672ec93073d0edf1550088b4c
+This revision replaces the retired Volcania venue artwork and changes seven
+course venue settings. Older P1/P2/P3 course donors are no longer recognized.
+This adapter imports the 30 new courses and ten corrected
 Satellaview courses, omitting the 15 original courses. The original BS track
 pack is mutually exclusive with CGP to avoid duplicates. It preserves
 the native roster, rules, HUD and renderer. The donor's engine changes and

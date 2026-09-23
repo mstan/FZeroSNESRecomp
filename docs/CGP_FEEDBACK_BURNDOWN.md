@@ -2,10 +2,9 @@
 
 Date: 2026-09-23. Branch: `fzero-55`. Baseline: `ced5d72` (preview.3).
 
-**Status: proposed, awaiting Matthew's agreement. Implementation: 0/12 complete.**
-The current authorization covers inspection, this checklist, and Beads creation.
-Do not begin fixes, replace shipped assets, or cut another build until the owner
-agrees to this scope. Work solo. Keep commits local; no remote pushes.
+**Status: approved and in progress (2026-09-23). Implementation: 1/12 complete.**
+Matthew approved beginning the full burndown, including fixes, asset replacement
+and a validated local Windows build. Work solo. Keep commits local; no pushes.
 
 Planning issue: `beads-8wg.5.34`. The 12 work items below belong directly under
 `beads-8wg.5` (Game: F-Zero), under `beads-8wg` (System: SNES), in the central
@@ -62,7 +61,7 @@ checkbox requires the item's acceptance evidence, not merely a successful build.
   feedback, not an established clean reference. Identify which capture came
   from which application/configuration before deciding the intended HUD.
 
-## Proposed behavior to agree on
+## Approved behavior
 
 1. A vehicle is a stable identity with matching artwork, animation, stats,
    boost parameters, exhaust geometry, icons and menu metadata. P1/P2/P3 are
@@ -113,17 +112,21 @@ checkbox requires the item's acceptance evidence, not merely a successful build.
   Verify transitions both ways and normalize the seven conflicting saved
   combinations deterministically, with a clear explanation in the UI.
 
-This clarification updates the agreed roster direction, not authorization to
-start the remaining implementation burndown.
+The owner subsequently approved the full implementation burndown on 2026-09-23.
 
 ## Checklist
 
 <a id="venue"></a>
-- [ ] **B01 — Replace revoked Volcania venue** — `beads-8wg.5.35`, P1.
+- [x] **B01 — Replace revoked Volcania venue** — `beads-8wg.5.35`, P1.
   Audit all eight changed course payloads and code deltas in P3test. Update the
   bundled patch, registry hashes, compatibility policy and credits. Verify the
   approved venue and any shared resources; review record compatibility and
   supersede the old share build. No full ROM packaged.
+  Completed source replacement: [revision audit](CGP_REVISION_AUDIT.md).
+  Exact patch reconstruction, three IPS writer tests, all nine bundled-pack
+  cases and race entry on all eight revised courses pass. Volcania frame
+  inspected. Retired hashes are rejected; previous sharing ZIP is superseded
+  pending B12's corrected build. Full hazard/vehicle qualification remains below.
 
 <a id="roster-audit"></a>
 - [ ] **B02 — Identify the donor rosters** — `beads-8wg.5.36`, P1.

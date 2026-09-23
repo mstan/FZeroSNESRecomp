@@ -17,7 +17,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from parse_track_pack import donor, fields
+from parse_track_pack import donor, fields, recognize
 from validate_track_packs import literal_bps
 
 
@@ -61,6 +61,16 @@ def main():
         extracted.append(hashes)
         (library / f"variant{i}.ips").write_bytes(patch)
     assert len(extracted) == 3 and extracted[0] == extracted[1] == extracted[2]
+    # Historical variants remain private comparison inputs. They contain the
+    # retired venue and must never activate the current course pack.
+    assert all(recognize(donor(stock, patch)) is None for patch in patches)
+    approved_patch = (ROOT / "assets/track-packs/cgp.ips").read_bytes()
+    approved = donor(stock, approved_patch)
+    assert recognize(approved).stem == "cgp"
+    approved_path = out / "approved.sfc"; approved_path.write_bytes(approved)
+    subprocess.check_output([str(inspector), str(approved_path), str(registry / "cgp.layout"),
+                             str(out / "approved-course")], text=True)
+    (library / "approved.ips").write_bytes(approved_patch)
     with zipfile.ZipFile(a.max_archive) as archive:
         max_patch = archive.read("MAX_League_Classic.ips")
     (library / "max.ips").write_bytes(max_patch)
@@ -102,7 +112,7 @@ def main():
         assert text.count("extracted cgp: 40 courses")==1
         # Verify the selected donor's actual geometry reached the canonical loader.
         ram = (out / ident / "ram.bin").read_bytes()
-        course = (out / f"variant0-course-{slot}.bin").read_bytes()
+        course = (out / f"approved-course-{slot}.bin").read_bytes()
         assert ram[0x10000:0x12400] == course[:0x2400], (ident, "tile pool")
         blocks, grid = sizes[int(slot)]
         assert ram[0x14e00:0x14e00 + blocks] == course[0x2400:0x2400 + blocks], (ident, "blocks")
@@ -134,17 +144,15 @@ def main():
     assert "menu 12/12:" in text
     for i in range(3):
         (library / f"variant{i}.ips").rename(library / f"variant{i}.held")
+    (library / "approved.ips").rename(library / "approved.held")
     for i in range(3):
         (library / f"variant{i}.held").rename(library / f"variant{i}.ips")
-        text = run(f"only-variant{i}")
-        assert text.count("extracted cgp: 40 courses")==1
+        text = run(f"retired-variant{i}", "max-league/max", frames=10)
+        assert "extracted cgp" not in text
         (library / f"variant{i}.ips").rename(library / f"variant{i}.held")
-    roots = [sorted(p.name for p in (out / f"only-variant{i}/saves/bs-deluxe/courses").iterdir())
-             for i in range(3)]
-    assert roots[0] == roots[1] == roots[2]
     text = run("cgp-absent", "max-league/max", frames=10)
     assert "extracted cgp" not in text and "extracted max-league" in text
-    (library / "equivalent.bps").write_bytes(literal_bps(stock, donor(stock, patches[0])))
+    (library / "equivalent.bps").write_bytes(literal_bps(stock, approved))
     run("bps-only", frames=10)
     (library / "cgp.disabled").write_text("1\n")
     text = run("cgp-disabled", "max-league/max", frames=10)

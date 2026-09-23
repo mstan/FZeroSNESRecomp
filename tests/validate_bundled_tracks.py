@@ -21,7 +21,7 @@ def main():
     shutil.copytree(build / "assets/track-packs", registry)
     expected = {
         "max-league.ips": "8b1b4ee5abc2ea0eee180e539cf56cce6fa583ed1be17fb6f8c5715d63089716",
-        "cgp.ips": "4ad667cda0841eb15c849f49ea22e2254d7852475a4e9c168da00974c1dc0d8e",
+        "cgp.ips": "6bbc07b92c45bc16d5fc10008295a671fa571ae672ec93073d0edf1550088b4c",
     }
     for name, digest in expected.items():
         assert hashlib.sha256((registry / name).read_bytes()).hexdigest() == digest

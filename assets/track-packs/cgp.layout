@@ -1,5 +1,5 @@
-# Community Grand Prix 1.0, all three vehicle variants.
-# Typed resources share one layout and decode identically in P1/P2/P3.
+# Community Grand Prix, author-supplied P3test venue revision (2026-09-23).
+# Resource table locations are unchanged from CGP 1.0.
 # Slot order in the donor GP menu is separate from these resource indices.
 format=fzero-course-1
 count=55
