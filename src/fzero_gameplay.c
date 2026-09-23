@@ -33,7 +33,7 @@ const char *FzeroGameplayError(void) { return error; }
 const uint8_t *FzeroGameplaySignature(void) { return signature; }
 static void sign_program(const uint8_t *rom, size_t size) {
   /* Bump the adapter version when a host rule changes its guest semantics. */
-  uint8_t key[36] = {1, 0, 0, 0};
+  uint8_t key[36] = {2, 0, 0, 0};
   sha256_compute(rom, size, key + 4);
   sha256_compute(key, sizeof(key), signature);
 }

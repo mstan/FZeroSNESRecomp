@@ -6,6 +6,7 @@
 #include "cpu_state.h"
 #include "fzero_deluxe.h"
 #include "fzero_gameplay.h"
+#include "fzero_course_runtime.h"
 #include "sha256.h"
 #include "snes/interp_bridge.h"
 #include <stdio.h>
@@ -44,6 +45,7 @@ static bool fragment(CpuState *c, unsigned start, unsigned end,
                      unsigned alternate, bool long_return) {
   stopped = 0;
   FzeroGameplayInstallHooks();
+  FzeroTracksInstallHooks();
   if (end)
     interp_bridge_set_pre_opcode_hook(end, stop);
   if (alternate)
@@ -63,6 +65,46 @@ bool FzeroRulesProbe(void) {
   static const DispatchEntry empty[1] = {{0}};
   cpu_select_program(empty, 0, NULL, 0);
   interp_bridge_set_pre_opcode_hook(0, NULL);
+  if (FzeroTracksCurrentCourse()) {
+    /* Exercise actual landing/recovery instruction boundaries for every tile
+     * and both jump-state variants. Valid custom tiles above D0 must survive;
+     * pits below D0 must remain fatal. Check both engine modules. */
+    const FzeroCourse *course = FzeroTracksCurrentCourse();
+    unsigned custom_safe = 0, custom_pit = 0;
+    for (unsigned tile = 0; tile < 256; ++tile) {
+      for (unsigned jumping = 0; jumping < 2; ++jumping) {
+        CpuState c = state(0x10);
+        unsigned flags = course->terrain[0x300 + tile];
+        unsigned fatal = (flags & 0x80) || (!jumping && (flags & 0x20));
+        g_ram[0xcd0] = (uint8_t)tile;
+        g_ram[0xc00] = (uint8_t)flags;
+        g_ram[0xd51] = (uint8_t)jumping;
+        CHECK(fragment(&c, 0x009c9a, 0x009cc1, 0x009caf, false));
+        CHECK(stopped == (fatal ? 0x009caf : 0x009cc1));
+        custom_safe += tile >= 0xd0 && !fatal;
+        custom_pit += tile < 0xd0 && (flags & 0x80);
+      }
+      for (unsigned deep = 0; deep < 2; ++deep) {
+        CpuState c = state(0x30);
+        g_ram[0xcd0] = (uint8_t)tile;
+        g_ram[0xc01] = deep ? 0xff : 0;
+        CHECK(fragment(&c, 0x00eb90, 0x00eb97, 0x00ebad, false));
+        CHECK(stopped == (deep ? 0x00eb97 : 0x00ebad));
+      }
+    }
+    for (unsigned tile = 0; tile < 256; ++tile) {
+      unsigned flags = course->terrain[0x300 + tile];
+      if (!(flags & 0x40) || (flags & 0x80)) continue;
+      CpuState c = state(0x30);
+      g_ram[0xcd0] = (uint8_t)tile;
+      word(0xb20, 0);
+      word(0xcc0, 0);
+      CHECK(fragment(&c, 0x008e36, 0x008e28, 0, false));
+      CHECK(read_word(0xb20) == 0x80 && read_word(0xc00) == 0x340);
+    }
+    fprintf(stderr, "rules-probe: course landings/recovery=1024 safe-high=%u low-pits=%u PASS\n",
+            custom_safe, custom_pit);
+  }
   if (FzeroRuleEnabled(FZERO_RULE_BOOST)) {
     static const unsigned drains[3][4] = {
         {23, 21, 19, 23}, {22, 21, 23, 20}, {22, 17, 22, 21}};

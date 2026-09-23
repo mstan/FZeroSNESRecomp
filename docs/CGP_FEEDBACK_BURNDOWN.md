@@ -165,6 +165,10 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   adapter. Inventory tile/property, landing, death, checkpoint, hazard and event
   gaps. Record required versus optional behavior and reusable manifest/native
   capabilities. Unsupported requirements must be visible, not silently ignored.
+  In progress: found and fixed two missing property-table consumers (landing
+  and recovery) and the forced-surface speed floor. Existing shortcut adapter
+  covers the donor's rectangle crossing through canonical checkpoint effects.
+  Required up/grip magnet and Rainbow behavior is being made course-scoped.
 
 <a id="trampoline"></a>
 - [ ] **B06 — Fix trampoline-exit death** — `beads-8wg.5.40`, P1.
@@ -172,12 +176,17 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   compare height, landing, surface and boundary decisions against the donor.
   Require a replay that survives the valid exit while genuine off-track deaths
   still work. Include mod combinations and save/rewind/reset.
+  Shared landing fix passes 1,024 surface/phase/recovery probes on each of the
+  eight revised courses. Native tile-number checks were ignoring custom ground
+  properties. Full reported-route reproduction remains pending.
 
 <a id="railroad"></a>
 - [ ] **B07 — Fix railroad-landing death** — `beads-8wg.5.41`, P1.
   Depends on B05. Identify the course and railroad property, establish donor
   landing semantics, and fix the mismatch. Keep a separate regression even if
   it shares B06's root cause. Test adjacent invalid landing surfaces too.
+  Shares the confirmed tile-number/property mismatch. Probes cover high-numbered
+  safe tiles and lower-numbered pits; reported railroad route still pending.
 
 <a id="magnets"></a>
 - [ ] **B08 — Validate up and grip magnets** — `beads-8wg.5.42`, P1.

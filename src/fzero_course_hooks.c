@@ -42,9 +42,11 @@ static void terrain(CpuState *cpu, const FzeroCourse *c) {
   g_ram[0xcc0 + x] = (uint8_t)flags;
   if (flags & 128)
     w16(0xcc0 + x, 0xff80);
-  else if (flags & 64)
+  else if (flags & 64) {
     w16(0xcc0 + x, 0x340);
-  else if (flags & 32) {
+    if (r16(0xb20 + x) < 0x80)
+      w16(0xb20 + x, 0x80);
+  } else if (flags & 32) {
     unsigned state = g_ram[0xcc1 + x];
     if (!(state & 128)) {
       if (!state)
@@ -188,6 +190,24 @@ static void course_hook(CpuState *cpu, uint32_t pc) {
   case 0x008e36:
     terrain(cpu, c);
     break;
+  case 0x009c9a: {
+    /* FZEdit surfaces are property-driven. The native 69/A5/D0 tile-ID
+     * tests kill valid custom railroad/trampoline landings. Match the donor
+     * consumer of the normalized surface state, including intentional pits. */
+    unsigned surface = g_ram[0xc00];
+    cpu->Y = (uint16_t)surface;
+    cpu->_flag_C = g_ram[0xd51] & 1;
+    accum(cpu, surface);
+    bool fatal = (surface & 0x80) || (!cpu->_flag_C && (surface & 0x20));
+    interp_bridge_pre_opcode_redirect(fatal ? 0x009caf : 0x009cc1);
+    break;
+  }
+  case 0x00eb90:
+    /* Recovery uses the signed normalized ground height, not the numeric
+     * range of the graphics tile. Native courses retain their own checks. */
+    accum(cpu, g_ram[0xc01]);
+    interp_bridge_pre_opcode_redirect((g_ram[0xc01] & 0x80) ? 0x00eb97 : 0x00ebad);
+    break;
   case 0x00da04:
     for (unsigned i = 0; i < 16; ++i) {
       const uint8_t *p = c->shortcuts + i * 17;
@@ -220,7 +240,8 @@ void FzeroTracksInstallHooks(void) {
     interp_bridge_set_pre_opcode_hook(0x0380f5, title_hook);
   const uint32_t sites[] = {0x009f08, 0x009f1b, 0x009f28, 0x009f4c, 0x00a0b0, 0x00a10d, 0x00a11d,
                             0x00a127, 0x00a4ab, 0x00a4d1, 0x00a51f, 0x008895, 0x00abd3, 0x00d609,
-                            0x00a30d, 0x008e36, 0x00da04, 0x00cba5, 0x009a6b, 0x00b4a9, 0x00c1cf};
+                            0x00a30d, 0x008e36, 0x009c9a, 0x00eb90, 0x00da04,
+                            0x00cba5, 0x009a6b, 0x00b4a9, 0x00c1cf};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], course_hook);
   if (FzeroDeluxeActive()) {
