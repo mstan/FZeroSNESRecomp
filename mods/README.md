@@ -6,8 +6,10 @@ an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
 buttons. Imported cups appear after the original leagues.
 
-The `fzero-55` build has **11 cups / 55 courses** with CGP enabled: the
-15 original courses, CGP's 10 corrected BS courses, and 30 new courses.
+The `fzero-55` build has **14 cups / 70 selectable course versions** with CGP
+enabled: 15 original courses, 15 CGP revisions of those courses, CGP's 10
+corrected BS courses, and 30 new courses. **Knight CGP, Queen CGP and King CGP**
+include the author's course and racing-line edits; the original cups stay intact.
 MAX League's files are retained, but its mod and cups are hidden and disabled.
 
 **BS Satellaview vehicles** adds the four extra cars independently of tracks.
@@ -48,8 +50,9 @@ including its boost behavior.
 **Community Grand Prix (CGP)** includes a regenerated IPS for the author's
 P3test venue revision and credits in `assets/track-packs`. Historical P1/P2/P3
 had identical courses, but their retired Volcania artwork is no longer an
-accepted course source. The current import supplies **eight cups / 40 courses**
-(30 new plus 10 corrected BS). MAX's five courses are distinct but parked.
+accepted course source. The current import supplies **eleven cups / 55 courses**
+(15 revised originals, 30 new and 10 corrected BS). MAX's five courses are
+distinct but parked.
 
 The remaining **16 optional gameplay mods** work independently of vehicle and
 course packs. Required up/grip magnet and Rainbow Road behavior now accompanies

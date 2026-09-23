@@ -56,7 +56,7 @@ def main():
         log = result.stdout
         (folder / "run.log").write_text(log, encoding="utf-8")
         assert result.returncode == 0 and "fzero_native: PASS" in log, log[-4000:]
-        for pack, count in (("max-league", 5), ("cgp", 40)):
+        for pack, count in (("max-league", 5), ("cgp", 55)):
             assert log.count(f"extracted {pack}: {count} courses") == (pack in enabled), (name, pack)
         if cups:
             assert f"menu {cups}/{cups}:" in log, log[-4000:]
@@ -67,12 +67,12 @@ def main():
         print(name, "PASS", flush=True)
 
     both = {"max-league", "cgp"}
-    cup_count = 11 if "max-league" in hidden else 12
+    cup_count = 14 if "max-league" in hidden else 15
     run("fresh", both, cups=cup_count, configure=False)
     (user / "library.disabled").write_text("1\n", encoding="utf-8")
     run("old-setting", both, cups=cup_count)
     run("max-only", {"max-league"}, cups=None if "max-league" in hidden else 6)
-    run("cgp-only", {"cgp"}, cups=11)
+    run("cgp-only", {"cgp"}, cups=14)
     run("native-bs", set(), cup="bs-deluxe/knight")
     run("native-stock", set(), cup="retail/knight", deluxe=False)
     run("stock-packs", both, cups=cup_count, deluxe=False)

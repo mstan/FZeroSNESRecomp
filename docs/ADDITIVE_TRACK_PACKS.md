@@ -3,18 +3,20 @@
 The local `fzero-55` release parks MAX League with a shipped
 `assets/track-packs/max-league.hidden` marker. Its implementation, manifest,
 patch and records are retained; it is hidden in Mods and held off, including
-when old settings enabled it. CGP defaults to **11 cups / 55
-courses**, with BS vehicles independently enabled. Remove the marker or set it to `0` to expose MAX again.
+when old settings enabled it. CGP defaults to **14 cups / 70 selectable course
+versions**, with BS vehicles independently enabled. Remove the marker or set it to `0` to expose MAX again.
 
 The game imports course resources into the canonical F-Zero/BS Deluxe engine.
 It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
 enables/disables individual packs; there is no master mod or cup dropdown.
 
-The menu contains Knight, Queen and King, then CGP's two corrected BS cups
-and six new cups. Original BS tracks have their own switch and are mutually
+The menu contains the original Knight, Queen and King, then CGP's revisions
+of those three leagues, two corrected BS cups and six new cups. All fifteen
+CGP original-course revisions contain authored checkpoint/path changes;
+see [the course audit](CGP_ORIGINAL_COURSES.md). Original BS tracks have their own switch and are mutually
 exclusive with CGP. The four BS cars have a separate switch that works with
 either track set or stock courses. MAX adds five courses when unhidden,
-bringing the total to 60.
+bringing the total to 75 selectable course versions.
 Additional manifests append additional cups. With BS vehicles disabled, imports
 use the four-car roster. With all imported packs
 disabled or unavailable, the normal game menus remain active. Obsolete
@@ -27,7 +29,7 @@ instructions for LLM contributors. [PARSE_MANIFEST.md](../mods/PARSE_MANIFEST.md
 documents the metadata format, typed resource layout, deterministic tools,
 unknown-patch workflow and gameplay qualification checklist.
 
-MAX Classic and CGP P1 IPS patches are bundled with attribution in
+MAX Classic and the approved CGP P3test IPS patches are bundled with attribution in
 `assets/track-packs`. They are discovered automatically alongside their
 manifests. Drop additional IPS/BPS files into `mods/track-packs` beside the
 executable. Bundled packs use their fixed included patch and expose only an

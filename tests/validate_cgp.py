@@ -1,7 +1,7 @@
 """Private CGP qualification. Inputs and extracted data stay in --out, never Git.
 
 Requires the owner's stock ROM, three CGP archives and MAX archive. Tests all
-40 imported courses, native transitions, variant equivalence and partial installs.
+55 imported courses, native transitions, variant equivalence and partial installs.
 Completed-result injection checks transitions, not manual full-lap playability.
 """
 import argparse
@@ -39,7 +39,7 @@ def main():
             (registry / file.name).write_bytes(file.read_bytes())
     descriptor = fields(registry / "cgp.ini")
     tracks = [entry.split("|") for entry in descriptor["track"]]
-    assert len(tracks) == 40 and {int(t[3]) for t in tracks} == set(range(15, 55))
+    assert len(tracks) == 55 and {int(t[3]) for t in tracks} == set(range(55))
     extracted, patches, sizes = [], [], {}
     inspector = build / "FZeroInspectCourses.exe"
     for i, archive_path in enumerate(a.archive):
@@ -109,7 +109,7 @@ def main():
     def course_case(item):
         index, (ident, _, cup, slot) = item
         text = run(ident, f"cgp/{cup}", FZERO_TEST_COURSE=str(index % 5))
-        assert text.count("extracted cgp: 40 courses")==1
+        assert text.count("extracted cgp: 55 courses")==1
         # Verify the selected donor's actual geometry reached the canonical loader.
         ram = (out / ident / "ram.bin").read_bytes()
         course = (out / f"approved-course-{slot}.bin").read_bytes()
@@ -132,7 +132,7 @@ def main():
         assert text.count("completed result ordinal=")==5
 
     with ThreadPoolExecutor(max_workers=3) as executor:
-        list(executor.map(progress, ['bs-1', 'bs-2']+[f"cgp-{i}" for i in range(1, 7)]))
+        list(executor.map(progress, ['knight-cgp', 'queen-cgp', 'king-cgp', 'bs-1', 'bs-2']+[f"cgp-{i}" for i in range(1, 7)]))
     text = run("lifecycle", frames=1850, FZERO_LIFECYCLE_TEST="1")
     assert "resimulation identical" in text and "soft reset, SRAM retained" in text
     for cup in ("knight", "queen", "king", "bs-1", "bs-2"):
@@ -141,7 +141,7 @@ def main():
     run("stock-engine", FZERO_DELUXE_DATA="", FZERO_ASPECT="4:3")
     text = run("menu", cup="", frames=700,
                SNESRECOMP_INPUT_SCRIPT="320-326:8,440-446:8,560-566:8,650-652:64")
-    assert "menu 12/12:" in text
+    assert "menu 15/15:" in text
     for i in range(3):
         (library / f"variant{i}.ips").rename(library / f"variant{i}.held")
     (library / "approved.ips").rename(library / "approved.held")
@@ -160,7 +160,7 @@ def main():
     assert stock_path.read_bytes() == stock
     (out / "validation.json").write_text(json.dumps({"stock_unchanged": True,
         "stock_sha256": hashlib.sha256(stock).hexdigest(), "variant_course_hashes": extracted,
-        "courses_imported": 40, "native_slots_excluded": list(range(15)),
+        "courses_imported": 55, "native_originals_preserved": list(range(15)),
         "max_geometry_duplicates": [], "cases": results}, indent=2)+"\n", encoding="utf-8")
 
 

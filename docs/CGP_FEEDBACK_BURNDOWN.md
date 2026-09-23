@@ -2,7 +2,7 @@
 
 Date: 2026-09-23. Branch: `fzero-55`. Baseline: `ced5d72` (preview.3).
 
-**Status: approved and in progress (2026-09-23). Implementation: 4/12 complete.**
+**Status: approved and in progress (2026-09-23). Implementation: 5/12 complete.**
 Matthew approved beginning the full burndown, including fixes, asset replacement
 and a validated local Windows build. Work solo. Keep commits local; no pushes.
 
@@ -241,11 +241,16 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   menu labels, previews and icons with the roster rather than slot substitutions.
 
 <a id="original-cups"></a>
-- [ ] **B11 — Compare CGP's first three leagues** — `beads-8wg.5.45`, P2.
+- [x] **B11 — Compare CGP's first three leagues** — `beads-8wg.5.45`, P2.
   Depends on B05. Audit all first-15-course differences against stock, separating
   course edits from global car/AI changes. If genuine revisions exist, make them
   clearly selectable while retaining untouched originals and isolated records.
   Do not assume 15 additional unique courses or duplicate identical ones.
+  All fifteen have authored checkpoint/path edits; ten change road-map cells.
+  Added separate Knight CGP, Queen CGP and King CGP cups; native originals
+  and existing CGP cup identities stay intact. All 55 donor course loads,
+  eleven cup transitions, native modes, partial/retired/BPS installs and nine
+  bundled-pack checks pass. See [first-league audit](CGP_ORIGINAL_COURSES.md).
 
 <a id="qualification"></a>
 - [ ] **B12 — Qualify and package the corrected build** — `beads-8wg.5.46`, P1.

@@ -248,7 +248,10 @@ static unsigned music_course(void) {
     return g_ram[0x53];
   unsigned order = g_ram[0x53];
   if (!strcmp(pack->id, "cgp")) {
-    unsigned base = !strcmp(cup->id, "bs-1")   ? 15
+    unsigned base = !strcmp(cup->id, "knight-cgp") ? 0
+                    : !strcmp(cup->id, "queen-cgp") ? 5
+                    : !strcmp(cup->id, "king-cgp") ? 10
+                    : !strcmp(cup->id, "bs-1")   ? 15
                     : !strcmp(cup->id, "bs-2") ? 20
                                                : 25 + cup->slot * 5;
     return base + order;
