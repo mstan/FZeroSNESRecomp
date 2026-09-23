@@ -5,6 +5,7 @@
 #include <string.h>
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
 int main(void) {
+  remove("test-mod-tracks/cgp.title");
   CHECK(FzeroTracksInit("test-mod-tracks", true));
   FzeroVideoSettings s, loaded; FzeroVideoStock(&s); /* start from nothing enabled to test each toggle */
   const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini");
@@ -27,7 +28,8 @@ int main(void) {
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
     CHECK(strcmp(pack.package_id, "track-library") && !strcmp(pack.id, "tracks"));
-    CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == 0);
+    bool has_title = !strcmp(pack.package_id, "cgp");
+    CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == (has_title ? 1 : 0));
     RecompLauncherCModResource resource;
     if (FzeroTracksBundled(cp_catalog_find(catalog,pack.package_id))) {
       CHECK(p->feature_resource_count(NULL,pack.package_id,pack.id) == 0);
@@ -37,7 +39,17 @@ int main(void) {
       CHECK(p->feature_resource_count(NULL,pack.package_id,pack.id) == 1);
       CHECK(p->feature_resource_get(NULL,pack.package_id,pack.id,0,&resource));
     }
-    CHECK(!p->feature_option_get(NULL, pack.package_id, pack.id, 0, &option));
+    CHECK(p->feature_option_get(NULL, pack.package_id, pack.id, 0, &option) == has_title);
+    if (has_title) {
+      CHECK(!strcmp(option.value, "original") && !strcmp(option.default_value, "original"));
+      CHECK(option.type == RECOMP_MOD_OPTION_CHOICE && option.choice_count == 2);
+      RecompLauncherCModChoice choice;
+      CHECK(p->feature_choice_get(NULL, pack.package_id, pack.id, option.id, 1, &choice));
+      CHECK(!strcmp(choice.value, "fzero-55"));
+      CHECK(p->feature_set_option(NULL, pack.package_id, pack.id, option.id, choice.value));
+      CHECK(!p->feature_set_option(NULL, pack.package_id, pack.id, option.id, "unknown"));
+      CHECK(!p->feature_option_get(NULL, pack.package_id, pack.id, 1, &option));
+    }
     CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 0));
     CHECK(p->feature_get(NULL, i, &pack) && !pack.enabled && !strcmp(pack.status, "Disabled"));
     CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 1));
@@ -119,6 +131,22 @@ int main(void) {
   CHECK(!s.hd_mode7 && s.hd_scale == 10 && s.enhanced);
   CHECK(p->feature_enable(NULL, deluxe.package_id, deluxe.id, 0));
   CHECK(!s.bs_deluxe && s.enhanced && !s.fps_enabled);
+  if (cgp) {
+    CHECK(FzeroTracksTitleEnabled(cgp));
+    CHECK(p->feature_enable(NULL, "cgp", "tracks", 0));
+    CHECK(p->commit(NULL, NULL));
+    CHECK(FzeroTracksInit("test-mod-tracks", true));
+    cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
+    CHECK(!FzeroTracksEnabled(cgp) && FzeroTracksTitleEnabled(cgp));
+    CHECK(p->feature_option_get(NULL, "cgp", "tracks", 0, &option));
+    CHECK(!strcmp(option.value, "fzero-55") && !strcmp(option.default_value, "original"));
+    CHECK(p->feature_enable(NULL, "cgp", "tracks", 1));
+    CHECK(FzeroTracksTitleEnabled(cgp));
+    CHECK(p->feature_set_option(NULL, "cgp", "tracks", "title-screen", "original"));
+    CHECK(p->commit(NULL, NULL));
+    CHECK(FzeroTracksInit("test-mod-tracks", true));
+    CHECK(!FzeroTracksTitleEnabled(cp_catalog_find(FzeroTracksCatalog(), "cgp")));
+  }
   remove("test-mods.ini");
   puts("Independent widescreen and presentation FPS plugins passed");
   return 0;

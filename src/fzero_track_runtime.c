@@ -2,6 +2,7 @@
 #include "fzero_course_runtime.h"
 #include "fzero_deluxe.h"
 #include "fzero_gameplay.h"
+#include "fzero_title.h"
 #include "cpu_state.h"
 #include "common_rtl.h"
 #include "snes/interp_bridge.h"
@@ -131,6 +132,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
   active_cup = NULL;
   course = NULL;
   menu_index = 0;
+  FzeroTitleReset();
   FzeroTracksDiscover(*rom, *size);
   const CpCatalog *cat = FzeroTracksCatalog();
   char error[256], path[CP_PATH];
@@ -168,6 +170,12 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
     for (unsigned t = 0; ok && t < p->track_count; ++t)
       ok = FzeroCourseExtract(donor, donor_size, &layout, p->tracks[t].slot, &courses[t], error,
                               sizeof(error));
+    if (ok && FzeroTracksTitleEnabled(p) &&
+        !FzeroTitlePrepare(*rom, *size, "assets/track-packs/presentation/fzero-55.ips", error, sizeof(error))) {
+      char message[256];
+      snprintf(message, sizeof(message), "CGP title: %.160s; using the original title", error);
+      FzeroTracksReport(message);
+    }
     free(donor);
     if (!ok) {
       free(courses);
@@ -190,7 +198,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
     interp_bridge_set_scheduler_aot_policy(0);
     /* Snapshot indices depend on both resource bytes and stable IDs/order.
      * Hash only initialized manifest records, never a pointer or file path. */
-    uint8_t hashes[CP_PACKS * 32 + 41] = {0};
+    uint8_t hashes[CP_PACKS * 32 + 73] = {0};
     hashes[0] = (uint8_t)FzeroDeluxeActive();
     const FzeroGameplaySettings *rules=FzeroGameplaySettingsCurrent();
     for (unsigned j=0;j<4;++j) hashes[1+j]=(uint8_t)(rules->enabled>>(j*8));
@@ -219,7 +227,15 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
       sha256_compute(data, length, hashes + 41 + i * 32);
       free(data);
     }
-    sha256_compute(hashes, 41 + imported_count * 32, identity);
+    size_t length = 41 + imported_count * 32;
+    /* Title assets affect snapshot compatibility, never course records or the
+     * gameplay signature. Preserve existing snapshot identity when off. */
+    if (FzeroTitleHash()) {
+      memcpy(hashes + length, FzeroTitleHash(), 32);
+      length += 32;
+      fprintf(stderr, "[track-library] F-Zero 55 title artwork enabled\n");
+    }
+    sha256_compute(hashes, length, identity);
   }
   FzeroTracksRuntimeSelect(0);
   const char *key = getenv("FZERO_CUP");

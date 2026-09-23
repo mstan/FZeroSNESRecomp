@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.3 - local sharing build
+
+- Add a Title screen dropdown to Community Grand Prix: Original (default)
+  or F-Zero 55. The optional artwork applies only while CGP is enabled.
+  Cars, gameplay rules, cup selection and course records remain independent.
+- Save track-pack settings when closing the launcher as well as pressing Play.
+
 ## 1.8.3-fzero-55-preview.2 - local sharing build
 
 - Split BS Satellaview vehicles and original BS tracks into independent mods.

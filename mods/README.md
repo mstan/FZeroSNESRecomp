@@ -2,7 +2,7 @@
 
 Community Grand Prix is included. Enable or disable it in **Mods**; every
 enabled pack adds its cups automatically. Bundled packs have
-only an enable checkbox, with no file selection to configure. Start the game,
+an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
 buttons. Imported cups appear after the original leagues.
 
@@ -15,6 +15,11 @@ MAX League's files are retained, but its mod and cups are hidden and disabled.
 and CGP are mutually exclusive; enabling either turns off the other. The
 vehicle option works with either track set, or just the original 15 courses.
 CGP and BS vehicles are enabled by default; original BS tracks are off.
+
+CGP's **Title screen** dropdown defaults to **Original**. Select **F-Zero 55**
+to use the 55 logo and its title colors while CGP is enabled. Disabling CGP
+restores the original title and remembers your choice. This changes only the
+title artwork; cars, handling, cups and course records are unaffected.
 
 For additional packs, put extracted `.ips` or `.bps` files in
 **`mods/track-packs` beside the game**, along with their manifest and layout

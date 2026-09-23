@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 include(CTest)
 set(SNESRECOMP_ROOT "${CMAKE_SOURCE_DIR}/snesrecomp" CACHE PATH "Framework checkout")
-add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_course.c
+add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_course.c src/fzero_title.c
     "${SNESRECOMP_ROOT}/runner/src/content_pack.c"
     "${SNESRECOMP_ROOT}/runner/src/content_patch.c"
     "${SNESRECOMP_ROOT}/runner/src/sha256.c")
@@ -307,7 +307,9 @@ file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.hidden"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.txt")
 set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
-    ${FZERO_COURSE_REGISTRY} "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md")
+    ${FZERO_COURSE_REGISTRY} "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/fzero-55.ips"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/README.txt")
 add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/track-packs"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -320,4 +322,7 @@ add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${FZERO_COURSE_REGISTRY}
         "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/track-packs/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation"
+        "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/track-packs/presentation"
     VERBATIM)

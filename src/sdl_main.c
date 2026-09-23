@@ -618,6 +618,8 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
   save_launcher_settings(settings);
   /* Mod choices are settings too. recomp-ui commits its provider on Play;
    * persist a typed resolution (and other mod choices) when quitting as well. */
+  if (!FzeroTracksSave())
+    fprintf(stderr, "[fzero-launcher] unable to save track-pack settings: %s\n", FzeroTracksError());
   if (!FzeroVideoSave(&g_video, kVideoConfig))
     fprintf(stderr, "[fzero-launcher] unable to save video/mod settings\n");
   if (action == 1) return 0;

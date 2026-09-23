@@ -27,6 +27,7 @@ static int feature_get(void *ctx, int i, RecompLauncherCModFeature *out) {
     if (!strcmp(p->id,"cgp"))
         COPY(out->description,"30 new courses plus 10 corrected BS courses in 8 cups. Enabling this turns off the original BS Satellaview track pack. Vehicles and gameplay rules are separate mods.");
     out->enabled = FzeroTracksEnabled(p);
+    out->option_count = FzeroTracksHasTitle(p) ? 1 : 0;
     COPY(out->status, !out->enabled ? "Disabled" : FzeroTracksBundled(p) ? "Enabled" : FzeroTracksAvailable(p) ? "Enabled; patch checked on Play" : "Supply the patch to add these cups");
     return 1;
 }
@@ -40,6 +41,38 @@ static int enable(void *ctx, const char *package, const char *feature, int enabl
     (void)ctx;
     const CpPack *p = find(package);
     return p && feature && !strcmp(feature, "tracks") && FzeroTracksEnable(p, enabled != 0);
+}
+static bool title_option(const char *package, const char *feature) {
+    return feature && !strcmp(feature, "tracks") && FzeroTracksHasTitle(find(package));
+}
+static int option_get(void *ctx, const char *package, const char *feature, int index,
+                      RecompLauncherCModOption *out) {
+    (void)ctx;
+    if (!out || index || !title_option(package, feature)) return 0;
+    memset(out, 0, sizeof(*out));
+    COPY(out->id, "title-screen"); COPY(out->label, "Title screen");
+    COPY(out->description, "Use the F-Zero 55 title artwork while Community Grand Prix is enabled.");
+    out->type = RECOMP_MOD_OPTION_CHOICE; out->choice_count = 2; out->step = 1;
+    COPY(out->default_value, "original");
+    COPY(out->value, FzeroTracksTitleEnabled(find(package)) ? "fzero-55" : "original");
+    return 1;
+}
+static int choice_get(void *ctx, const char *package, const char *feature, const char *option,
+                      int index, RecompLauncherCModChoice *out) {
+    (void)ctx;
+    if (!out || !option || strcmp(option, "title-screen") || index < 0 || index > 1 ||
+        !title_option(package, feature)) return 0;
+    memset(out, 0, sizeof(*out));
+    COPY(out->value, index ? "fzero-55" : "original");
+    COPY(out->label, index ? "F-Zero 55" : "Original");
+    return 1;
+}
+static int set_option(void *ctx, const char *package, const char *feature, const char *option,
+                      const char *value) {
+    (void)ctx;
+    if (!title_option(package, feature) || !option || strcmp(option, "title-screen") ||
+        !value || (strcmp(value, "original") && strcmp(value, "fzero-55"))) return 0;
+    return FzeroTracksSetTitle(find(package), !strcmp(value, "fzero-55"));
 }
 static int resources(void *ctx, const char *package, const char *feature) {
     (void)ctx; const CpPack *p=find(package);
@@ -72,6 +105,7 @@ const RecompLauncherCModProvider *FzeroTrackModsProvider(void) {
     static const RecompLauncherCModProvider provider = {
         .package_count=count, .package_get=package_get, .feature_count=count, .feature_get=feature_get,
         .feature_enable=enable,
+        .feature_option_get=option_get, .feature_choice_get=choice_get, .feature_set_option=set_option,
         .feature_resource_count=resources, .feature_resource_get=resource_get,
         .feature_resource_set_path=resource_set, .commit=commit, .last_error=error,
         .catalog_diagnostic_count=diagnostics, .catalog_diagnostic_get=diagnostic};

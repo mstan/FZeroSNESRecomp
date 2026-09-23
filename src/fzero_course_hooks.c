@@ -1,6 +1,7 @@
 #include "fzero_course_runtime.h"
 #include "fzero_tracks.h"
 #include "fzero_deluxe.h"
+#include "fzero_title.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "snes/interp_bridge.h"
@@ -208,9 +209,15 @@ static void course_hook(CpuState *cpu, uint32_t pc) {
     break;
   }
 }
+static void title_hook(CpuState *cpu, uint32_t pc) {
+  (void)cpu; (void)pc;
+  FzeroTitleLoad(g_ppu->vram, g_ram + 0x600);
+}
 void FzeroTracksInstallHooks(void) {
   if (!FzeroTracksActive())
     return;
+  if (FzeroTitleHash())
+    interp_bridge_set_pre_opcode_hook(0x0380f5, title_hook);
   const uint32_t sites[] = {0x009f08, 0x009f1b, 0x009f28, 0x009f4c, 0x00a0b0, 0x00a10d, 0x00a11d,
                             0x00a127, 0x00a4ab, 0x00a4d1, 0x00a51f, 0x008895, 0x00abd3, 0x00d609,
                             0x00a30d, 0x008e36, 0x00da04, 0x00cba5, 0x009a6b, 0x00b4a9, 0x00c1cf};

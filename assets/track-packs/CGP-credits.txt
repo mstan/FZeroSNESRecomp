@@ -11,11 +11,15 @@ https://romhackplaza.org/romhacks/f-zero-community-grand-prix-cgp-super-nintendo
 Bundled input: F-Zero CGP P1/F-Zero CGP P1.ips from F-Zero CGP P1.zip
 SHA-256: 4ad667cda0841eb15c849f49ea22e2254d7852475a4e9c168da00974c1dc0d8e
 The IPS is preserved byte-for-byte. P1, P2 and P3 provide identical course
-resources. This adapter imports the 30 new courses, omitting the 15 original
-and 10 Satellaview courses already provided by the native game. It preserves
+resources. This adapter imports the 30 new courses and ten corrected
+Satellaview courses, omitting the 15 original courses. The original BS track
+pack is mutually exclusive with CGP to avoid duplicates. It preserves
 the native roster, rules, HUD and renderer. The donor's engine changes and
 MSU soundtrack are not imported. No MSU/PCM/audio files are bundled.
 
 Continue using your own original F-Zero (USA) ROM; the game extracts these
 courses automatically. The original archive's emulator/music setup steps
 are not required for this native course adapter.
+
+The optional F-Zero 55 title is separate artwork from the earlier FZero55 v2
+patch, not CGP's Community GP logo. See presentation/README.txt for provenance.

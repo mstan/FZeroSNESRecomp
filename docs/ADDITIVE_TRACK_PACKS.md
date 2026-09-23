@@ -165,6 +165,26 @@ hazard interaction. The MSU soundtrack remains outside this prototype.
 
 ## Current limits
 
+CGP also offers a default-original **Title screen** choice. The optional
+F-Zero 55 title uses the artwork from the earlier FZero55 v2 patch; CGP's own
+P1/P2/P3 logo instead says Community GP. `tools/extract_title_patch.py` clips
+the source IPS to the original title tiles and palette without needing a ROM.
+The derivative and provenance are under `assets/track-packs/presentation`.
+`fzero_title.c` extracts only those presentation resources from a disposable
+patched stock image, and the shared native title loader installs them at
+`$03:80F5`, after its DMA, palette and OAM setup. No donor instructions run.
+The option is stored as `mods/track-packs/cgp.title` and applies only after CGP
+successfully imports. Disabled packs remember the selection. Missing artwork
+reports a diagnostic and falls back to the original title. The title resource
+hash participates in snapshot compatibility, but not gameplay signatures or
+course record identities. Adding another title layout requires a reviewed
+resource adapter; arbitrary title-engine patches are not executed.
+
+`tests/validate_title.py` checks both native engines with the option on/off,
+disabled CGP, missing artwork, car selection and imported races. All 20 cases
+passed; car-selection/race pixels and race WRAM remain identical. Separate
+title-on snapshot replay and soft-reset checks passed on both engines.
+
 The decoder supports the MAX/CGP FZEdit resource representation, not every hack.
 An unfamiliar binary format or donor-only hazard/event needs a new typed
 adapter and qualification. Structural parsing alone cannot prove playability.
