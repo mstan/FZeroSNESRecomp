@@ -22,11 +22,13 @@ def main():
     expected = {
         "max-league.ips": "8b1b4ee5abc2ea0eee180e539cf56cce6fa583ed1be17fb6f8c5715d63089716",
         "cgp.ips": "6bbc07b92c45bc16d5fc10008295a671fa571ae672ec93073d0edf1550088b4c",
+        "bower-league.ips": "c4fbcc2c385230611be41e3c21fd158705fb6d80661733a295b6f88919116f7f",
     }
     for name, digest in expected.items():
         assert hashlib.sha256((registry / name).read_bytes()).hexdigest() == digest
     assert (registry / "MAX-League-credits.txt").is_file()
     assert (registry / "CGP-credits.txt").is_file()
+    assert (registry / "Bower-League-credits.txt").is_file()
     hidden = {p.stem for p in registry.glob("*.hidden") if p.read_text(encoding="utf-8").strip() == "1"}
     assert not any(p.suffix.lower() in (".msu", ".pcm", ".sfc", ".smc") for p in registry.rglob("*"))
     user = out / "mods/track-packs"
@@ -40,7 +42,7 @@ def main():
 
     def run(name, enabled, cups=None, cup="", deluxe=True, configure=True):
         if configure:
-            for pack in ("max-league", "cgp"):
+            for pack in ("max-league", "cgp", "bower-league"):
                 (user / f"{pack}.disabled").write_text("0\n" if pack in enabled else "1\n", encoding="utf-8")
         enabled = enabled - hidden
         folder = out / name
@@ -56,7 +58,7 @@ def main():
         log = result.stdout
         (folder / "run.log").write_text(log, encoding="utf-8")
         assert result.returncode == 0 and "fzero_native: PASS" in log, log[-4000:]
-        for pack, count in (("max-league", 5), ("cgp", 55)):
+        for pack, count in (("max-league", 5), ("cgp", 55), ("bower-league", 5)):
             assert log.count(f"extracted {pack}: {count} courses") == (pack in enabled), (name, pack)
         if cups:
             assert f"menu {cups}/{cups}:" in log, log[-4000:]
@@ -66,19 +68,22 @@ def main():
         results[name] = {"enabled": sorted(enabled), "cups": cups, "deluxe": deluxe, "frames": frames}
         print(name, "PASS", flush=True)
 
-    both = {"max-league", "cgp"}
-    cup_count = 14 if "max-league" in hidden else 15
-    run("fresh", both, cups=cup_count, configure=False)
+    assert not hidden
+    both = {"max-league", "cgp", "bower-league"}
+    cup_count = 16
+    run("fresh", {"cgp", "bower-league"}, cups=15, configure=False)
     (user / "library.disabled").write_text("1\n", encoding="utf-8")
     run("old-setting", both, cups=cup_count)
     run("max-only", {"max-league"}, cups=None if "max-league" in hidden else 6)
     run("cgp-only", {"cgp"}, cups=14)
+    run("bower-only", {"bower-league"}, cups=6)
     run("native-bs", set(), cup="bs-deluxe/knight")
     run("native-stock", set(), cup="retail/knight", deluxe=False)
     run("stock-packs", both, cups=cup_count, deluxe=False)
     if "max-league" not in hidden:
         run("max-race", both, cup="max-league/max")
     run("cgp-race", both, cup="cgp/cgp-1")
+    run("bower-race", both, cup="bower-league/bower")
     for name in expected:
         shutil.copy2(registry / name, user / ("duplicate-" + name))
     run("duplicates", both, cups=cup_count)

@@ -8,11 +8,35 @@ Stock BS mode excludes every CGP vehicle/rebalance option, in both directions.
 Conflicting saved settings favor stock BS mode. Legacy tuning/boost/exhaust
 switches are retired without silently opting into a new roster.
 
-In Grand Prix, each selected ship retains its donor cohort of three main rivals, subject to
-enabled packs and retail-rebalance choices. Disabled additions fall back to
-the corresponding original identity. A retail rebalance uses its own donor
-data even when appearing in another cohort. This does not increase the number
-of simultaneous main racers.
+Grand Prix uses the selected ship's authored four-car group, with the other
+three as its main rivals:
+
+| Enabled vehicle pack | Four-car group |
+| --- | --- |
+| P1 | Moon Shadow, Dragon Bird, Great Star, Death Anchor |
+| P2 | Blue Falcon, P. Emerald, Golden Fox, Black Bull |
+| P3 | White Cat, Wild Goose, Red Gazelle, Fire Stingray |
+
+Membership depends on the enabled vehicle pack, independently of tuning.
+For example, unmodified Blue Falcon still races P. Emerald, Golden Fox and
+Black Bull when P2 is enabled. If its pack is disabled, a retail identity
+races the original four-car field. Rebalance-only configurations do not add
+hidden opponents. Each identity retains its own selected handling, art,
+boost and exhaust. Stock BS mode is unchanged. Practice can select any enabled
+opponent regardless of these groups. This does not increase the race grid.
+
+The new GP grouping has a snapshot compatibility marker, separate from the
+gameplay/record signature: old states with potentially mismatched rival
+actors/art are rejected while existing course record keys are retained.
+
+Validation: `tests/validate_gp_rosters.py` passes 44 starting-field cases.
+It checks actual spawned CPU slots against the other three donor identities,
+each slot's authored art and selected handling, all seven enabled-pack subsets,
+and rebalances with/without additions. Sixteen cases also switch groups before
+rewind and verify identical resimulation. The complete 41-case Practice matrix
+still passes, including unrestricted cross-group opponents and 16 cups / 80
+course previews. Private evidence: `gp-groups-qualified` and
+`gp-groups-practice` under `captures/feedback-20260923`.
 
 The adapter constructs canonical runtime images from the verified retail/BS
 engine, narrowly imported car artwork and the independently assembled ASM.

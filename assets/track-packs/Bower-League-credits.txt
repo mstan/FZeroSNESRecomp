@@ -1,0 +1,30 @@
+F-ZERO: BOWER LEAGUE
+
+----------------------------------------------------------------------------
+-=Overview=-
+
+F-Zero: Bower League is a collection of 5 fanmade F-Zero Courses. It is the end result of a month-long community challenge in the F-Zero Online Discord channel. The challenge was to create the next numbered track in an SNES venue. Modders were required to use only assets within the original SNES game and its BSX sequel, and needed to hit a target difficulty appropriate for the original game. They were encouraged to use track sections and features from the original venue, but to make the new track as unique as possible. The top 5 courses would be included in the final league.
+
+Featured courses are:
+1. MUTE CITY V by Zephyrum and Erik64
+2. SAND STORM III by Moshikomi
+3. SILENCE III by Vulduv
+4. RED CANYON III by Zephyrum
+5. SAND OCEAN II by Fennor
+
+----------------------------------------------------------------------------
+-=Satellaview Release=-
+This rom was originally released on the Sattelaview+ service on February 9, 2025. This was meant to mirror the BS F-Zero 2 Practice game, also known as the "Ace League" release by Nintendo in 1998. Thanks to the Satellaview+ team for making this happen.
+
+----------------------------------------------------------------------------
+-=What's a Bower?=-
+The Bower is a card rank in the popular trick-taking game Euchre. When a trump suit is declared in Euchre, the Jack card of the suit gets upgraded to the Right Bower, and the Jack card of the other suit in the same color becomes the Left Bower. For the other 2 suits, the Jack retains its usual rank.
+
+----------------------------------------------------------------------------
+-=CREDITS=-
+
+This hack was made using FZEdit, by Grego and Catador, and Tiled.
+
+Project Coordinator: PowerPanda
+Judges: PowerPanda, GoldMouse, Grego
+Mute City V Palette: Porthor

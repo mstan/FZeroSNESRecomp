@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 from validate_vehicles import NAMES, GROUPS, SLOTS, FIELDS, authored_stats
-from validate_native_menus import ORDER, press
+from validate_native_menus import ORDER, press, enabled_cup_count, enable_all_packs
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -45,7 +45,10 @@ def main():
     parser.add_argument("--stock", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--filter", default="")
+    parser.add_argument("--all-track-packs", action="store_true")
     args = parser.parse_args()
+    cup_count = enabled_cup_count(args.all_track_packs)
+    course_count = cup_count * 5
     build, stock, out = args.build.resolve(), args.stock.resolve(), args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     original = stock.read_bytes()
@@ -61,14 +64,14 @@ def main():
               for rival in range(4)]
     cases += [dict(name="no-rival", player=0, rival=255), dict(name="ghost", player=0, rival=254, menu=True)]
     base = route(0, 0) + ",1200-1206:8"
-    cases += [dict(name="all-leagues", route=base + "".join(press(1300 + i * 20, 32) for i in range(14)),
-                   frames=1630, leagues=list(range(2, 15)) + [1]),
-              dict(name="reverse-leagues", route=base + press(1300, 16), frames=1400, leagues=[14]),
+    cases += [dict(name="all-leagues", route=base + "".join(press(1300 + i * 20, 32) for i in range(cup_count)),
+                   frames=1350 + cup_count * 20, leagues=list(range(2, cup_count + 1)) + [1]),
+              dict(name="reverse-leagues", route=base + press(1300, 16), frames=1400, leagues=[cup_count]),
               dict(name="all-courses", route=base + ",1300-1306:8" +
-                   "".join(press(1800 + i * 100, 32) for i in range(70)), frames=8850,
-                   courses=[(i // 5 + 1, i % 5 + 1) for i in range(1, 70)] + [(1, 1)]),
+                   "".join(press(1800 + i * 100, 32) for i in range(course_count)), frames=1850 + course_count * 100,
+                   courses=[(i // 5 + 1, i % 5 + 1) for i in range(1, course_count)] + [(1, 1)]),
               dict(name="reverse-courses", route=base + ",1300-1306:8,1800-1803:16", frames=1950,
-                   courses=[(14, 5)])]
+                   courses=[(cup_count, 5)])]
     for mask in range(1, 8):
         roster = [i for i in ORDER if i < 4 or mask & (1 << (GROUPS[i] - 1))]
         cases.append(dict(name=f"partial-{mask}", player=0, rival=roster[-1], packs=mask, menu=True,
@@ -82,6 +85,8 @@ def main():
         folder = out / name
         folder.mkdir(exist_ok=True)
         shutil.copytree(ROOT / "assets", folder / "assets", dirs_exist_ok=True)
+        if args.all_track_packs:
+            enable_all_packs(folder / "packs")
         player, rival = case.get("player", 0), case.get("rival", 0)
         inputs = case.get("route", route(player, rival))
         menu = case.get("menu", False)
@@ -108,11 +113,11 @@ def main():
         assert ram[0x58], (name, "not Practice")
         assert ram[0x14dff] == player, (name, "player", ram[0x14dff], player)
         if "leagues" in case:
-            visited = [int(n) for n in re.findall(r"\[track-library\] menu (\d+)/14:", log)]
+            visited = [int(n) for n in re.findall(rf"\[track-library\] menu (\d+)/{cup_count}:", log)]
             assert visited == case["leagues"], (name, visited)
         elif "courses" in case:
             visited = [(int(cup), int(course)) for cup, course in
-                       re.findall(r"\[track-library\] practice (\d+)/14 course=(\d+)", log)]
+                       re.findall(rf"\[track-library\] practice (\d+)/{cup_count} course=(\d+)", log)]
             assert visited == case["courses"], (name, visited)
             assert ram[0x54:0x57] == bytes([2, 1, 1]), (name, ram[0x54:0x57].hex())
         else:

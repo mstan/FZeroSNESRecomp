@@ -44,6 +44,13 @@ def main():
             source = args.profile / name
             if source.is_dir():
                 shutil.copytree(source, out / name)
+    # Keep the copied player's settings, but refresh instructions for this build.
+    for directory in ("mods", "mods/track-packs"):
+        for name in ("README.md", "PARSE_MANIFEST.md"):
+            source = build / directory / name
+            if source.is_file():
+                (out / directory).mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, out / directory / name)
     hashes = {}
     for name in required:
         digest = hashlib.sha256((out / name).read_bytes()).hexdigest()

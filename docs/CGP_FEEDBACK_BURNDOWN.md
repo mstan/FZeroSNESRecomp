@@ -12,6 +12,10 @@ database at `F:\Software\beads\issues`. Beads owns status; this file is the
 requested human-readable mirror. Update both at meaningful milestones. A
 checkbox requires the item's acceptance evidence, not merely a successful build.
 
+Follow-up `beads-8wg.5.47`: [Bower import, MAX visibility and authored CGP league
+names](BOWER_AND_CGP_LEAGUES.md). These additive pack changes are separate from
+the remaining twelve-item author-feedback burndown.
+
 ## What initial inspection establishes
 
 - Original CGP P1/P2/P3 have identical normalized data for all 55 course slots.
@@ -170,6 +174,12 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   consistent while retaining native car/menu resources. Six frame-by-frame
   transition checks, both wraps and pixel-identical mid-slide rewind pass;
   text stays clear of moving cars. See `validate_carousel_motion.py`.
+  Owner clarification: GP must race the other three members of the selected
+  ship's original P1/P2/P3 group; Practice remains unrestricted. The runtime now
+  chooses GP groups by enabled car pack, independently of retail tuning. This
+  fixes unmodified Blue Falcon/Golden Fox and Wild Goose/Fire Stingray using
+  the stock field even when their CGP pack was enabled. Validation is recorded
+  in `CGP_VEHICLE_RUNTIME.md`; the broader B03 scope remains open.
 
 <a id="retail-tuning"></a>
 - [ ] **B04 — Separate stock rebalances from added ships** — `beads-8wg.5.38`, P2.

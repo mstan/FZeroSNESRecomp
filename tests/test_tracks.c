@@ -74,6 +74,7 @@ int main(void) {
     CHECK(!CHDIR(root));MKDIR("assets");MKDIR("assets/track-packs");MKDIR("user");
     remove("user/bundled.disabled");remove("user/bundled.path");remove("user/override.ips");
     remove("assets/track-packs/bundled.hidden");
+    remove("assets/track-packs/bundled.disabled");
     write_file("user/library.disabled","1\n",2);
     manifest("assets/track-packs/bundled.ini","bundled");
     remove("assets/track-packs/included.ips");
@@ -106,7 +107,20 @@ int main(void) {
     CHECK(!FzeroTracksEnabled(bundled) && !FzeroTracksAvailable(bundled));
     CHECK(!FzeroTracksEnable(bundled,true));
     CHECK(FzeroTracksSave());
+    /* An explicit zero unhides the pack even over a stale installed marker.
+     * A shipped off default must not override the player's saved enable. */
+    write_file("assets/track-packs/bundled.hidden","0\n",2);
+    write_file("assets/track-packs/bundled.disabled","1\n",2);
+    CHECK(!remove("user/bundled.disabled"));
+    CHECK(FzeroTracksInit("user",true));
+    bundled=cp_catalog_find(FzeroTracksCatalog(),"bundled");
+    CHECK(bundled && !FzeroTracksHidden(bundled) && !FzeroTracksEnabled(bundled));
+    CHECK(FzeroTracksEnable(bundled,true) && FzeroTracksSave());
+    CHECK(FzeroTracksInit("user",true));FzeroTracksDiscover((const uint8_t *)"abc",3);
+    bundled=cp_catalog_find(FzeroTracksCatalog(),"bundled");
+    CHECK(FzeroTracksEnabled(bundled) && FzeroTracksAvailable(bundled));
     CHECK(!remove("assets/track-packs/bundled.hidden"));
+    CHECK(!remove("assets/track-packs/bundled.disabled"));
     CHECK(!CHDIR(".."));
     puts("User/bundled discovery, per-pack toggles, obsolete settings and duplicate quarantine passed");return 0;
 }

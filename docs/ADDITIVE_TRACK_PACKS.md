@@ -1,10 +1,10 @@
 # Additive course library prototype
 
-The local `fzero-55` release parks MAX League with a shipped
-`assets/track-packs/max-league.hidden` marker. Its implementation, manifest,
-patch and records are retained; it is hidden in Mods and held off, including
-when old settings enabled it. CGP defaults to **14 cups / 70 selectable course
-versions**, with BS vehicles independently enabled. Remove the marker or set it to `0` to expose MAX again.
+The local `fzero-55` build bundles CGP, Bower League and MAX League. CGP and
+Bower default on: **15 cups / 75 selectable course versions**, with BS
+vehicles independently enabled. MAX is visible and defaults off; enabling
+it gives **16 cups / 80 versions**. Saved per-pack choices override shipped
+defaults. MAX's explicit `0` hidden marker replaces its old parked setting.
 
 The game imports course resources into the canonical F-Zero/BS Deluxe engine.
 It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
@@ -15,8 +15,9 @@ of those three leagues, two corrected BS cups and six new cups. All fifteen
 CGP original-course revisions contain authored checkpoint/path changes;
 see [the course audit](CGP_ORIGINAL_COURSES.md). Original BS tracks have their own switch and are mutually
 exclusive with CGP. The four BS cars have a separate switch that works with
-either track set or stock courses. MAX adds five courses when unhidden,
-bringing the total to 75 selectable course versions.
+either track set or stock courses. Bower and MAX each add five course versions.
+CGP's six new leagues are Baron, Scepter, Crown, Zenith, Falcon and True.
+Their stable IDs and record keys are unchanged; see [the import/name audit](BOWER_AND_CGP_LEAGUES.md).
 Additional manifests append additional cups. With BS vehicles disabled, imports
 use the four-car roster. With all imported packs
 disabled or unavailable, the normal game menus remain active. Obsolete
@@ -29,7 +30,7 @@ instructions for LLM contributors. [PARSE_MANIFEST.md](../mods/PARSE_MANIFEST.md
 documents the metadata format, typed resource layout, deterministic tools,
 unknown-patch workflow and gameplay qualification checklist.
 
-MAX Classic and the approved CGP P3test IPS patches are bundled with attribution in
+MAX Classic, Bower and the approved CGP P3test IPS patches are bundled with attribution in
 `assets/track-packs`. They are discovered automatically alongside their
 manifests. Drop additional IPS/BPS files into `mods/track-packs` beside the
 executable. Bundled packs use their fixed included patch and expose only an
@@ -46,15 +47,17 @@ python tools/import_track_pack.py --stock path/to/fzero.sfc `
   --archive "path/to/F-Zero MAX League.zip" --library build/mods/track-packs
 ```
 
-The bundled IPS patches are the original files from the supplied archives.
+MAX and Bower IPS patches are the original files from the supplied archives;
+CGP's IPS is regenerated from the approved author-supplied P3test revision.
 No patched ROM, decoded resource binary, generated native source or MSU audio
 is committed. MAX League is by PowerPanda and Zephyrum25; its original readme
 is preserved as `assets/track-packs/MAX-League-credits.txt`. CGP attribution
 and patch provenance are in `assets/track-packs/CGP-credits.txt`.
 
-CGP's three patches are equivalent course donors, so any one is sufficient.
-The manifest excludes its 15 retail courses, includes its 10 corrected BS
-courses, and retains the original race order for its 30 new courses. None match MAX geometry. Its custom palette
+CGP's three historical patches have equivalent courses, but only the approved
+P3test venue revision is currently accepted. The manifest includes its 15
+revised originals, 10 corrected BS courses, and the authored race order for
+its 30 new courses. None match MAX geometry. Its custom palette
 cycles use one bounded typed resource and a common engine callback; no
 donor executable code is installed by the course importer. The original
 MAX hash region remains unchanged, preserving existing imported record keys.

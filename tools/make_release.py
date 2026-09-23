@@ -105,9 +105,10 @@ for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
 for filename in ("README.md", "PARSE_MANIFEST.md"):
     shutil.copy2(ROOT / "mods" / filename, stage / "mods" / filename)
     text = (ROOT / "mods" / filename).read_text(encoding="utf-8")
-    (stage / "mods/track-packs" / filename).write_text(text.replace("(cgp-source/README.md)", "(../cgp-source/README.md)"), encoding="utf-8")
+    (stage / "mods/track-packs" / filename).write_text(text.replace("(cgp-source/README.md)", "(../cgp-source/README.md)").replace("(../docs/", "(../../docs/"), encoding="utf-8")
 shutil.copytree(ROOT / "mods/cgp-source", stage / "mods/cgp-source")
 shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
+shutil.copy2(ROOT / "docs/BOWER_AND_CGP_LEAGUES.md", stage / "docs/BOWER_AND_CGP_LEAGUES.md")
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own\n"
@@ -137,14 +138,15 @@ shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK
     "at patches/bs-deluxe-usa.ips for your own ROM, and\n"
     "mods/BS-Deluxe-credits.txt lists machines, leagues and alternate controls.\n\n"
     "Community Grand Prix adds 30 new, 10 corrected BS and 15 revised original\n"
-    "courses. With untouched originals, that is 14 cups / 70 course versions.\n"
+    "courses. Bower League adds five more; with untouched originals that is\n"
+    "15 cups / 75 course versions. Enable MAX for 16 cups / 80 versions.\n"
     "CGP and original BS tracks are mutually exclusive; cars are independent.\n"
     "Required course fixes apply automatically; optional rules stay opt-in.\n"
     "Three optional CGP car packs combine into twelve identities; four retail\n"
     "rebalances are separate options. Stock BS cars exclude CGP car options.\n"
     "All CGP vehicle options start off. No music is included.\n"
-    "Enable or disable CGP directly in Mods. MAX League is retained but\n"
-    "hidden and disabled in this branch. Bundled IPS patches and attribution\n"
+    "Enable or disable each track pack directly in Mods. MAX League is visible\n"
+    "and defaults off. Bundled IPS patches and attribution\n"
     "are under assets/track-packs; no MSU audio is included.\n"
     "Other IPS/BPS course packs go in mods/track-packs; each enabled pack adds\n"
     "its cups to the in-game Grand Prix menu. See mods/README.md.\n\n"

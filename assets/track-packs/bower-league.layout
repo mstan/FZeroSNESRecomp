@@ -1,0 +1,22 @@
+# Bower League: seven internal resource slots, five published courses.
+# GP race-order table at $108612 selects slots 6,4,5,3,2; slots 0/1 are unused.
+# CPU LoROM addresses, hexadecimal. See docs/BOWER_AND_CGP_LEAGUES.md.
+format=fzero-course-1
+count=7
+pools=1085f6
+settings=10860b
+palettes=108617
+maps=10862c
+graphics=108672
+paths=108687
+names=10869c
+sky_graphics=108771
+sky_back=108747
+sky_front=10875c
+minimaps=10859c
+map_positions=1085b1
+terrain=1087ad
+gradients=1087a6
+opponents=1087d7
+shortcuts=1087c2
+palette_cycles=108786

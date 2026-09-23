@@ -209,6 +209,10 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
      * Hash only initialized manifest records, never a pointer or file path. */
     uint8_t hashes[CP_PACKS * 32 + 73] = {0};
     hashes[0] = (uint8_t)FzeroDeluxeActive();
+    /* GP roster membership no longer depends on retail tuning. Old snapshots
+     * may contain actors/art from the former cohort; reject those without
+     * changing the gameplay signature used by existing course records. */
+    if (FzeroVehiclesActive()) hashes[0] |= 2;
     const FzeroGameplaySettings *rules=FzeroGameplaySettingsCurrent();
     for (unsigned j=0;j<4;++j) hashes[1+j]=(uint8_t)(rules->enabled>>(j*8));
     hashes[5]=FzeroRuleEnabled(FZERO_RULE_TUNING)?(uint8_t)rules->tuning:0;

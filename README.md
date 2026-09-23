@@ -3,7 +3,10 @@
 A native PC build of *F-Zero* for SNES.
 
 This local `fzero-55` branch includes Community Grand Prix: **55 tracks in
-11 cups**, including corrected BS courses. BS vehicles are independent. MAX League is preserved but hidden and disabled.
+11 cups**, including corrected BS courses, plus **Bower League's five tracks**.
+MAX League is available in Mods and defaults off. Enabling all three packs
+gives **16 cups / 80 course versions**, including the untouched originals.
+BS vehicles are independent.
 
 You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 
@@ -28,7 +31,7 @@ You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 - Rewind: step back through the last few seconds and drop back in.
 - Gamepad support through SDL.
 - Optional BS F-Zero Deluxe content.
-- Experimental [additive track packs](docs/ADDITIVE_TRACK_PACKS.md) with bundled Community Grand Prix courses and support for additional IPS/BPS packs. MAX remains bundled but hidden in this branch.
+- Experimental [additive track packs](docs/ADDITIVE_TRACK_PACKS.md) with bundled Community Grand Prix, Bower and MAX leagues and support for additional IPS/BPS packs.
 - Optional MSU-1 music packs for stock F-Zero and BS Deluxe (bring your own patch and audio).
 
 ## Download And Play

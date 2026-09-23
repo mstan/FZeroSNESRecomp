@@ -73,6 +73,12 @@ static unsigned group_for(unsigned id) {
   return (choices.stock_rebalance & (1u << id)) ? (id == 0 || id == 2 ? 2 : 3)
                                                 : 0;
 }
+static unsigned gp_group_for(unsigned id) {
+  /* Roster membership is independent of the player's handling choice.
+   * Retail members join P2/P3 whenever that additions pack is enabled. */
+  unsigned group = id >= 4 ? vehicles[id].group : (id == 0 || id == 2 ? 2 : 3);
+  return choices.vehicle_packs & (1u << (group - 1)) ? group : group_for(id);
+}
 static bool needed(unsigned group) {
   return (choices.vehicle_packs & (1u << (group - 1))) ||
          (group == 2 && (choices.stock_rebalance & 5)) ||
@@ -411,7 +417,8 @@ unsigned FzeroVehicleTurn(unsigned speed) {
 void FzeroVehiclesSync(void) {
   if (!count || !g_snes || !g_snes->cart || g_snes->cart->romSize != IMAGE_SIZE)
     return;
-  unsigned id = FzeroVehicleSelected(), group = group_for(id);
+  unsigned id = FzeroVehicleSelected();
+  unsigned group = g_ram[0x58] ? group_for(id) : gp_group_for(id);
   /* No Rival clears the native rival workspace on race entry. Preserve its
    * sentinel instead of interpreting that cleared byte as Blue Falcon. */
   if (g_ram[0x58] && g_ram[0x54] >= 2 && g_ram[0xcf2] >= 0xfe) {

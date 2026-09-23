@@ -214,7 +214,11 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
                 if (!patches[i][0])select_companion_patch(catalog.packs[i],root_path);
             }
         }
-        char flag[8] = {0}; path_for(path, sizeof(path), catalog.packs[i]->id, ".disabled");
+        /* Shipped defaults apply only until a player saves a choice. */
+        char flag[8] = {0};
+        snprintf(path,sizeof(path),"assets/track-packs/%s.disabled",catalog.packs[i]->id);
+        if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
+        path_for(path, sizeof(path), catalog.packs[i]->id, ".disabled");
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
         path_for(path, sizeof(path), catalog.packs[i]->id, ".title");
         if (FzeroTracksHasTitle(catalog.packs[i]) && read_line(path, flag, sizeof(flag)))

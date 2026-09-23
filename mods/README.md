@@ -1,6 +1,6 @@
 # Add more courses to F-Zero
 
-Community Grand Prix is included. Enable or disable it in **Mods**; every
+Community Grand Prix, Bower League and MAX League are included. Enable or disable them in **Mods**; every
 enabled pack adds its cups automatically. Bundled packs have
 an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
@@ -10,7 +10,11 @@ The `fzero-55` build has **14 cups / 70 selectable course versions** with CGP
 enabled: 15 original courses, 15 CGP revisions of those courses, CGP's 10
 corrected BS courses, and 30 new courses. **Knight CGP, Queen CGP and King CGP**
 include the author's course and racing-line edits; the original cups stay intact.
-MAX League's files are retained, but its mod and cups are hidden and disabled.
+Bower adds five more course versions in one cup, bringing the default to
+**15 cups / 75 versions**. MAX is visible in Mods and defaults off; enabling
+it brings the total to **16 cups / 80 versions**. Saved enable choices are kept.
+CGP's six new leagues use their authored names: **Baron, Scepter, Crown,
+Zenith, Falcon and True**. Their existing course order and record IDs are unchanged.
 
 **BS Satellaview vehicles** adds the four extra cars independently of tracks.
 **BS Satellaview tracks** adds the ten original BS courses. That track option
@@ -25,6 +29,14 @@ artwork, handling, energy boost and exhaust. Left/right changes car pages;
 up/down changes the selected ship. **Vehicle Rebalances** separately offers
 the author's versions of Blue Falcon, Golden Fox, Wild Goose and Fire Stingray.
 Those options modify the existing identities and default off.
+
+In Grand Prix, selecting any member of an enabled CGP set brings the other
+three as its main rivals: **P1** Moon Shadow / Dragon Bird / Great Star /
+Death Anchor; **P2** Blue Falcon / P. Emerald / Golden Fox / Black Bull;
+**P3** White Cat / Wild Goose / Red Gazelle / Fire Stingray. This does not
+require enabling the original cars' stat rebalances. With the corresponding
+pack off, original cars use their original rivals. **Practice** allows any
+enabled car as the opponent.
 
 Stock BS vehicles conflict with all three CGP vehicle packs and the stock-car
 rebalances. Enabling one mode disables the other. This does not affect the
@@ -52,7 +64,13 @@ P3test venue revision and credits in `assets/track-packs`. Historical P1/P2/P3
 had identical courses, but their retired Volcania artwork is no longer an
 accepted course source. The current import supplies **eleven cups / 55 courses**
 (15 revised originals, 30 new and 10 corrected BS). MAX's five courses are
-distinct but parked.
+distinct and independently selectable.
+
+**Bower League** includes the original IPS and credits from the supplied
+PowerPanda community challenge release: Mute City V, Sand Storm III, Silence III,
+Red Canyon III and Sand Ocean II. These differ from CGP's same-named versions;
+each pack keeps its own cup and records. The donor's two unused internal
+course slots are excluded. See [the import audit](../docs/BOWER_AND_CGP_LEAGUES.md).
 
 The remaining **16 optional gameplay mods** work independently of vehicle and
 course packs. Required up/grip magnet and Rainbow Road behavior now accompanies
@@ -62,7 +80,7 @@ See [the source/options table](cgp-source/README.md).
 The optional CGP MSU adapter requires your own music folder. No MSU/PCM audio
 files are installed or enabled by these packs.
 
-MAX and CGP need no separate download. To import additional or equivalent
+MAX, CGP and Bower need no separate download. To import additional or equivalent
 patches from ZIP archives without extracting the soundtrack, use the optional
 tool (the game itself expects loose patches):
 
@@ -132,6 +150,7 @@ donor hashes under one pack ID only after comparing every declared resource.
 
 A shipped `<pack-id>.hidden` file containing `1` parks a pack: it remains in
 the catalog with its assets and record identities intact, but is omitted from
-Mods and kept off regardless of old settings. This branch ships
-`max-league.hidden`. Removing that marker or changing it to `0` makes the
-pack visible again; its enable setting can then be changed normally.
+Mods and kept off regardless of old settings. MAX now ships that marker as
+`0`, explicitly replacing the old hidden marker on upgrades. A shipped
+`<pack-id>.disabled` containing `1` sets an off default; a player's saved
+`mods/track-packs/<pack-id>.disabled` takes precedence. MAX uses this default.

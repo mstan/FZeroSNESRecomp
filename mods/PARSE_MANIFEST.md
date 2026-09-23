@@ -13,12 +13,18 @@ equivalent course donors. Their normalized course hashes were compared;
 accepting equivalent revisions must never depend on their filenames or titles.
 Historical CGP P1/P2/P3 share identical course resources. The bundled manifest
 now accepts only the author's revised P3test image, which replaces the retired
-Volcania venue; the old images are not accepted alternates. It exposes 40: slots 15-24 are the
-corrected BS courses and slots 25-54 are the new courses. Slots 0-14 are retail
-and do not create extra cups. CGP and the original BS track provider are
+Volcania venue; the old images are not accepted alternates. It exposes 55: slots 15-24 are the
+corrected BS courses and slots 25-54 are the new courses. Slots 0-14 have
+authored revisions and appear as separate Knight/Queen/King CGP cups, preserving
+the native originals. CGP and the original BS track provider are
 mutually exclusive; BS vehicles are an independent option.
 The new courses follow the donor's GP permutation, not numeric resource order.
 No new CGP course matches MAX's normalized tile pool/block/grid resources.
+Bower is registered separately: seven internal slots, but its five-course GP
+table selects `6,4,5,3,2`. Do not import unused slots `0,1`. Its same-named
+CGP counterparts have different resource data. CGP's authored menu labels are
+decoded through its pointer table, retaining stable manifest IDs; see
+[the Bower/CGP audit](../docs/BOWER_AND_CGP_LEAGUES.md) for addresses and evidence.
 
 To validate and emit known metadata explicitly:
 
@@ -83,7 +89,7 @@ The game itself needs neither that tool nor an installed Python interpreter.
    an `alternate_target_sha256`, prove all extracted resources match for the
    declared courses and repeat relevant gameplay checks. Never commit patched
   ROMs, decoded resource binaries or generated code. MAX Classic and the current
-  CGP IPS are explicitly bundled under `assets/track-packs` with attribution;
+  CGP and Bower IPS files are explicitly bundled under `assets/track-packs` with attribution;
   preserve verified manifest identities and record approved revisions. Do not
    include the archives' MSU/PCM soundtrack or redundant donor variants.
 

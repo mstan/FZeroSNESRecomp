@@ -305,6 +305,7 @@ file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.ips"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.bps"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.hidden"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/*.disabled"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.txt")
 file(GLOB FZERO_VEHICLE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.ini"

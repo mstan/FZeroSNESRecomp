@@ -20,12 +20,32 @@ def press(frame, button):
     return f",{frame}-{frame + 3}:{button}"
 
 
+def enabled_cup_count(all_packs=False):
+    """Read the same shipped pack defaults as the runtime (original BS off)."""
+    count = 3
+    for manifest in (ROOT / "assets/track-packs").glob("*.ini"):
+        def flag(suffix):
+            path = manifest.with_suffix(suffix)
+            return path.exists() and path.read_text().strip() == "1"
+        if not flag(".hidden") and (all_packs or not flag(".disabled")):
+            count += sum(line.startswith("cup=") for line in manifest.read_text().splitlines())
+    return count
+
+
+def enable_all_packs(folder):
+    folder.mkdir(exist_ok=True)
+    for manifest in (ROOT / "assets/track-packs").glob("*.ini"):
+        (folder / (manifest.stem + ".disabled")).write_text("0\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", type=Path, required=True)
     parser.add_argument("--stock", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--all-track-packs", action="store_true")
     args = parser.parse_args()
+    cup_count = enabled_cup_count(args.all_track_packs)
     build, stock, out = args.build.resolve(), args.stock.resolve(), args.out.resolve()
     out.mkdir(parents=True, exist_ok=False)
     clean = {k: v for k, v in os.environ.items()
@@ -48,9 +68,9 @@ def main():
               dict(name="left-wrap", route="320-326:8,400-403:64", frames=570, identity=8),
               dict(name="select-all", route="320-326:8" + "".join(press(400 + i * 14, 4) for i in range(11)), frames=600, identity=11)]
     base = "320-326:8,440-446:8,560-566:8"
-    cases += [dict(name="all-leagues", route=base + "".join(press(650 + i * 16, 32) for i in range(14)),
-                   frames=950, leagues=list(range(2, 15)) + [1]),
-              dict(name="reverse-leagues", route=base + press(650, 16), frames=700, leagues=[14]),
+    cases += [dict(name="all-leagues", route=base + "".join(press(650 + i * 16, 32) for i in range(cup_count)),
+                   frames=700 + cup_count * 16, leagues=list(range(2, cup_count + 1)) + [1]),
+              dict(name="reverse-leagues", route=base + press(650, 16), frames=700, leagues=[cup_count]),
               dict(name="horizontal-leagues", route=base + press(650, 128) + press(670, 64), frames=710, leagues=[]),
               dict(name="held-leagues", route=base + ",650-710:32", frames=730, leagues=list(range(2, 10)))]
     results = {}
@@ -59,6 +79,8 @@ def main():
         folder = out / case["name"]
         folder.mkdir()
         shutil.copytree(ROOT / "assets", folder / "assets")
+        if args.all_track_packs:
+            enable_all_packs(folder / "packs")
         env = dict(clean, FZERO_TRACK_PACKS=str(folder / "packs"), FZERO_DELUXE_DATA="embedded",
                    FZERO_BS_CARS="0", FZERO_BS_TRACKS="0", FZERO_CGP_CARS=str(case.get("packs", 7)),
                    FZERO_CGP_REBALANCE="0", FZERO_RULES="", FZERO_CUP="bs-deluxe/knight",
@@ -76,7 +98,7 @@ def main():
             assert ram[0x54:0x56] == bytes([2, 3]), (case["name"], ram[0x54:0x59].hex())
         if "leagues" in case:
             import re
-            visited = [int(n) for n in re.findall(r"\[track-library\] menu (\d+)/14:", log)]
+            visited = [int(n) for n in re.findall(rf"\[track-library\] menu (\d+)/{cup_count}:", log)]
             assert visited == case["leagues"], (case["name"], visited, case["leagues"])
         results[case["name"]] = dict(identity=ram[0x14dff], scene=list(ram[0x54:0x57]))
         print(case["name"], "PASS", flush=True)
