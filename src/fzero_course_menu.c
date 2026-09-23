@@ -46,7 +46,8 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
     return;
   Canvas c = {pixels, pitch, scale, (width / scale - 256) / 2};
   unsigned count = FzeroTracksRuntimeCount(), selected = FzeroTracksMenuIndex();
-  bool choosing_class = FzeroTracksClassSelected();
+  bool practice = g_ram[0x58] != 0;
+  bool choosing_class = !practice && FzeroTracksClassSelected();
   unsigned first = selected < 5 ? 0 : selected - 4;
   box(c, 110, 68, 124, 82, 0xff000000);
   for (unsigned row = 0; row < 5 && first + row < count; ++row) {
@@ -75,6 +76,11 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
   box(c, 190, 55, 44, 8, 0xff000000);
   text(c, 234 - (int)strlen(page) * 8, 55, page, 5, 0xff80c8e8);
   box(c, 112, 151, 122, 29, 0xff000000);
+  if (practice) {
+    box(c, 106, 197, 140, 8, 0xff000000);
+    text(c, 108, 197, "UP/DOWN TO SELECT", 17, 0xff80c8e8);
+    return;
+  }
   text(c, 120, 151, "CLASS", 5, 0xffffff00);
   static const char *classes[] = {"BEGINNER", "STANDARD", "EXPERT", "MASTER", "LEGEND"};
   unsigned level=g_ram[choosing_class && !FzeroDeluxeActive() ? 0x5a : 0x57];

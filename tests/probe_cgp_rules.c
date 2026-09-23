@@ -415,3 +415,25 @@ bool FzeroRulesProbe(void) {
                   "stacks, conditional effects)\n");
   return true;
 }
+
+bool FzeroPracticeProbe(const char *path) {
+  CHECK(g_ram[0x58] && g_ram[0xcf2] < 4);
+  uint8_t values[58];
+  for (unsigned who = 0; who < 2; ++who) {
+    unsigned actor = who ? 4 : 0;
+    g_ram[0xd71 + actor] = who ? g_ram[0xcf2] : g_ram[0x52];
+    for (unsigned speed = 0; speed < 29; ++speed) {
+      CpuState c = state(0x30);
+      c.X = (uint16_t)actor;
+      c.A = (uint16_t)speed;
+      CHECK(fragment(&c, 0x1eacf0, 0x1ead13, 0, false));
+      values[who * 29 + speed] = (uint8_t)c.A;
+    }
+  }
+  FILE *f = fopen(path, "wb");
+  CHECK(f);
+  bool ok = fwrite(values, 1, sizeof(values), f) == sizeof(values);
+  if (fclose(f)) ok = false;
+  CHECK(ok);
+  return true;
+}

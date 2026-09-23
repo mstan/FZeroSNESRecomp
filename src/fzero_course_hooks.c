@@ -71,6 +71,11 @@ done:
   interp_bridge_pre_opcode_redirect(0x008e28);
 }
 static void course_hook(CpuState *cpu, uint32_t pc) {
+  if (pc == 0x1ebbf7) {
+    accum(cpu, FzeroTracksPracticeInput());
+    interp_bridge_pre_opcode_redirect(0x1ebceb); /* Native RTL, no PHP pushed. */
+    return;
+  }
   if (pc == 0x009f08)
     FzeroTracksRefreshCourse();
   unsigned cup_size = FzeroTracksCurrentCupSize();
@@ -248,5 +253,6 @@ void FzeroTracksInstallHooks(void) {
     interp_bridge_set_pre_opcode_hook(0x00abcb, course_hook);
     interp_bridge_set_pre_opcode_hook(0x1ea7fa, course_hook);
     interp_bridge_set_pre_opcode_hook(0x1eba88, course_hook);
+    interp_bridge_set_pre_opcode_hook(0x1ebbf7, course_hook);
   }
 }

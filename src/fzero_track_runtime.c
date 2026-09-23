@@ -116,7 +116,7 @@ unsigned FzeroTracksCurrentCupSize(void) {
 }
 static void current_course(void) {
   course = NULL;
-  if (!active_cup || !imported_pack(active_pack) || g_ram[0x54] == 0 || g_ram[0x58])
+  if (!active_cup || !imported_pack(active_pack) || g_ram[0x54] == 0)
     return;
   unsigned order = g_ram[0x53];
   const char *test = getenv("FZERO_TEST_COURSE");
@@ -285,8 +285,41 @@ bool FzeroTracksSelectSaveRoot(void) {
   return true;
 }
 static bool cup_menu(const uint8_t *ram) {
-  return FzeroDeluxeActive() ? ram[0x54] == 1 && ram[0x55] == 1 && ram[0x56] == 2 && !ram[0x58] && !ram[0x14c98]
+  return FzeroDeluxeActive() ? ram[0x54] == 1 && ram[0x55] == 1 &&
+                                 (ram[0x58] ? ram[0x56] == 4
+                                            : ram[0x56] == 2 && !ram[0x14c98])
                              : ram[0x54] == 1 && ram[0x55] == 5 && !ram[0x58];
+}
+static unsigned cup_courses(void) {
+  unsigned n = 0;
+  if (active_pack && active_cup)
+    for (unsigned i = 0; i < active_pack->track_count; ++i)
+      n += !strcmp(active_pack->tracks[i].cup, active_cup->id);
+  return n ? n : 5;
+}
+unsigned FzeroTracksPracticeInput(void) {
+  unsigned buttons = g_ram[0x67] | (unsigned)g_ram[0x68] << 8;
+  if (buttons & 0x9080)
+    return 2;
+  bool back = (buttons & 0xc00) == 0x800;
+  bool forward = (buttons & 0xc00) == 0x400 || (buttons & 0x2f30) == 0x2000;
+  if (!back && !forward)
+    return 0;
+  unsigned order = g_ram[0x53], cups = FzeroTracksRuntimeCount();
+  if (back && !order) {
+    FzeroTracksRuntimeSelect((menu_index + cups - 1) % cups);
+    order = cup_courses() - 1;
+  } else if (forward && order + 1 >= cup_courses()) {
+    FzeroTracksRuntimeSelect((menu_index + 1) % cups);
+    order = 0;
+  } else
+    order += back ? -1 : 1;
+  g_ram[0x53] = (uint8_t)order;
+  g_ram[0x90] = imported_pack(active_pack) ? 0 : (uint8_t)active_cup->slot;
+  g_ram[0x14cfa] = g_ram[0x14cfb] = 0;
+  current_course();
+  fprintf(stderr, "[track-library] practice %u/%u course=%u\n", menu_index + 1, cups, order + 1);
+  return 1;
 }
 void FzeroTracksMenuState(uint8_t state[2], bool load) {
   if (load) {
@@ -305,8 +338,11 @@ void FzeroTracksMenuReset(void) {
   course = NULL;
 }
 void FzeroTracksMenuTick(uint8_t *ram, uint32_t previous_scene) {
-  (void)ram;
-  (void)previous_scene;
+  /* The native Practice league screen starts at Knight independently of the
+   * GP selection. Subsequent preview navigation uses this same live catalog. */
+  if (FzeroTracksActive() && ram[0x58] && ram[0x54] == 1 && ram[0x55] == 1 &&
+      ram[0x56] == 3 && (previous_scene >> 16) != 3)
+    FzeroTracksRuntimeSelect(0);
   if (g_ram[0x54] == 0)
     FzeroTracksRecordsSelect(NULL);
   current_course();
@@ -338,15 +374,16 @@ uint16_t FzeroTracksMenuInput(uint16_t input, const uint8_t *ram) {
   menu_last_input = input;
   unsigned slot = imported_pack(active_pack) ? 0 : active_cup->slot;
   g_ram[FzeroDeluxeActive() ? 0x90 : 0x5a] = (uint8_t)slot;
+  if (ram[0x58]) g_ram[0x53] = 0;
   return input & ~0x34;
 }
 unsigned FzeroTracksMenuIndex(void) {
   return menu_index;
 }
 bool FzeroTracksMenuVisible(void) {
-  return FzeroTracksActive() && g_ram[0x54] == 1 && !g_ram[0x58] &&
-         (FzeroDeluxeActive() ? g_ram[0x55] == 1 && g_ram[0x56] == 2
-                              : (g_ram[0x55] == 5 || g_ram[0x55] == 6));
+  return FzeroTracksActive() && g_ram[0x54] == 1 &&
+         (FzeroDeluxeActive() ? g_ram[0x55] == 1 && g_ram[0x56] == (g_ram[0x58] ? 4 : 2)
+                              : !g_ram[0x58] && (g_ram[0x55] == 5 || g_ram[0x55] == 6));
 }
 bool FzeroTracksClassSelected(void) {
   return FzeroDeluxeActive() ? g_ram[0x14c98] != 0 : g_ram[0x55] == 6;
@@ -359,11 +396,12 @@ void FzeroTracksRefreshCourse(void) {
   if(vehicle && g_ram[0x54] != 0 && active_pack && active_cup) {
     uint8_t data[32+3*CP_ID]={0};
     if(key)memcpy(data,key,32);
-    /* Practice uses the native course selector. Its records must not follow
-     * whichever unrelated GP cup happened to be selected in the launcher. */
-    const char *pack_id = g_ram[0x58] ? (FzeroDeluxeActive() ? "bs-deluxe" : "retail")
-                                     : active_pack->id;
-    const char *cup_id = g_ram[0x58] ? "practice" : active_cup->id;
+    /* Keep existing native Practice records reachable. Imported courses use
+     * their own course hash and cup, independent of the native selector. */
+    bool native_practice = g_ram[0x58] && !imported_pack(active_pack);
+    const char *pack_id = native_practice ? (FzeroDeluxeActive() ? "bs-deluxe" : "retail")
+                                          : active_pack->id;
+    const char *cup_id = native_practice ? "practice" : active_cup->id;
     memcpy(data+32,pack_id,strlen(pack_id));
     memcpy(data+32+CP_ID,cup_id,strlen(cup_id));
     memcpy(data+32+2*CP_ID,vehicle,strlen(vehicle));

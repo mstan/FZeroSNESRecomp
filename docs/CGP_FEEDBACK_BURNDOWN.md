@@ -159,6 +159,12 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   All 38 native-menu cases and 80 vehicle integration cases pass, plus a desktop
   SDL gamepad route through all 14 leagues. Authored dim palettes are included.
   Native numeric spec-card art and additive record-path stability remain open.
+  Latest playtest corrections: clipped adjacent car previews on both sides;
+  native Practice rival panel reaches all enabled identities with independent
+  rival art/stats/acceleration; Practice league and course selectors reach all
+  14 cups / 70 versions. The 41-case Practice catalog matrix passes, including
+  seven partial rosters and cross-identity rewind. Existing native Practice
+  record keys are preserved. Full-race/ghost qualification remains open.
 
 <a id="retail-tuning"></a>
 - [ ] **B04 — Separate stock rebalances from added ships** — `beads-8wg.5.38`, P2.
@@ -244,6 +250,12 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   and the deliberately omitted donor S-jet relocation. Use matched captures in
   stock 4:3, widescreen and HD. Preserve shared HUD ownership/culling; expand
   menu labels, previews and icons with the roster rather than slot substitutions.
+  Reproduced the reported results red bar on unmodified BS Deluxe and compared
+  with Snes9x: deferred scanout discarded the final HDMA window latches. Preserve
+  those bounds when CPU writes do not supersede them; repair old results-state
+  bounds to the native empty window. Fresh BS results and the owner's slot 1
+  pass stock/wide/HD checks, including old-state rewind. Broader visuals remain
+  open. See `CGP_VEHICLE_RUNTIME.md` for the current evidence.
 
 <a id="original-cups"></a>
 - [x] **B11 — Compare CGP's first three leagues** — `beads-8wg.5.45`, P2.

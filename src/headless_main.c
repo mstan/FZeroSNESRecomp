@@ -589,6 +589,15 @@ int main(int argc, char **argv) {
   }
 
   if (wram_trace && fclose(wram_trace)) return 10;
+  /* Private verification artifact: inspect the actual composed cartridge,
+   * including the selected Practice rival's relocated art and metadata. */
+  const char *cart_dump = getenv("FZERO_CART_DUMP");
+  if (cart_dump && *cart_dump) {
+    FILE *f = fopen(cart_dump, "wb");
+    if (!f) return 10;
+    bool ok = fwrite(g_snes->cart->rom, 1, g_snes->cart->romSize, f) == g_snes->cart->romSize;
+    if (fclose(f) || !ok) return 10;
+  }
   int output_ok = wav_close(&wav) &&
                   write_ppm(getenv("SNESRECOMP_FRAME_DUMP"), pixels,
                             frame_width) &&
@@ -619,6 +628,10 @@ int main(int argc, char **argv) {
           (unsigned long long)stats.audio_active_frames, stats.audio_peak,
           (unsigned long long)stats.audio_underruns);
   FzeroTracksSavesFinish();
+  if (getenv("FZERO_PRACTICE_PROBE")) {
+    extern bool FzeroPracticeProbe(const char *path);
+    if (!FzeroPracticeProbe(getenv("FZERO_PRACTICE_PROBE"))) { free(rom); return 9; }
+  }
   if (getenv("FZERO_RULE_PROBE")) {
     extern bool FzeroRulesProbe(void);
     if (!FzeroRulesProbe()) { free(rom); return 9; }

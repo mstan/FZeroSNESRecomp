@@ -517,6 +517,7 @@ void FzeroDrawPpuFrame(void) {
         memcpy(g_ppu->highOam, event->high_oam, sizeof(event->high_oam));
       }
     }
+    FzeroVehiclesRaster(g_ppu, s_published_ram, (unsigned)line);
     if (capture) FzeroRendererCaptureLine(g_ppu, line);
     ppu_runLine(g_ppu, line);
     for (int channel = 0; channel < 8; channel++)
@@ -538,6 +539,14 @@ void FzeroDrawPpuFrame(void) {
   }
   if(!s_viewport.enhanced)FzeroTracksOverlay((uint32_t *)s_output_pixels,256,224,s_output_pitch);
 
+  /* Window bounds are hardware latches, including when the next scene turns
+   * their HDMA channel off. Carry the last scanline forward unless the CPU
+   * wrote a different bound after the frame-start snapshot. Restoring all
+   * four from the CPU-only view resurrected the car-menu window on results.
+   * CGRAM/OAM remain separately restored: their menu raster reuse is local. */
+  for (size_t i = offsetof(Ppu, window1left); i <= offsetof(Ppu, window2right); ++i)
+    if (cpu_ppu_registers[i] == s_frame_ppu_start[i])
+      cpu_ppu_registers[i] = ((const uint8_t *)g_ppu)[i];
   memcpy(g_ppu, cpu_ppu_registers, sizeof(cpu_ppu_registers));
   memcpy(g_ppu->oam, cpu_oam, sizeof(cpu_oam));
   memcpy(g_ppu->cgram, cpu_cgram, sizeof(cpu_cgram));
@@ -839,6 +848,17 @@ static void fzero_on_state_loaded(uint32_t version) {
   s_loaded_runtime_state = false;
   FzeroMsuRestoreAudio(g_ram);
   if (FzeroTracksActive()) RtlApplyExecutionState();
+
+  /* Older snapshots discarded the race's final HDMA window latches. Results
+   * have already collapsed that window and disabled its channel, so no later
+   * transfer can repair it. Restore the native collapsed bounds on load. */
+  if (g_ram[0x54] == 3 && (g_ram[0x55] < 4 || !(g_ppu->screenEnabled[0] & 3)) &&
+      !(s_frame_hdmaen & 0x04)) {
+    g_ppu->window1left = 1;
+    g_ppu->window1right = 0;
+    s_frame_ppu_start[offsetof(Ppu, window1left)] = 1;
+    s_frame_ppu_start[offsetof(Ppu, window1right)] = 0;
+  }
 }
 
 static const RtlGameInfo kFzeroGameInfo = {

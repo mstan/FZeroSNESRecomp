@@ -8,7 +8,7 @@ Stock BS mode excludes every CGP vehicle/rebalance option, in both directions.
 Conflicting saved settings favor stock BS mode. Legacy tuning/boost/exhaust
 switches are retired without silently opting into a new roster.
 
-Each selected ship retains its donor cohort of three main rivals, subject to
+In Grand Prix, each selected ship retains its donor cohort of three main rivals, subject to
 enabled packs and retail-rebalance choices. Disabled additions fall back to
 the corresponding original identity. A retail rebalance uses its own donor
 data even when appearing in another cohort. This does not increase the number
@@ -70,3 +70,55 @@ keeping existing record paths stable when unrelated vehicle packs are added,
 full-race/rival qualification and the replacement sharing release. The adapter
 currently qualifies these three CGP sources; an unknown vehicle format requires
 a reviewed adapter.
+
+## Practice and September 23 playtest corrections
+
+The native car carousel now shows clipped neighboring previews on both sides.
+It retains the original two-column animation, cursor and authored dim palettes.
+The extra preview uses otherwise unused BG tiles and a row palette; it does not
+replace the guest car selector or its information panel.
+
+Practice uses the same complete vertical league catalog as Grand Prix. Up/Down
+and Select also cross cup boundaries in the native on-track course preview.
+With all bundled CGP courses enabled, all 14 leagues / 70 course versions are
+reachable in both directions. Native Practice record keys retain their previous
+namespace; imported courses use their own course hash and cup identity.
+
+The original Practice rival panel scrolls over all enabled identities in its
+native two-row arrangement. Left/Right moves columns; Up/Down moves rows and
+the original No Rival/Ghost choices; Select advances through the full roster.
+The selected rival is composed into a spare physical racing slot, with its own
+art bank, palette, metadata and acceleration curve. Its identity is independent
+of the player cohort and survives snapshots/rewind. A custom rival can use the
+extended movement range without replacing the player's stat/boost tables.
+Reserved runtime cartridge storage extends through `$35821F`; WRAM
+`$7F:4CE3..4CE6` stores rival identity, viewport, version and physical slot.
+
+The results-screen red bar was a deferred-scanout window-latch bug, reproduced
+with the unmodified BS cartridge. Final HDMA window bounds now survive when
+the next scene disables that channel. Old results snapshots receive the native
+empty bounds (left 1, right 0), including the owner's reported save slot 1.
+CGRAM/OAM restoration remains separate to preserve menu palette ownership.
+
+Additional private-ROM validation:
+
+- `validate_practice_catalog.py`: 41 cases, all twelve rivals, all twelve players
+  with mixed rivals and rewind, four retail rebalances, seven partial catalogs,
+  No Rival/Ghost navigation, all 14 leagues and all 70 preview entries/wrapping.
+  Actual acceleration consumers and composed handling/art data are compared
+  with the authored ASM tables and curated source art. Ghost replay creation
+  and full-race AI parity are outside this check.
+- `validate_results_window.py`: fresh BS results and the original user snapshot,
+  stock/wide/HD output plus old-state rewind. Private Snes9x comparison confirms
+  the native empty results window; no ROM/state/render artifacts are committed.
+- 80 existing vehicle cases, 38 native-menu cases, 20 presentation/BS-isolation
+  cases and 12 CTest checks passed during this correction pass.
+- A desktop SDL virtual-gamepad replay selected White Cat versus Red Gazelle,
+  scrolled to the 14th league, moved backward/forward across a course boundary
+  and entered its race with widescreen and HD Mode 7 enabled. Evidence is in
+  `desktop-practice-qualified/practice.log` beside the captures below.
+
+Evidence remains under `captures/feedback-20260923`: `practice-catalog-qualified`,
+`results-qualified`, `vehicles-practice-expanded`, `native-menus-expanded` and
+`presentation-practice-expanded`. The broader B03/B12 limitations above remain
+open; these checks are not a claim of complete CGP donor parity.

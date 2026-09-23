@@ -21,3 +21,4 @@ size_t FzeroTracksSaveStateSize(void);
 struct SaveLoadInfo;
 void FzeroTracksSaveState(struct SaveLoadInfo *sli, bool load);
 unsigned FzeroTracksCurrentCupSize(void);
+unsigned FzeroTracksPracticeInput(void);

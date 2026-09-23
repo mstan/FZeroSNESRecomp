@@ -15,3 +15,5 @@ unsigned FzeroVehicleCount(void);
 unsigned FzeroVehicleSelected(void);
 unsigned FzeroVehicleAcceleration(unsigned slot, unsigned speed);
 unsigned FzeroVehicleTurn(unsigned speed);
+struct Ppu;
+void FzeroVehiclesRaster(struct Ppu *ppu, const uint8_t *ram, unsigned line);

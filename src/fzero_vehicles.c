@@ -13,8 +13,9 @@
 #include <string.h>
 extern Snes *g_snes;
 
-/* Stable identities are independent of the four guest racing slots. A race
+/* Stable identities are independent of the four guest racing slots. Grand Prix
  * uses the selected ship's donor cohort, retaining three native main rivals.
+ * Practice composes its independently selected rival into a spare slot.
  * All enabled identities remain in one selector. Only curated vehicle data
  * and independently assembled mechanics enter the canonical cartridge. */
 typedef struct Vehicle {
@@ -40,8 +41,15 @@ static uint8_t *stock_image, *art[3], *images[4];
 static FzeroGameplaySettings choices, image_settings[4];
 static unsigned roster[12], count, selected_image = 99;
 static void menu_resources(bool upload);
+static void rival_resources(bool upload);
+static void rival_compose(unsigned id, unsigned slot);
+static unsigned selected_rival = 99;
+static unsigned selected_rival_slot = 99;
 static uint8_t race_acceleration[4][4][29], race_turn[4][4][30];
-enum { IMAGE_SIZE = 0x400000, ID_ADDRESS = 0x14dff };
+enum { IMAGE_SIZE = 0x400000, ID_ADDRESS = 0x14dff,
+       RIVAL_ID = 0x14ce3, RIVAL_FIRST = 0x14ce4,
+       RIVAL_VERSION = 0x14ce5, RIVAL_SLOT = 0x14ce6,
+       RIVAL_ART = 0x350000, RIVAL_PALETTES = 0x358000 };
 
 bool FzeroVehiclesActive(void) {
   const FzeroGameplaySettings *s = FzeroGameplaySettingsCurrent();
@@ -388,6 +396,10 @@ bool FzeroVehiclesPrepare(uint8_t **rom, size_t *size, char *error,
   return true;
 }
 unsigned FzeroVehicleAcceleration(unsigned slot, unsigned speed) {
+  if (g_ram[0x58] && selected_rival < 12 &&
+      slot == selected_rival_slot)
+    return race_acceleration[group_for(selected_rival)][vehicles[selected_rival].slot]
+                            [speed < 29 ? speed : 28];
   unsigned group = selected_image < 4 ? selected_image : 0;
   return race_acceleration[group][slot & 3][speed < 29 ? speed : 28];
 }
@@ -400,15 +412,40 @@ void FzeroVehiclesSync(void) {
   if (!count || !g_snes || !g_snes->cart || g_snes->cart->romSize != IMAGE_SIZE)
     return;
   unsigned id = FzeroVehicleSelected(), group = group_for(id);
-  if (group == selected_image)
+  /* No Rival clears the native rival workspace on race entry. Preserve its
+   * sentinel instead of interpreting that cleared byte as Blue Falcon. */
+  if (g_ram[0x58] && g_ram[0x54] >= 2 && g_ram[0xcf2] >= 0xfe) {
+    g_ram[RIVAL_ID] = g_ram[0xcf2];
+    g_ram[RIVAL_VERSION] = 1;
+  }
+  unsigned rival = g_ram[0x58] ? g_ram[RIVAL_ID] : 99;
+  if (rival >= 12 || !enabled(rival)) rival = 99;
+  if (g_ram[0x54] < 2)
+    g_ram[RIVAL_SLOT] = (uint8_t)((vehicles[id].slot + 1) % 4);
+  unsigned rival_slot = g_ram[RIVAL_SLOT] & 3;
+  if (group == selected_image && rival == selected_rival &&
+      (rival >= 12 || rival_slot == selected_rival_slot))
     return;
   memcpy(g_snes->cart->rom, images[group], IMAGE_SIZE);
   FzeroGameplayActivateVehicles(&image_settings[group], g_snes->cart->rom);
   selected_image = group;
+  selected_rival = rival;
+  selected_rival_slot = rival_slot;
+  if (rival < 12)
+    rival_compose(rival, rival_slot);
   menu_resources(false);
   fprintf(stderr, "[vehicles] active %s (cohort %u)\n", vehicles[id].id, group);
 }
 void FzeroVehiclesLoaded(void) {
+  if (count && g_ram[0x58] && g_ram[RIVAL_VERSION] != 1) {
+    unsigned slot = g_ram[0xcf2], group = group_for(FzeroVehicleSelected());
+    unsigned id = slot < 4 ? cohort[group][slot] : slot;
+    if (id < 12 && !enabled(id)) id = slot;
+    g_ram[RIVAL_ID] = (uint8_t)id;
+    g_ram[RIVAL_FIRST] = 0;
+    g_ram[RIVAL_VERSION] = 1;
+    g_ram[RIVAL_SLOT] = (uint8_t)(slot & 3);
+  }
   selected_image = 99;
   FzeroVehiclesSync();
 }
@@ -433,6 +470,13 @@ static unsigned menu_id(unsigned position) {
   unsigned index = page(position / 4) * 4 + position % 4;
   return index < count ? roster[index] : 99;
 }
+static unsigned preview_id(const uint8_t *ram, unsigned row) {
+  unsigned column = (ram[0x14c84] & 4) / 4;
+  unsigned current = ram[MENU_STATE + 1 + column];
+  unsigned neighbor = (current + page_count() + (column ? 1 : -1)) % page_count();
+  unsigned index = neighbor * 4 + row;
+  return index < count ? roster[index] : 99;
+}
 static unsigned read16(const uint8_t *p) { return p[0] | (unsigned)p[1] << 8; }
 static unsigned address(unsigned offset) {
   return ((offset / 0x8000) << 16) | 0x8000 | (offset & 0x7fff);
@@ -442,6 +486,59 @@ static void pointer(uint8_t *p, unsigned offset) {
   p[0] = bus;
   p[1] = bus >> 8;
   p[2] = bus >> 16;
+}
+static void rival_compose(unsigned id, unsigned slot) {
+  unsigned group = group_for(id), original = vehicles[id].slot;
+  uint8_t *rom = g_snes->cart->rom, *record = rom + 0xf0000 + slot * 256;
+  memcpy(rom + RIVAL_ART, images[group] + 0x40000 + original * 0x8000, 0x8000);
+  memcpy(record, images[group] + 0xf0000 + original * 256, 256);
+  record[0] = (uint8_t)(address(RIVAL_ART) >> 16);
+  const uint8_t *source = group ? art[group - 1] : stock_image;
+  memcpy(rom + RIVAL_PALETTES, source + 0x7cd80 + original * 32, 32);
+  pointer(record + 0x97, RIVAL_PALETTES);
+  /* Allow the rival's authored top speed without changing the player's
+   * identity-owned acceleration, steering, boost or exhaust tables. */
+  if (group) rom[0x16f6] = 0x80;
+}
+static unsigned rival_id(unsigned position) {
+  unsigned index = g_ram[RIVAL_FIRST] + position;
+  return index < count ? roster[index] : 99;
+}
+static void rival_resources(bool upload) {
+  uint8_t *rom = g_snes->cart->rom;
+  static const unsigned tiles[] = {0x164, 0x167, 0x16a, 0x16d,
+                                    0x184, 0x187, 0x18a, 0x18d};
+  for (unsigned position = 0; position < 8; ++position) {
+    unsigned id = rival_id(position), slot = id < 12 ? vehicles[id].slot : 0;
+    unsigned group = id < 12 ? group_for(id) : 0;
+    const uint8_t *source = group ? art[group - 1] : stock_image;
+    unsigned palettes = RIVAL_PALETTES + 32 + position * 64;
+    memcpy(rom + palettes, source + 0x76180 + slot * 32, 32);
+    memcpy(rom + palettes + 32, source + 0x7cd80 + slot * 32, 32);
+    if (id >= 12) memset(rom + palettes, 0, 64);
+    for (unsigned entry = 0; entry < 12; ++entry) {
+      uint8_t *p = rom + 0xf4386 + entry * 16;
+      if (p[10] != position) continue;
+      /* These are MVN source/destination pairs, not ordinary 24-bit pointers. */
+      for (unsigned kind = 0; kind < 2; ++kind) {
+        unsigned bus = address(palettes + kind * 32);
+        p[kind * 4] = bus;
+        p[kind * 4 + 1] = bus >> 8;
+        p[kind * 4 + 3] = bus >> 16;
+      }
+    }
+    if (!upload) continue;
+    for (unsigned tile = 0; tile < 6; ++tile) {
+      unsigned dest = 0x4000 + (tiles[position] + tile / 3 * 16 + tile % 3) * 32;
+      const uint8_t *pixels = source + 0x40000 + slot * 0x8000 + 0x6860 + tile * 32;
+      for (unsigned j = 0; j < 16; ++j) {
+        unsigned value = id < 12 ? read16(pixels + j * 2) : 0;
+        g_ppu->vram[dest / 2 + j] = (uint16_t)value;
+        g_ram[0x18000 + dest + j * 2] = value;
+        g_ram[0x18001 + dest + j * 2] = value >> 8;
+      }
+    }
+  }
 }
 static void menu_resources(bool upload) {
   if (!count || !g_snes || !g_snes->cart || !images[0])
@@ -510,6 +607,54 @@ static void menu_resources(bool upload) {
     unsigned ram_address = (dest[2] == 0x7f ? 0x10000 : 0) + read16(dest);
     memcpy(g_ram + ram_address, rom + dim, 32);
   }
+  if (upload && page_count() > 1) {
+    /* Add the third column's clipped edge using the same authored 5x3 BG
+     * previews. The native two-column slide and selected OBJ remain intact.
+     * $8000 VRAM is unused by the native menu, and BG palette 6 is supplied
+     * per row alongside the original two column palettes during scanout. */
+    unsigned column = (g_ram[0x14c84] & 4) / 4;
+    for (unsigned row = 0; row < 4; ++row) {
+      unsigned id = preview_id(g_ram, row);
+      unsigned group = id < 12 ? group_for(id) : 0;
+      unsigned slot = id < 12 ? vehicles[id].slot : 0;
+      const uint8_t *source = group ? art[group - 1] : stock_image;
+      for (unsigned tile = 0; tile < 15; ++tile) {
+        unsigned number = 0x200 + row * 15 + tile;
+        unsigned dest = 0x4000 + number * 32;
+        const uint8_t *pixels = source + 0x40000 + slot * 0x8000 + tile_source[tile];
+        for (unsigned j = 0; j < 16; ++j)
+          g_ppu->vram[dest / 2 + j] = id < 12 ? read16(pixels + j * 2) : 0;
+      }
+      /* Leave the native arrow cells intact. Only two edge tiles of the
+       * adjacent ship are visible, clear of the title and selected cursor. */
+      for (unsigned y = 0; y < 3; ++y) {
+        for (unsigned x = 0; x < 2; ++x) {
+          unsigned left = 0x400 + (6 + row * 5 + y) * 32 + x;
+          unsigned right = left + 18;
+          g_ppu->vram[left] = column ? 0 : 0x1a00 + row * 15 + y * 5 + 3 + x;
+          g_ppu->vram[right] = column ? 0x1a00 + row * 15 + y * 5 + x : 0;
+          unsigned words[] = {left, right};
+          for (unsigned i = 0; i < 2; ++i) {
+            unsigned word = words[i];
+            g_ram[0x18000 + word * 2] = g_ppu->vram[word];
+            g_ram[0x18001 + word * 2] = g_ppu->vram[word] >> 8;
+          }
+        }
+      }
+    }
+  }
+  rival_resources(upload);
+}
+void FzeroVehiclesRaster(Ppu *ppu, const uint8_t *ram, unsigned line) {
+  if (!count || page_count() < 2 || ram[0x54] != 1 || ram[0x55] != 1 || ram[0x56] != 0 || line < 48)
+    return;
+  unsigned row = (line - 48) / 40;
+  if (row >= 4) return;
+  unsigned id = preview_id(ram, row), group = id < 12 ? group_for(id) : 0;
+  unsigned slot = id < 12 ? vehicles[id].slot : 0;
+  const uint8_t *palette = (group ? art[group - 1] : stock_image) + 0x76180 + slot * 32;
+  for (unsigned i = 0; i < 16; ++i)
+    ppu->cgram[96 + i] = id < 12 ? (uint16_t)read16(palette + i * 2) : 0;
 }
 static void menu_hook(CpuState *cpu, uint32_t pc) {
   if (pc == 0x1edd01) {
@@ -519,6 +664,10 @@ static void menu_hook(CpuState *cpu, uint32_t pc) {
       ++index;
     g_ram[MENU_STATE + 1] = (uint8_t)(index / 4);
     g_ram[MENU_STATE + 2] = (uint8_t)((index / 4 + 1) % page_count());
+    g_ram[RIVAL_ID] = (uint8_t)roster[0];
+    g_ram[RIVAL_FIRST] = 0;
+    g_ram[RIVAL_VERSION] = 1;
+    g_ram[0x14c84] = (uint8_t)(index % 4);
     FzeroVehiclesSync();
     menu_resources(true);
   } else if (pc == 0x1ec76e) {
@@ -529,6 +678,7 @@ static void menu_hook(CpuState *cpu, uint32_t pc) {
     g_ram[0x14c85] = 0;
     g_ram[0x14c86] = g_ram[0x14c87] = 0;
     g_ram[0x14c88] = g_ram[0x14c89] = 0;
+    g_ram[0x14c8a] = g_ram[0x14c8b] = 0;
   } else if (pc == 0x1ed90a) {
     unsigned old = read16(g_ram + 0x14c84) & 7;
     unsigned next = cpu->A & 7, column = old / 4,
@@ -571,19 +721,66 @@ static void menu_hook(CpuState *cpu, uint32_t pc) {
     unsigned id = menu_id(next);
     g_ram[ID_ADDRESS] = (uint8_t)id;
     FzeroVehiclesSync();
-    if (next != old)
+    if (next != old) {
+      g_ram[0x14c84] = (uint8_t)next;
       menu_resources(true);
+      g_ram[0x14c84] = (uint8_t)old;
+    }
   } else if (pc == 0x1edb0c) {
     /* Native info/handling record lookup uses the physical racing slot. */
     cpu->A = (uint16_t)vehicles[FzeroVehicleSelected()].slot;
   } else if (pc == 0x1ec81b) {
     cpu->A = (cpu->A & 0xff00) | vehicles[FzeroVehicleSelected()].slot;
+  } else if (pc == 0x1ed04f) {
+    unsigned old = g_ram[0x14c8a], next = old;
+    unsigned index = g_ram[RIVAL_FIRST] + old;
+    unsigned buttons = read16(g_ram + 0x67);
+    if ((buttons & 0x2f00) == 0x2000) {
+      if (old >= 0xfe) index = old == 0xff ? count + 1 : 0;
+      else ++index;
+    } else if (old < 8) {
+      if ((buttons & 0x300) == 0x100) index = index + 2 < count ? index + 2 : index;
+      if ((buttons & 0x300) == 0x200) index = index >= 2 ? index - 2 : index;
+      if ((buttons & 0xc00) == 0x800) index = index & 1 ? index - 1 : count;
+      if ((buttons & 0xc00) == 0x400) index = !(index & 1) && index + 1 < count ? index + 1 : count;
+    } else {
+      /* Preserve native no-rival/ghost navigation, resolving a car through
+       * the current viewport rather than truncating it to the first four. */
+      unsigned candidate = cpu->A & 255;
+      index = candidate < 8 ? g_ram[RIVAL_FIRST] + candidate
+                           : candidate == 0xfe ? count + 1 : count;
+    }
+    if (index < count) {
+      while (index < g_ram[RIVAL_FIRST]) g_ram[RIVAL_FIRST] -= 2;
+      while (index >= g_ram[RIVAL_FIRST] + 8u) g_ram[RIVAL_FIRST] += 2;
+      next = index - g_ram[RIVAL_FIRST];
+      g_ram[RIVAL_ID] = (uint8_t)roster[index];
+    } else {
+      next = index == count ? 0xff : 0xfe;
+      g_ram[RIVAL_ID] = (uint8_t)next;
+    }
+    cpu->A = (uint16_t)next;
+    FzeroVehiclesSync();
+    rival_resources(true);
+  } else if (pc == 0x1ec831) {
+    unsigned rival = g_ram[RIVAL_ID];
+    cpu_write_a_m(cpu, (uint16_t)(rival < 12 ? g_ram[RIVAL_SLOT] : rival));
+  } else if (pc == 0x00d54c) {
+    /* Native rival difficulty follows its original identity, independently
+     * of the spare physical slot used for this player/rival pair. */
+    unsigned source = selected_rival < 12 ? vehicles[selected_rival].slot : 99;
+    unsigned value = source < 4 ? g_snes->cart->rom[0x17fda + source] : 0;
+    cpu_write_a_m(cpu, (uint16_t)value);
+    cpu->_flag_Z = !(cpu->A & 255);
+    cpu->_flag_N = (cpu->A & 128) != 0;
+    interp_bridge_pre_opcode_redirect(0x00d54f);
   }
 }
 void FzeroVehiclesInstallHooks(void) {
   if (!count)
     return;
-  const unsigned sites[] = {0x1edd01, 0x1ec76e, 0x1ed90a, 0x1edb0c, 0x1ec81b};
+  const unsigned sites[] = {0x1edd01, 0x1ec76e, 0x1ed90a, 0x1edb0c, 0x1ec81b,
+                            0x1ed04f, 0x1ec831, 0x00d54c};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], menu_hook);
 }
