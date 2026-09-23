@@ -71,9 +71,10 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
     snprintf(page, sizeof(page), "%u/%u", selected + 1, count);
   else
     snprintf(page, sizeof(page), "%u", selected + 1);
-  box(c, 118, 55, 78, 8, 0xff000000);
+  /* Practice's native LEAGUE label extends below our heading. Clear the
+   * entire header down to the first list row before drawing its replacement. */
+  box(c, 118, 55, 116, 17, 0xff000000);
   text(c, 120, 55, "LEAGUE", 6, 0xffc0ffff);
-  box(c, 190, 55, 44, 8, 0xff000000);
   text(c, 234 - (int)strlen(page) * 8, 55, page, 5, 0xff80c8e8);
   box(c, 112, 151, 122, 29, 0xff000000);
   if (practice) {
