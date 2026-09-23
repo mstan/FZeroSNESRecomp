@@ -2,7 +2,7 @@
 
 Date: 2026-09-23. Branch: `fzero-55`. Baseline: `ced5d72` (preview.3).
 
-**Status: approved and in progress (2026-09-23). Implementation: 1/12 complete.**
+**Status: approved and in progress (2026-09-23). Implementation: 2/12 complete.**
 Matthew approved beginning the full burndown, including fixes, asset replacement
 and a validated local Windows build. Work solo. Keep commits local; no pushes.
 
@@ -129,12 +129,16 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   pending B12's corrected build. Full hazard/vehicle qualification remains below.
 
 <a id="roster-audit"></a>
-- [ ] **B02 — Identify the donor rosters** — `beads-8wg.5.36`, P1.
+- [x] **B02 — Identify the donor rosters** — `beads-8wg.5.36`, P1.
   Produce a 12-slot identity table covering art, names, menu previews, race
   frames, palette, stats, boost and blast pipes. Compare against retail and BS
   identities. Resolve stale names, exact set mapping and the unique-ship count.
   Identify CGP versions of BS ships from CGP donors; do not repurpose legacy BS
   balance or use the overlap audit to relax the whole-pack conflict rule.
+  Completed: [12-slot identity/source table](CGP_VEHICLE_AUDIT.md), captured
+  running donor information screens and verified stat/curve association. Eight
+  additions plus four retail rebalances; no stock BS identities. Menu order is
+  0,2,1,3, not stat-table order. Resource integration remains B03/B04.
 
 <a id="roster"></a>
 - [ ] **B03 — Add coherent, expandable vehicle packs** — `beads-8wg.5.37`, P1.
