@@ -65,7 +65,7 @@ static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
   memset(out, 0, sizeof(*out));
   COPY(out->id, features[index]); COPY(out->package_id, packages[index]);
   COPY(out->package_name, names[index]); COPY(out->package_version, "1");
-  COPY(out->name, names[index]); COPY(out->group, index == 4 ? "Support" : (index == 2 || index == 5) ? "Content" : "Presentation");
+  COPY(out->name, names[index]); COPY(out->group, index == 5 ? "Track Packs" : index == 4 ? "Support" : index == 2 ? "Content" : "Presentation");
   COPY(out->author, (index == 2 || index == 5) ? "GuyPerfect, PowerPanda, Porthor, Catador" : "FZeroSNESRecomp contributors");
   COPY(out->description, descriptions[index]);
   out->enabled = index == 5 ? video->bs_tracks : index == 4 ? video->diagnostics : index == 3 ? video->hd_mode7 : index == 2 ? video->bs_deluxe : index ? video->fps_enabled : video->enhanced;
