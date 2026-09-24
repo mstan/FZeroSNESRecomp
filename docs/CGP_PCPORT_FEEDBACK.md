@@ -17,8 +17,9 @@ Owner: `beads-8wg.5.54`; branch: `fzero-55`.
 The replacement archive contains only an empty MSU descriptor and 29 PCM files,
 566,847,024 PCM bytes in total. Their hashes match the corresponding older
 recordings. None of the eight confirmed CosmicTailz exclusions is present.
-This does not establish attribution for the remaining recordings; the unresolved
-review remains tracked by `beads-8wg.5.53` and `assets/music/CGP_ATTRIBUTION.md`.
+The owner subsequently confirmed that this replacement archive already
+reconciles attribution, resolving `beads-8wg.5.53`. Its exact digest and
+clearance are recorded in `assets/music/CGP_ATTRIBUTION.md`.
 
 ## Findings
 
@@ -76,5 +77,5 @@ contain ROM-derived state and are not distribution assets.
 - Focused music-import, mods, video, course-parser, track and renderer checks
   pass. Desktop, headless and capture-renderer builds succeed.
 
-Port Canyon remains an open reproduction item. The remaining soundtrack
-attribution review also stays open under `beads-8wg.5.53`.
+Port Canyon remains an open reproduction item. The soundtrack attribution
+review is resolved by the owner's confirmation of the replacement source.

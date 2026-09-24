@@ -4,9 +4,9 @@ Tracked by `beads-8wg.5.50`, `beads-8wg.5.51` and shared UI `beads-0fu.9`.
 
 Preview.8 introduced two release variants (`beads-8wg.5.52`): `with-msu` includes
 the soundtrack; `without-msu` contains no PCM/MSU payload.
-**Attribution is incomplete:** eight CosmicTailz recordings have been removed,
-but remaining CosmicTailz/TheBlurCafe work must be identified before release.
-See [the attribution report](../assets/music/CGP_ATTRIBUTION.md). Both use
+**Attribution resolved:** the owner confirms the replacement PC-port archive
+already reconciles the contributor exclusions. Historical exclusions remain
+enforced. See [the attribution report](../assets/music/CGP_ATTRIBUTION.md). Both use
 the same executable and retain MSU support. Packaging selects the variant
 with `tools/make_release.py --music bundled` or `--music external`, records it
 in the manifest, and prevents audio files from entering the external variant.
@@ -69,9 +69,8 @@ The shared UI stores a selected ID; each game resolves it to its own assets.
 - The complete replacement source is F-Zero CGP P1 MSU PCPORT.zip: 29 PCM
   files, totaling 566,847,024 bytes. It supersedes the P1/P2/P3 audio sets.
   Eight hash-confirmed CosmicTailz exclusions remain enforced; another 24
-  superseded recordings have been physically removed from staging. The
-  remaining contributor audit is unresolved; retained files are not yet
-  cleared for release.
+  superseded recordings have been physically removed from staging. The owner
+  confirms this exact replacement source is attribution-cleared for bundling.
 - CGP's adapter maps stable cup identity plus course ordinal to PCM 10–64.
   Both GP and Practice use this mapping. Original courses use the equivalent
   CGP music; unrelated packs without a mapping use their SNES music.

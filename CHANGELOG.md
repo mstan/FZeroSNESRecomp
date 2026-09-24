@@ -13,8 +13,9 @@
   Port Canyon flashing remains unconfirmed in direct and GP-progression checks.
 
 - Exclude eight CosmicTailz recordings identified by exact reference hashes.
-- Retain attribution evidence and a before-release requirement to identify and
-  remove remaining CosmicTailz/TheBlurCafe contributions; the audit is incomplete.
+- Record the owner's confirmation that the replacement PC-port archive already
+  reconciles CosmicTailz/TheBlurCafe attribution; retain historical evidence
+  and exclusion checks without an outstanding release requirement.
 - Never extract excluded files during import; physically delete old matching
   files when staging and reject them during package verification. Missing music
   uses SNES fallback.

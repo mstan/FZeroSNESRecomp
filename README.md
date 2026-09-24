@@ -98,9 +98,9 @@ loader. An unreadable or invalid preset falls back to unfiltered output.
 
 ### Presets and MSU-1 music
 
-**Soundtrack release requirement:** eight confirmed CosmicTailz recordings are
-excluded; remaining CosmicTailz/TheBlurCafe attribution must be resolved before
-release. See [the evidence and outstanding work](assets/music/CGP_ATTRIBUTION.md).
+**Soundtrack source:** the owner confirms the replacement PC-port archive
+already reconciles attribution. Historical exclusions remain enforced.
+See [source clearance and evidence](assets/music/CGP_ATTRIBUTION.md).
 
 **Mods > Preset** offers Vanilla, Satellaview and Community Grand Prix.
 Each applies an editable recipe for that content family. MAX, Bower and other
@@ -112,7 +112,7 @@ title artwork is retained but hidden for a future course pack. No preset is appl
 
 Windows previews come in **with-msu** and **without-msu** ZIPs. Both support
 MSU playback; only with-msu includes the replacement **Community Grand Prix PC-port**
-soundtrack (29 recordings; attribution review remains open). In **Settings > Audio**, enable **MSU-1 music** and leave its source
+soundtrack (29 attribution-cleared recordings). In **Settings > Audio**, enable **MSU-1 music** and leave its source
 on **Community Grand Prix**, or select the CGP preset in Mods. Music starts
 off on a fresh installation. Missing tracks and unrelated track packs use
 SNES music. Track selection works in both Grand Prix and Practice.

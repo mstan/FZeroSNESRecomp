@@ -7,11 +7,11 @@ included. Choose **with-msu** for the replacement CGP PC-port soundtrack (about 
 of audio after extraction), or **without-msu** to supply your own music.
 Both ZIPs retain MSU support and contain the same game content and executable.
 
-## Soundtrack release requirement
+## Soundtrack source
 
 Eight CosmicTailz PCM files are now excluded in source imports and builds.
-The remaining CosmicTailz/TheBlurCafe attribution must be resolved before
-release; see `assets/music/CGP_ATTRIBUTION.md`. Obsolete preview.7/.8/.9 music
+The owner confirms the replacement PC-port archive already reconciles the
+attribution requirement; see `assets/music/CGP_ATTRIBUTION.md`. Obsolete preview.7/.8/.9 music
 ZIPs have been physically deleted, along with known excluded files from older
 captures and staging. The without-msu editions contain no bundled audio.
 

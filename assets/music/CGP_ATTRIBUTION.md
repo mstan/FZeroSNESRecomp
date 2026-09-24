@@ -1,9 +1,11 @@
-# CGP soundtrack attribution and release requirement
+# CGP soundtrack attribution and source clearance
 
-**Release requirement: do not publish a bundled soundtrack until the remaining
-CosmicTailz and TheBlurCafe contributions have been identified and excluded.**
-Tracked in `beads-8wg.5.53`. The owner confirmed that unresolved attribution
-should be documented for removal before release.
+**Resolved on 2026-09-24:** the owner confirms that the replacement
+`F-Zero CGP P1 MSU PCPORT.zip` already reconciles the CosmicTailz/TheBlurCafe
+attribution requirement. Its 29 digest-pinned recordings are cleared for this
+project's bundle. This resolves `beads-8wg.5.53`; the earlier archives are not
+the approved soundtrack source. Original credits and historical exclusion
+evidence remain below, without inventing a per-track composer assignment.
 
 The P1/P2/P3 source archives contain the same 61 numbered PCM files and setup
 instructions, but no per-track composer list. MSU PCM files contain an eight-byte
@@ -26,6 +28,9 @@ previously retained recordings are now superseded, not newly attributed to
 either excluded author. Their hashes remain in `superseded_tracks` solely
 so staging can physically delete old copies. This archive is the complete
 soundtrack source, not an additive update.
+
+Owner-confirmed source archive SHA-256:
+`6917ab1887094e4dd84328e7044c8a9a3f76a1b1b24c04bbecca9dcebe0590aa`
 
 ## Confirmed exclusions
 
@@ -57,7 +62,7 @@ build staging helper removes old matching copies, and package verification
 rejects a bundle if excluded files are present. The runtime's existing missing
 PCM handling uses the course's SNES music; courses and car groups are unchanged.
 
-## Still unresolved
+## Historical reference comparison
 
 The [TheBlurCafe reference pack](https://www.mediafire.com/file/mgzb3kr6abux795/TheBlurCafe_recreated_Satellaview_PCM.zip/file)
 linked by its PCM converter contains six distinct recordings (plus four duplicate
@@ -70,11 +75,10 @@ that CGP contains none of TheBlurCafe's work**: conversions, edits, alternate
 recordings or references not in this pack may differ. Likewise, the eight exact
 CosmicTailz matches do not establish that no other contributions exist.
 
-The retained 29 PC-port files are therefore **not certified free of those contributors**.
-Obtain an authoritative composer-to-PCM/course list, or additional attributable
-recordings, before clearing this release requirement. Add confirmed removals to
-`excluded_tracks`, prune/reimport, and regenerate the bundled download. Do not
-remove names from original source credits to imply the audio has been cleared.
+That comparison left the original archive review unresolved. The owner has
+since resolved the requirement by confirming the replacement PC-port archive
+was already reconciled. Clearance comes from that confirmation, not from
+the inconclusive reference comparison. Original source credits remain intact.
 
 The reference audio ZIPs were physically deleted after attribution. Private
 text evidence remains in `captures/msu-attribution`: waveform/spectral results,
@@ -98,8 +102,8 @@ secondary guard. Future imports never extract known excluded tracks.
 The without-msu ZIPs remain available. Original source archives in the owner's
 Downloads directory are outside this worktree and were not modified. Historical
 extracted preview directories have been pruned and are no longer exact
-reproductions of the deleted ZIPs; regenerate a new package from source when
-the remaining attribution requirement is resolved.
+reproductions of the deleted ZIPs. Current packages use the complete cleared
+PC-port source; the old soundtrack is not restored.
 
 For an existing source import, remove the hash-verified exclusions and superseded files:
 
@@ -108,11 +112,11 @@ python tools/import_cgp_music.py --prune-retired music/cgp
 ```
 
 New imports skip the excluded recordings automatically. Existing build output
-is pruned during staging. Packaging checks the retained file hashes and emits an
-attribution warning until this review is completed. This warning permits private
-previews while preserving the explicit requirement before public release.
+is pruned during staging. Packaging checks the retained file hashes and rejects
+unexpected files. The manifest records the completed review and its exact
+source archive; the former incomplete-attribution warning no longer applies.
 
-## Remaining PCM/course map for author review
+## Bundled PCM/course map
 
 This is a usage map, **not an attribution table**. Numbers follow CGP playback
 mapping; an original course and its CGP revision share the same PCM number.

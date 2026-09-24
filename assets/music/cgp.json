@@ -243,12 +243,15 @@
     }
   },
   "attribution_review": {
-    "status": "incomplete",
+    "status": "complete",
+    "resolution": "owner-confirmed replacement archive",
+    "confirmed_on": "2026-09-24",
+    "cleared_source_archive_sha256": "6917ab1887094e4dd84328e7044c8a9a3f76a1b1b24c04bbecca9dcebe0590aa",
     "must_exclude_authors": [
       "CosmicTailz",
       "TheBlurCafe"
     ],
-    "note": "Eight CosmicTailz files are excluded by exact reference hashes. No reliable TheBlurCafe track mapping has been established; the retained files are not certified free of either contributor. Resolve this before release.",
+    "note": "The owner confirms the replacement F-Zero CGP P1 MSU PCPORT.zip already reconciles the CosmicTailz/TheBlurCafe attribution requirement. Clearance applies to this archive and its 29 digest-pinned recordings. Historical exclusions and superseded-file pruning remain enforced; no per-track authorship is inferred.",
     "issue": "beads-8wg.5.53",
     "report": "CGP_ATTRIBUTION.md"
   },

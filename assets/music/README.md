@@ -2,8 +2,9 @@
 
 The project owner initially approved bundling CGP music on 2026-09-23, then
 requested removing all CosmicTailz and TheBlurCafe contributions. Eight exact
-CosmicTailz matches are now excluded. **The remaining attribution is unresolved
-and must be completed before release.** See [evidence and required follow-up](CGP_ATTRIBUTION.md).
+CosmicTailz matches remain excluded. On 2026-09-24 the owner confirmed that
+the replacement PC-port archive already reconciles the attribution requirement.
+See [source clearance and historical evidence](CGP_ATTRIBUTION.md).
 
 Project leads are Worthy MF and
 Fennor Virastar; see `../track-packs/cgp-credits.txt` for the project credits.
@@ -17,7 +18,7 @@ uncompressed) and an empty descriptor. Files are renamed to the common `cgp`
 prefix without changing audio or loop points. `cgp.json` records their hashes,
 the eight author exclusions, and 24 superseded recordings to physically remove
 from old staging directories. Missing recordings use the game's SNES music.
-The remaining contributor attribution is still unresolved.
+These 29 recordings are the owner-confirmed, attribution-cleared bundle.
 
 The canonical extracted set is `music/cgp`. Excluded and superseded recordings
 are physically removed after checking their hashes; Git ignores are only a
@@ -40,8 +41,8 @@ python tools/import_cgp_music.py 'E:\Downloads\F-Zero CGP P1 MSU PCPORT.zip'
 
 This creates the ignored `music/cgp` directory. Reconfigure and build to stage
 it beside the executable under `assets/music/cgp`. The release tool validates
-the 29 retained files before packaging, rejects excluded or unexpected files,
-and warns that attribution is still incomplete. Do not place arbitrary user
+the 29 retained files before packaging and rejects excluded or unexpected files.
+Do not place arbitrary user
 music in this directory. For an old import, run
 `python tools/import_cgp_music.py --prune-retired music/cgp` before building.
 Previously generated music ZIPs that contained the excluded files have been
