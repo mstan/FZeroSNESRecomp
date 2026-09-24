@@ -2,11 +2,15 @@
 
 A native PC build of *F-Zero* for SNES.
 
-This local `fzero-55` branch includes Community Grand Prix: **55 tracks in
+The `f-zero-forever` branch includes Community Grand Prix: **55 tracks in
 11 cups**, including corrected BS courses, plus **Bower League's five tracks**.
 MAX League is available in Mods and defaults off. Enabling all three packs
 gives **16 cups / 80 course versions**, including the untouched originals.
 BS vehicles are independent.
+
+This branch uses its own release numbering from **0.1.10**. The next release
+is **0.1.11** for fixes, or **0.2.0** if it adds a feature. All bundle variants
+share that version. See [the release policy](docs/RELEASING_FZERO_FOREVER.md).
 
 You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 

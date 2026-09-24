@@ -1,5 +1,13 @@
 ﻿# Changelog
 
+## 0.1.10 - F-Zero Forever version baseline
+
+- Continue the current work on `f-zero-forever`, branched from `fzero-55`.
+- Start an independent version sequence for all future release bundles.
+  The next release is 0.1.11 for fixes, or 0.2.0 if it adds a feature.
+- This establishes the baseline only; no 0.1.10 bundle was produced and
+  existing 1.8.3 preview bundles retain their original names and versions.
+
 ## 1.8.3-fzero-55-preview.10 - CGP presentation and PC-port soundtrack
 
 - Replace the previous music bundle with the author's 29-recording PC-port set.
