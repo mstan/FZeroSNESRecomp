@@ -519,12 +519,13 @@ static void save_launcher_settings(const RecompLauncherCSettings *settings) {
 static int resolve_rom(const char *executable, const char *explicit_rom,
                        bool force_launcher, char *path, size_t path_size,
                        RecompLauncherCSettings *settings) {
+  bool bundled_music = FzeroMsuHasBundledCgp();
   memset(settings, 0, sizeof(*settings));
   settings->window_scale = 3;
   settings->enable_audio = 1;
   settings->audio_freq = 32040;
   settings->volume = 100;
-  snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"cgp");
+  snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"%s",bundled_music ? "cgp" : "");
   settings->player_src[0] = 1;
   settings->deadzone[0] = 25;
   settings->rewind_enabled = 1;
@@ -537,6 +538,10 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
   /* Before either exit below: a run with a ROM on the command line skips the
    * launcher entirely, and must still honour what the player saved. */
   load_launcher_settings(settings);
+  if (!bundled_music && !strcmp(settings->msu1_pack,"cgp")) {
+    settings->msu1_pack[0] = 0;
+    if (!settings->msu1_dir[0]) settings->msu1_enabled = 0;
+  }
   {
     const char *shader_override = getenv("FZERO_SHADER");
     if (shader_override && shader_override[0])
@@ -570,10 +575,12 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
   game.has_shader = 1;
   game.msu1_supported = 1;
   static const RecompLauncherCMsuPack music_packs[] = {{"cgp","Community Grand Prix"}};
-  game.msu1_packs = music_packs;
-  game.num_msu1_packs = 1;
-  game.msu1_note = "CGP music is included. Custom selects your MSU file or music folder. Standard packs use their supplied Conn/Cubear v11 f-zero_msu1.ips; packs without that patch use CGP track numbering. Missing tracks use SNES music.";
-  game.mods = FzeroModsProvider(&g_video, kVideoConfig);
+  game.msu1_packs = bundled_music ? music_packs : NULL;
+  game.num_msu1_packs = bundled_music ? 1 : 0;
+  game.msu1_note = bundled_music ?
+      "CGP music is included. Custom selects your MSU file. Standard packs use their supplied Conn/Cubear v11 f-zero_msu1.ips; packs without that patch use CGP track numbering. Missing tracks use SNES music." :
+      "Music is not included in this download. Select your own music folder. Standard packs use their supplied Conn/Cubear v11 f-zero_msu1.ips; packs without that patch use CGP track numbering. Missing tracks use SNES music.";
+  game.mods = FzeroModsProvider(&g_video, kVideoConfig, bundled_music);
   game.rom_cache_path = "rom.cfg";
   /* Draws the Controls page's SaveStateMenu and Rewind rows, and the
    * Settings page's rewind enable / depth / interval controls. The hotkey

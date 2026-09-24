@@ -1,6 +1,6 @@
 # Community Grand Prix soundtrack
 
-The Windows preview includes the CGP soundtrack with the author's permission,
+The **with-msu** Windows preview includes the CGP soundtrack with the author's permission,
 confirmed by the project owner on 2026-09-23. Project leads are Worthy MF and
 Fennor Virastar; see `../track-packs/cgp-credits.txt` for the project credits.
 The included MSU adapter source credits Conn, Khilendel and Catador in
@@ -16,6 +16,9 @@ No ROM or unrelated archive contents are extracted.
 Select **Settings > Audio > Enable MSU-1 music**, leaving the source on
 **Community Grand Prix**, or apply that preset in Mods. Music starts off on
 a fresh installation. Custom music remains available from **Custom...**.
+The smaller **without-msu** download omits the soundtrack while retaining MSU
+support. Select your own music folder in Settings > Audio; its CGP preset uses
+SNES audio until a custom source has been selected.
 
 ## Building from source
 

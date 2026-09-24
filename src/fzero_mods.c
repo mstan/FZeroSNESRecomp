@@ -7,6 +7,7 @@
 
 static FzeroVideoSettings *video;
 static const char *config_path;
+static bool has_bundled_music;
 static char error_text[128];
 static const char *const aspects[] = {"16:9", "21:9", "32:9", "Fit"};
 static const char *const rates[] = {"Auto", "60", "90", "120", "144", "165", "240", "360"};
@@ -226,7 +227,10 @@ static int preset_count(void *ctx) { (void)ctx; return 3; }
 static int preset_get(void *ctx, int i, RecompLauncherCModPreset *out) {
   (void)ctx;
   if (i < 0 || i >= 3 || !out) return 0;
-  *out = presets[i]; return 1;
+  *out = presets[i];
+  if (i == 2 && !has_bundled_music)
+    COPY(out->description, "CGP courses, all twelve cars and their rebalances, every CGP rule including Legend and credits, and F-Zero 55 title. Uses your selected custom music, or SNES audio until music is supplied. Disables conflicting BS content; keeps unrelated choices.");
+  return 1;
 }
 static const char *preset_current(void *ctx, const RecompLauncherCSettings *s) {
   (void)ctx;
@@ -234,9 +238,12 @@ static const char *preset_current(void *ctx, const RecompLauncherCSettings *s) {
   const CpPack *cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
   unsigned rules = video->gameplay.enabled & ~(1u << FZERO_RULE_MSU);
   unsigned all = ((1u << FZERO_RULE_COUNT) - 1) & ~7u & ~(1u << FZERO_RULE_MSU);
+  bool cgp_music = has_bundled_music ?
+      s->msu1_enabled && !strcmp(s->msu1_pack,"cgp") :
+      s->msu1_enabled == (s->msu1_dir[0] != 0) && !s->msu1_pack[0];
   if (FzeroTracksEnabled(cgp) && FzeroTracksTitleEnabled(cgp) &&
       !video->bs_deluxe && !video->bs_tracks && video->gameplay.vehicle_packs == 7 &&
-      video->gameplay.stock_rebalance == 15 && rules == all && s->msu1_enabled && !strcmp(s->msu1_pack,"cgp")) return "cgp";
+      video->gameplay.stock_rebalance == 15 && rules == all && cgp_music) return "cgp";
   if (!FzeroTracksEnabled(cgp) && !rules && !video->gameplay.vehicle_packs &&
       !video->gameplay.stock_rebalance && !s->msu1_enabled) {
     if (video->bs_deluxe && video->bs_tracks) return "satellaview";
@@ -262,15 +269,17 @@ static int preset_apply(void *ctx, const char *id, RecompLauncherCSettings *s) {
   video->gameplay.vehicle_packs = index == 2 ? 7 : 0;
   video->gameplay.stock_rebalance = index == 2 ? 15 : 0;
   video->gameplay.enabled = index == 2 ? ((1u << FZERO_RULE_COUNT)-1) & ~7u : 0;
-  s->msu1_enabled = index == 2;
-  if (index == 2) COPY(s->msu1_pack,"cgp");
+  s->msu1_enabled = index == 2 && (has_bundled_music || s->msu1_dir[0]);
+  if (index == 2) COPY(s->msu1_pack,has_bundled_music ? "cgp" : "");
+  if (!s->msu1_enabled) video->gameplay.enabled &= ~(1u << FZERO_RULE_MSU);
   error_text[0] = 0;
   return 1;
 }
 
-const RecompLauncherCModProvider *FzeroModsProvider(FzeroVideoSettings *settings, const char *path) {
+const RecompLauncherCModProvider *FzeroModsProvider(FzeroVideoSettings *settings, const char *path, bool bundled_music) {
   static RecompLauncherCModProvider provider;
   video = settings; config_path = path; error_text[0] = 0;
+  has_bundled_music = bundled_music;
   video->gameplay.enabled &= ~7u;
   if(video->bs_deluxe)video->gameplay.vehicle_packs=video->gameplay.stock_rebalance=0;
   if (FzeroTracksEnabled(cp_catalog_find(FzeroTracksCatalog(),"cgp"))) video->bs_tracks=false;

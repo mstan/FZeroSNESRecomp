@@ -8,7 +8,7 @@ int main(void) {
   remove("test-mod-tracks/cgp.title");
   CHECK(FzeroTracksInit("test-mod-tracks", true));
   FzeroVideoSettings s, loaded; FzeroVideoStock(&s); /* start from nothing enabled to test each toggle */
-  const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini");
+  const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini", true);
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
   unsigned packs = 0;
@@ -204,6 +204,21 @@ int main(void) {
         io.msu1_enabled=0;CHECK(!*p->preset_current(NULL,&io));
       }
     }
+  }
+  /* The same executable also ships without PCM files. CGP keeps SNES audio
+   * until custom music is supplied, then uses that path without replacing it. */
+  p = FzeroModsProvider(&s, "test-mods.ini", false);
+  for (unsigned custom=0; custom<2; ++custom) {
+    RecompLauncherCSettings io={0};
+    if (custom) snprintf(io.msu1_dir,sizeof(io.msu1_dir),"my external CGP music");
+    CHECK(p->preset_apply(NULL,"cgp",&io));
+    CHECK(!strcmp(p->preset_current(NULL,&io),"cgp"));
+    CHECK(io.msu1_enabled==(int)custom && !io.msu1_pack[0]);
+    CHECK(!strcmp(io.msu1_dir,custom ? "my external CGP music" : ""));
+    CHECK(s.gameplay.vehicle_packs==7 && s.gameplay.stock_rebalance==15);
+    CHECK(s.gameplay.enabled & (1u<<FZERO_RULE_LEGEND));
+    CHECK(p->preset_apply(NULL,"vanilla",&io) && !io.msu1_enabled);
+    CHECK(!strcmp(io.msu1_dir,custom ? "my external CGP music" : ""));
   }
   remove("test-mods.ini");
   puts("Independent widescreen and presentation FPS plugins passed");

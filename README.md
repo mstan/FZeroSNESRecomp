@@ -104,11 +104,17 @@ CGP enables all its courses, twelve cars, original-car rebalances, rules
 including Legend, credits, F-Zero 55 title and bundled music. Individual
 options remain editable. No preset is applied automatically on startup.
 
-The approved **Community Grand Prix** soundtrack is included in Windows
-previews. In **Settings > Audio**, enable **MSU-1 music** and leave its source
+Windows previews come in **with-msu** and **without-msu** ZIPs. Both support
+MSU playback; only with-msu includes the approved **Community Grand Prix**
+soundtrack. In **Settings > Audio**, enable **MSU-1 music** and leave its source
 on **Community Grand Prix**, or select the CGP preset in Mods. Music starts
 off on a fresh installation. Missing tracks and unrelated track packs use
 SNES music. Track selection works in both Grand Prix and Practice.
+
+The smaller without-msu download contains no soundtrack files. Its Audio
+settings let you browse for your own music folder. The CGP preset uses that
+custom music when configured, or SNES audio until you supply it. All courses,
+cars, gameplay options and other assets are identical between the two ZIPs.
 
 **Custom...** opens a picker for your pack's `.msu` file. Existing custom
 folder settings are retained. Standard packs require the supported

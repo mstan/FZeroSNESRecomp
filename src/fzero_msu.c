@@ -27,6 +27,18 @@ static const DispatchEntry patched_program[1] = {{0}};
 bool FzeroMsuActive(void) { return active; }
 const char *FzeroMsuError(void) { return error; }
 
+bool FzeroMsuHasBundledCgp(void) {
+  /* Packaging verifies all hashes. At startup, only probe the title stream
+   * so the same executable also works in the compact, audio-free download. */
+  FILE *file = fopen("assets/music/cgp/cgp-4.pcm", "rb");
+  if (!file) return false;
+  uint8_t header[8];
+  bool available = fread(header, 1, sizeof(header), file) == sizeof(header) &&
+                   !memcmp(header, "MSU1", 4) && fgetc(file) != EOF;
+  fclose(file);
+  return available;
+}
+
 static void set_pack(const char *value) {
 #ifdef _WIN32
   _putenv_s("SNESRECOMP_MSU1", value);

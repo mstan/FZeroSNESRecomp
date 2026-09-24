@@ -2,6 +2,19 @@
 
 Tracked by `beads-8wg.5.50`, `beads-8wg.5.51` and shared UI `beads-0fu.9`.
 
+Preview.8 adds two release variants (`beads-8wg.5.52`): `with-msu` includes
+the 61 approved PCM files; `without-msu` contains no PCM/MSU payload. Both use
+the same executable and retain MSU support. Packaging selects the variant
+with `tools/make_release.py --music bundled` or `--music external`, records it
+in the manifest, and prevents audio files from entering the external variant.
+All other content remains identical. The launcher detects the bundled title
+stream instead of advertising absent assets. Without the bundle, the CGP
+preset enables previously selected custom music or keeps SNES music active;
+its remaining options are unchanged. Custom paths survive preset changes.
+
+The unused archive-install button is hidden when a host supplies no installer
+(`beads-0fu.10`). F-Zero uses its existing IPS/BPS track-pack directory workflow.
+
 ## Player behavior
 
 Mods offers **Vanilla**, **Satellaview** and **Community Grand Prix** presets.
@@ -17,7 +30,7 @@ For example, applying Vanilla while MAX is enabled leaves MAX enabled.
 | CGP P1/P2/P3 vehicle groups | Off | Off | All on; 12 total identities |
 | CGP rules, including Legend and credits | Off | Off | All on |
 | F-Zero 55 title | Off | Off | On |
-| MSU music | Off | Off | On, bundled CGP source |
+| MSU music | Off | Off | Bundled CGP or configured custom source; otherwise SNES audio |
 
 Legend adds its difficulty choice; the player still chooses a race difficulty.
 Required course mechanics continue to accompany their courses independently.

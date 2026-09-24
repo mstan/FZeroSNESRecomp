@@ -22,9 +22,12 @@ p.add_argument("--mingw", default="C:/msys64/mingw64")
 p.add_argument("--output", default="release-stage", help="Parent for a fresh versioned staging directory")
 p.add_argument("--label", default="", help="Optional local build label, such as fzero-55")
 p.add_argument("--exe", default="FZeroSNESRecomp.exe", help="Desktop executable filename in the build directory")
+p.add_argument("--music", choices=("bundled", "external"), default="bundled",
+               help="Include the approved CGP soundtrack, or retain MSU support without audio files")
 p.add_argument("--deluxe-mods", type=Path, default=ROOT / "captures/bs-deluxe/mods",
                help="Imported Deluxe directory; its credits and provenance ship with the build")
 a = p.parse_args()
+bundled_music = a.music == "bundled"
 # BS Deluxe ships in every download, and that is allowed: it is a ROM hack,
 # included with its authors' permission (GuyPerfect, Porthor, PowerPanda). Only
 # OFFICIAL copyrighted assets are withheld from a release -- the commercial ROM
@@ -73,7 +76,8 @@ if hashlib.sha256((deluxe_mods / "bs-deluxe.dat").read_bytes()).hexdigest() != m
 for source in Path(cache.get("FZERO_GEN_DIR", ROOT / "src/gen")).glob("*.c"):
     if "rtl_aot_node_denied(" in source.read_text(encoding="utf-8"):
         raise SystemExit("Regenerate without the AOT deny gate before packaging")
-name = f"FZeroSNESRecomp-{release_version}-windows-x64"
+flavor = "with-msu" if bundled_music else "without-msu"
+name = f"FZeroSNESRecomp-{release_version}-windows-x64-{flavor}"
 stage = ROOT / a.output / name
 stage.mkdir(parents=True, exist_ok=False)
 shutil.copy2(exe, stage / "FZeroSNESRecomp.exe")
@@ -82,8 +86,11 @@ shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_pattern
 shutil.copytree(ROOT / "assets/shaders", stage / "assets/shaders")
 # Reviewed CGP soundtrack only; never copy arbitrary user music from a build.
 music = ROOT / "music/cgp"
-verify_music(music)
-shutil.copytree(music, stage / "assets/music/cgp")
+if bundled_music:
+    verify_music(music)
+    shutil.copytree(music, stage / "assets/music/cgp")
+else:
+    (stage / "assets/music").mkdir(parents=True, exist_ok=True)
 shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
 shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
 patches = ROOT / "patches"
@@ -120,6 +127,10 @@ shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
 shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
+    + ("WITH MSU MUSIC: approved CGP soundtrack included.\n\n" if bundled_music else
+       "WITHOUT MSU MUSIC: no soundtrack files included; MSU playback is supported.\n"
+       "Use Settings > Audio to select your own music folder and enable MSU-1.\n"
+       "The CGP preset uses SNES audio until a custom music folder is selected.\n\n") +
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own\n"
     "F-Zero (USA) ROM in the launcher. No ROM is included.\n\n"
     "Read TESTER_NOTES.md for this preview's defaults, known limitations and\n"
@@ -127,12 +138,14 @@ shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND
     "Settings > Display contains aspect choices and shader presets including\n"
     "CRT Soft. Shaders start OFF (None). Browse imports a custom .glslp or\n"
     ".glsl shader; selecting one uses the OpenGL presentation path.\n\n"
-    "For bundled music, enable MSU-1 in Settings > Audio and keep the source\n"
-    "on Community Grand Prix. Custom selects your own .msu file. Missing\n"
-    "tracks use SNES music. The separate legacy v11 patch is not bundled.\n"
+    "In the with-msu download, enable MSU-1 in Settings > Audio and keep\n"
+    "the source on Community Grand Prix. Custom selects your own .msu file.\n"
+    "In the without-msu download, Browse selects your own music folder.\n"
+    "Missing tracks use SNES music. The legacy v11 patch is not bundled.\n"
     "Save/load and rewind restart the restored song from its beginning.\n\n"
     "Mods > Preset offers Vanilla, Satellaview and full Community Grand Prix.\n"
-    "CGP includes all cars, rebalances, rules including Legend, title and music.\n"
+    "CGP includes all cars, rebalances, rules including Legend and the title;\n"
+    "music uses the bundle or your selected custom source when available.\n"
     "Presets preserve MAX, Bower and other unrelated choices; all individual\n"
     "options remain editable. See docs/CGP_MUSIC_AND_PRESETS.md.\n\n"
     "Mods defaults to Widescreen at Fit, which follows the\n"
@@ -158,10 +171,11 @@ shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND
     "Required course fixes apply automatically; optional rules stay opt-in.\n"
     "Three optional CGP car packs combine into twelve identities; four retail\n"
     "rebalances are separate options. Stock BS cars exclude CGP car options.\n"
-    "All CGP vehicle options and MSU music start off; the CGP preset enables them.\n"
+    "CGP vehicle options and MSU music start off; its preset enables available content.\n"
     "Enable or disable each track pack directly in Mods. MAX League is visible\n"
     "and defaults off. Bundled IPS patches and attribution\n"
-    "are under assets/track-packs; approved CGP audio is under assets/music.\n"
+    "are under assets/track-packs; the with-msu download adds CGP audio\n"
+    "under assets/music. Both downloads retain custom MSU playback.\n"
     "Other IPS/BPS course packs go in mods/track-packs; each enabled pack adds\n"
     "its cups to the in-game Grand Prix menu. See mods/README.md.\n\n"
     "F7 or Select+R opens the save-state menu: 12 slots with thumbnails,\n"
@@ -242,14 +256,16 @@ for name, pin in pins.items():
     recorded = subprocess.check_output([git, "ls-tree", "HEAD", name], cwd=ROOT, text=True).split()
     if len(recorded) < 3 or recorded[2] != pin:
         raise SystemExit(f"Build dependency {name} does not match committed submodule pin")
-manifest = {"version": version, "label": a.label, "commit": commit, "dependencies": pins, "files": {}}
+manifest = {"version": version, "label": a.label, "music": a.music,
+            "commit": commit, "dependencies": pins, "files": {}}
 for path in sorted(stage.rglob("*")):
     if path.is_file():
         if (path.suffix.lower() in (".sfc", ".smc", ".srm", ".sav", ".bin", ".c")
                 or path.name.lower() in ("config.ini", "rom.cfg", "fzero-video.ini", "f-zero_msu1.ips")
                 or path.name.lower().startswith("crt-geom")):
             raise SystemExit(f"Forbidden payload: {path}")
-        if path.suffix.lower() in (".pcm", ".msu") and path.parent != stage / "assets/music/cgp":
+        if path.suffix.lower() in (".pcm", ".msu") and (
+                not bundled_music or path.parent != stage / "assets/music/cgp"):
             raise SystemExit(f"Unapproved music payload: {path}")
         manifest["files"][path.relative_to(stage).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 (stage / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

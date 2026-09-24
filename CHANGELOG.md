@@ -1,5 +1,14 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.8 - soundtrack download choices
+
+- Offer Windows ZIPs with and without bundled CGP music, sharing the same
+  executable and game content. Both retain custom MSU playback.
+- Detect bundled music for launcher choices and defaults. The compact build's
+  CGP preset uses selected custom music, or SNES audio until music is supplied.
+- Hide archive installation when a host has no installer. F-Zero no longer
+  displays an unsupported Install .psxmod button in either Mods view.
+
 ## 1.8.3-fzero-55-preview.7 - music and editable presets
 
 - Bundle the approved 61-track CGP soundtrack once, shared by all car groups.
