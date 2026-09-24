@@ -7,6 +7,14 @@ included. Choose **with-msu** for the approved CGP soundtrack (roughly 1.2 GB
 of audio after extraction), or **without-msu** to supply your own music.
 Both ZIPs retain MSU support and contain the same game content and executable.
 
+## Soundtrack release requirement
+
+Eight CosmicTailz PCM files are now excluded in source imports and builds.
+The remaining CosmicTailz/TheBlurCafe attribution must be resolved before
+release; see `assets/music/CGP_ATTRIBUTION.md`. Existing preview.7/.8/.9 music
+ZIPs predate these exclusions and are not cleared for release. The
+without-msu editions contain no bundled audio.
+
 ## What is included
 
 - The original three leagues remain available unchanged.

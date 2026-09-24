@@ -93,11 +93,6 @@
       "sha256": "c5b8cc49137aa21d8bf8130461084299d42552c853d0477b9795f61f2353b2d3",
       "loop": 0
     },
-    "25": {
-      "bytes": 22373408,
-      "sha256": "24f7cf78b733733b651ad2c195527f226d04e7640ba3bf243e435f67819377dd",
-      "loop": 2770950
-    },
     "26": {
       "bytes": 21139916,
       "sha256": "ee3079b8e675559530bfed93777d56d1f6561e0774b51e9f18741b290697aaed",
@@ -107,11 +102,6 @@
       "bytes": 12655244,
       "sha256": "de54e6091f3af6b90f0cd514c6f36b51242aca97157504ac8d002d7bfcb9cfe2",
       "loop": 0
-    },
-    "28": {
-      "bytes": 21688700,
-      "sha256": "9c2e820a5065cb9d332709a1acb475ba2085e3239a861c6db06aae0e32e8feef",
-      "loop": 2646042
     },
     "29": {
       "bytes": 13556636,
@@ -128,25 +118,10 @@
       "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
       "loop": 0
     },
-    "31": {
-      "bytes": 21471476,
-      "sha256": "16b652cad2f1abedea4d5116e1e8c41bd552097ade34151aca31e9d3fec8e35f",
-      "loop": 2658363
-    },
     "32": {
       "bytes": 12825828,
       "sha256": "92facad88d8b2d6bd3575f87894295df7d1281ed13efb3bd1c4bc50af8c38e2c",
       "loop": 0
-    },
-    "33": {
-      "bytes": 19644060,
-      "sha256": "6d7ede7f34dd47561e0c6e606e0fcef4ecba15d84cbef18dbe71f8bf4c60a45a",
-      "loop": 2653093
-    },
-    "34": {
-      "bytes": 27121448,
-      "sha256": "878cdb13ccfad5d56cac09130e5de6e70384449329e45de6f371702052f74a67",
-      "loop": 3693360
     },
     "35": {
       "bytes": 27472212,
@@ -248,11 +223,6 @@
       "sha256": "0162f4ceadb2e0385b975d5474dcd68315416fad5df97150718bf6745c0c92c5",
       "loop": 0
     },
-    "53": {
-      "bytes": 12798540,
-      "sha256": "a20151f19df71f90556e3a162f1ec91518743ebbd59d1693721356a13651b40e",
-      "loop": 1636458
-    },
     "54": {
       "bytes": 69487784,
       "sha256": "299db97fe6a5cc0a957f66df3a15d1e88f7295205bcbfb6f9e12faebcc72b7d9",
@@ -263,20 +233,10 @@
       "sha256": "4174340413678d8a9af869019866ceea9574269371ab1af1975e459cdc30f5b6",
       "loop": 0
     },
-    "56": {
-      "bytes": 19413984,
-      "sha256": "6de0975c426dad65471d4b124be134b6f6bde34999cd41a0d845b2bf264a2549",
-      "loop": 2397509
-    },
     "57": {
       "bytes": 16851988,
       "sha256": "98c1e3fa99272e936610ab08f104262cb55085f73cb9e07bce4f1b68524d4c34",
       "loop": 2096185
-    },
-    "58": {
-      "bytes": 20890216,
-      "sha256": "f19128a5e9b86230db055d73f3e961de3c0605dcbff886d3c9d901cc1115647c",
-      "loop": 2555717
     },
     "59": {
       "bytes": 9862024,
@@ -313,5 +273,105 @@
       "sha256": "7c939e8ebfe4c19f0bd87e109aa8c2958ca59799dab4519ce6735f65634b7920",
       "loop": 0
     }
+  },
+  "excluded_tracks": {
+    "25": {
+      "bytes": 22373408,
+      "sha256": "24f7cf78b733733b651ad2c195527f226d04e7640ba3bf243e435f67819377dd",
+      "loop": 2770950,
+      "author": "CosmicTailz",
+      "used_for": "Forest I",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-22.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    },
+    "28": {
+      "bytes": 21688700,
+      "sha256": "9c2e820a5065cb9d332709a1acb475ba2085e3239a861c6db06aae0e32e8feef",
+      "loop": 2646042,
+      "author": "CosmicTailz",
+      "used_for": "Forest II",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-25.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    },
+    "31": {
+      "bytes": 21471476,
+      "sha256": "16b652cad2f1abedea4d5116e1e8c41bd552097ade34151aca31e9d3fec8e35f",
+      "loop": 2658363,
+      "author": "CosmicTailz",
+      "used_for": "Forest III",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-28.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    },
+    "33": {
+      "bytes": 19644060,
+      "sha256": "6d7ede7f34dd47561e0c6e606e0fcef4ecba15d84cbef18dbe71f8bf4c60a45a",
+      "loop": 2653093,
+      "author": "CosmicTailz",
+      "used_for": "Metal Fort I",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-30.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    },
+    "34": {
+      "bytes": 27121448,
+      "sha256": "878cdb13ccfad5d56cac09130e5de6e70384449329e45de6f371702052f74a67",
+      "loop": 3693360,
+      "author": "CosmicTailz",
+      "used_for": "Metal Fort II",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-31.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    },
+    "53": {
+      "bytes": 12798540,
+      "sha256": "a20151f19df71f90556e3a162f1ec91518743ebbd59d1693721356a13651b40e",
+      "loop": 1636458,
+      "author": "CosmicTailz",
+      "used_for": "Silence III",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-26.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    },
+    "56": {
+      "bytes": 19413984,
+      "sha256": "6de0975c426dad65471d4b124be134b6f6bde34999cd41a0d845b2bf264a2549",
+      "loop": 2397509,
+      "author": "CosmicTailz",
+      "used_for": "Death Wind III",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-20.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    },
+    "58": {
+      "bytes": 20890216,
+      "sha256": "f19128a5e9b86230db055d73f3e961de3c0605dcbff886d3c9d901cc1115647c",
+      "loop": 2555717,
+      "author": "CosmicTailz",
+      "used_for": "Port Town III",
+      "evidence": "Exact full-file SHA-256 match",
+      "reference_file": "f-zero_msu1-18.pcm",
+      "reference_archive_sha256": "ab1065d4d346942280d7f2fc8af82f6def60d7d9c127723327a6ae02bdab891f",
+      "reference_url": "https://drive.google.com/file/d/1ex5kCsi10KRF7FJbYMkDJJCWvrKGdypD/view"
+    }
+  },
+  "attribution_review": {
+    "status": "incomplete",
+    "must_exclude_authors": [
+      "CosmicTailz",
+      "TheBlurCafe"
+    ],
+    "note": "Eight CosmicTailz files are excluded by exact reference hashes. No reliable TheBlurCafe track mapping has been established; the retained files are not certified free of either contributor. Resolve this before release.",
+    "issue": "beads-8wg.5.53",
+    "report": "CGP_ATTRIBUTION.md"
   }
 }

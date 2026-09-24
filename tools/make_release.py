@@ -87,12 +87,15 @@ shutil.copytree(ROOT / "assets/shaders", stage / "assets/shaders")
 # Reviewed CGP soundtrack only; never copy arbitrary user music from a build.
 music = ROOT / "music/cgp"
 if bundled_music:
-    verify_music(music)
+    music_manifest = verify_music(music)
     shutil.copytree(music, stage / "assets/music/cgp")
 else:
     (stage / "assets/music").mkdir(parents=True, exist_ok=True)
 shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
 shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
+shutil.copy2(ROOT / "assets/music/CGP_ATTRIBUTION.md", stage / "assets/music/CGP_ATTRIBUTION.md")
+if bundled_music and music_manifest.get("attribution_review", {}).get("status") == "incomplete":
+    print("WARNING: soundtrack attribution is incomplete; not cleared for release. See assets/music/CGP_ATTRIBUTION.md.")
 patches = ROOT / "patches"
 if patches.is_dir():
     shutil.copytree(patches, stage / "patches")

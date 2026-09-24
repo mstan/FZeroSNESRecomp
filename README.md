@@ -98,6 +98,10 @@ loader. An unreadable or invalid preset falls back to unfiltered output.
 
 ### Presets and MSU-1 music
 
+**Soundtrack release requirement:** eight confirmed CosmicTailz recordings are
+excluded; remaining CosmicTailz/TheBlurCafe attribution must be resolved before
+release. See [the evidence and outstanding work](assets/music/CGP_ATTRIBUTION.md).
+
 **Mods > Preset** offers Vanilla, Satellaview and Community Grand Prix.
 Each applies an editable recipe for that content family. MAX, Bower and other
 unrelated choices remain as selected, as do display, controls and rewind.

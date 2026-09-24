@@ -2,8 +2,11 @@
 
 Tracked by `beads-8wg.5.50`, `beads-8wg.5.51` and shared UI `beads-0fu.9`.
 
-Preview.8 adds two release variants (`beads-8wg.5.52`): `with-msu` includes
-the 61 approved PCM files; `without-msu` contains no PCM/MSU payload. Both use
+Preview.8 introduced two release variants (`beads-8wg.5.52`): `with-msu` includes
+the soundtrack; `without-msu` contains no PCM/MSU payload.
+**Attribution is incomplete:** eight CosmicTailz recordings have been removed,
+but remaining CosmicTailz/TheBlurCafe work must be identified before release.
+See [the attribution report](../assets/music/CGP_ATTRIBUTION.md). Both use
 the same executable and retain MSU support. Packaging selects the variant
 with `tools/make_release.py --music bundled` or `--music external`, records it
 in the manifest, and prevents audio files from entering the external variant.
@@ -61,7 +64,9 @@ The shared UI stores a selected ID; each game resolves it to its own assets.
 ## Soundtrack and runtime
 
 - P1, P2 and P3 archives each contain the same 61 PCM files, totaling
-  1,226,929,940 bytes. The importer retains one copy with pinned hashes.
+  1,226,929,940 bytes originally. The importer now retains 53 files and excludes
+  eight hash-confirmed CosmicTailz recordings. The remaining contributor audit
+  is unresolved; retained files are not yet cleared for release.
 - CGP's adapter maps stable cup identity plus course ordinal to PCM 10–64.
   Both GP and Practice use this mapping. Original courses use the equivalent
   CGP music; unrelated packs without a mapping use their SNES music.

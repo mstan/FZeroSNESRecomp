@@ -276,11 +276,15 @@ add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     VERBATIM)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp/cgp.msu")
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/music/cgp.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_cgp_music.py")
     add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp"
-            "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/music/cgp"
-        COMMENT "Staging approved Community Grand Prix music" VERBATIM)
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_cgp_music.py"
+            --stage-from "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp"
+            --out "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/music/cgp"
+        COMMENT "Staging CGP music with contributor exclusions" VERBATIM)
 endif()
 
 if(SNESRECOMP_BUILD_VERSION)

@@ -37,6 +37,11 @@ Follow-up `beads-8wg.5.47`: [Bower import, MAX visibility and authored CGP leagu
 names](BOWER_AND_CGP_LEAGUES.md). These additive pack changes are separate from
 the remaining twelve-item author-feedback burndown.
 
+Soundtrack release requirement (`beads-8wg.5.53`): eight CosmicTailz recordings
+are excluded by exact hash matches. Remaining CosmicTailz/TheBlurCafe attribution
+is unresolved and must be completed before release, as agreed by the owner.
+See [evidence and the remaining PCM/course map](../assets/music/CGP_ATTRIBUTION.md).
+
 ## What initial inspection establishes
 
 - Original CGP P1/P2/P3 have identical normalized data for all 55 course slots.

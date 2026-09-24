@@ -1,5 +1,13 @@
 ﻿# Changelog
 
+## Unreleased - soundtrack contributor exclusions
+
+- Exclude eight CosmicTailz recordings identified by exact reference hashes.
+- Retain attribution evidence and a before-release requirement to identify and
+  remove remaining CosmicTailz/TheBlurCafe contributions; the audit is incomplete.
+- Skip excluded files during import, prune old matching files when staging,
+  and reject them during package verification. Missing music uses SNES fallback.
+
 ## 1.8.3-fzero-55-preview.9 - unified CGP vehicles
 
 - Replace the three CGP car-pack toggles with one all-or-nothing CGP vehicles
