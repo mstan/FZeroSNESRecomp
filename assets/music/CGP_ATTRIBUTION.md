@@ -65,16 +65,30 @@ recordings, before clearing this release requirement. Add confirmed removals to
 `excluded_tracks`, prune/reimport, and regenerate the bundled download. Do not
 remove names from original source credits to imply the audio has been cleared.
 
-Private evidence remains in ignored `captures/msu-attribution`: original
-reference archives and exact/waveform/spectral comparison results. Reference
-music is not shipped or committed.
+The reference audio ZIPs were physically deleted after attribution. Private
+text evidence remains in `captures/msu-attribution`: waveform/spectral results,
+file hashes and the cleanup audit. No reference music is retained in this
+worktree. The recorded URLs and archive hashes allow reacquisition if needed.
 
 ## Existing downloads and build workflow
 
-Preview.7, preview.8-with-msu and preview.9-with-msu were produced before these
-exclusions and still contain all 61 files. They are not cleared for release.
-The without-msu editions contain no bundled audio. This change does not rewrite
-historical ZIPs or the owner's original downloaded source archives.
+At the owner's request, the obsolete preview.7, preview.8-with-msu and
+preview.9-with-msu ZIPs were physically deleted, along with their checksum
+sidecars. The two downloaded reference music ZIPs were also deleted. Another
+56 excluded PCM copies were removed from seven capture/staging directories.
+A fresh audit found no known excluded recording in any remaining PCM file
+or ZIP in this worktree; no PCM/MSU/ZIP files are tracked in Git.
+
+The canonical extracted source set, `music/cgp`, and active build staging each
+contain 53 retained PCM files plus the empty descriptor. Exclusions are absent
+on disk, not merely hidden by Git. Global PCM/MSU ignore patterns provide a
+secondary guard. Future imports never extract known excluded tracks.
+
+The without-msu ZIPs remain available. Original source archives in the owner's
+Downloads directory are outside this worktree and were not modified. Historical
+extracted preview directories have been pruned and are no longer exact
+reproductions of the deleted ZIPs; regenerate a new package from source when
+the remaining attribution requirement is resolved.
 
 For an existing source import, first remove only the hash-verified exclusions:
 

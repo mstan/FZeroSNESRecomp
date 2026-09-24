@@ -17,6 +17,10 @@ SHA-256. The importer now retains 53 and skips eight confirmed exclusions,
 renaming retained files to the common `cgp` prefix. Retained audio bytes and loop
 points are unchanged. `cgp.json` records every retained/excluded size and hash.
 The retained files are not yet cleared of all work by the two excluded authors.
+The actual extracted source set is `music/cgp`: 53 PCM files and an empty
+`cgp.msu` descriptor. Excluded recordings are not retained there. Pruning uses
+physical file deletion after validating each excluded recording by hash; Git
+ignore patterns are only a secondary guard.
 No ROM or unrelated archive contents are extracted.
 
 Select **Settings > Audio > Enable MSU-1 music**, leaving the source on
@@ -40,8 +44,9 @@ the 53 retained files before packaging, rejects excluded or unexpected files,
 and warns that attribution is still incomplete. Do not place arbitrary user
 music in this directory. For an old import, run
 `python tools/import_cgp_music.py --prune-excluded music/cgp` before building.
-Previously generated music ZIPs still contain the excluded files and must not
-be treated as cleared releases.
+Previously generated music ZIPs that contained the excluded files have been
+physically deleted from this worktree, along with reference music archives and
+leftover excluded PCM copies in older capture/staging folders.
 
 The separately supported Conn/Cubear v11 patch and third-party custom packs
 are user-supplied and are not part of this soundtrack bundle.

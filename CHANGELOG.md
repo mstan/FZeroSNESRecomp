@@ -5,8 +5,12 @@
 - Exclude eight CosmicTailz recordings identified by exact reference hashes.
 - Retain attribution evidence and a before-release requirement to identify and
   remove remaining CosmicTailz/TheBlurCafe contributions; the audit is incomplete.
-- Skip excluded files during import, prune old matching files when staging,
-  and reject them during package verification. Missing music uses SNES fallback.
+- Never extract excluded files during import; physically delete old matching
+  files when staging and reject them during package verification. Missing music
+  uses SNES fallback.
+- Delete obsolete music ZIPs, reference audio archives and excluded PCM copies
+  from older captures/staging. Keep only the filtered extracted source set;
+  PCM/MSU Git ignore rules are a secondary guard.
 
 ## 1.8.3-fzero-55-preview.9 - unified CGP vehicles
 

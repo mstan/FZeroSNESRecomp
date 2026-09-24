@@ -40,6 +40,9 @@ the remaining twelve-item author-feedback burndown.
 Soundtrack release requirement (`beads-8wg.5.53`): eight CosmicTailz recordings
 are excluded by exact hash matches. Remaining CosmicTailz/TheBlurCafe attribution
 is unresolved and must be completed before release, as agreed by the owner.
+Known excluded audio is physically deleted from all worktree PCM/ZIP copies,
+including obsolete music releases and private reference audio archives.
+`music/cgp` remains the filtered 53-file extracted source set.
 See [evidence and the remaining PCM/course map](../assets/music/CGP_ATTRIBUTION.md).
 
 ## What initial inspection establishes

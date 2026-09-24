@@ -93,5 +93,10 @@ ghidra/*
 # User-owned course payloads and local configuration.
 /mods/track-packs/
 
-# Reproducibly imported approved music; packaged separately from source.
+# Defense in depth: excluded recordings are physically deleted, not kept here.
+# Audio data is always imported locally, never part of the source repository.
+*.pcm
+*.msu
+
+# Reproducibly imported retained music; packaged separately from source.
 /music/
