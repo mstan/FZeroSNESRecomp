@@ -1,4 +1,4 @@
-# F-Zero 55 preview.8: tester notes
+# F-Zero 55 preview.9: tester notes
 
 Extract this ZIP into a **new folder** and run `FZeroSNESRecomp.exe`. Select
 your own original F-Zero (USA) ROM. Keep older build folders and saves until
@@ -34,6 +34,13 @@ Both ZIPs retain MSU support and contain the same game content and executable.
   is no longer an accepted CGP course source.
 
 ## New in this preview
+
+- **CGP vehicles** is now one checkbox for all three car groups together.
+  Existing partial selections migrate to the full twelve-car roster (eight
+  additions plus the original four). Selection columns and Grand Prix rivals
+  keep their authored groups; original-car rebalances stay separate.
+
+## Also included from preview.8
 
 - Two download sizes: with-msu includes music; without-msu omits audio files.
   Without bundled music, select your own folder in Settings > Audio. The CGP

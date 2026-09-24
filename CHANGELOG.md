@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.9 - unified CGP vehicles
+
+- Replace the three CGP car-pack toggles with one all-or-nothing CGP vehicles
+  mod. Preserve authored selection columns and Grand Prix rival groups.
+- Migrate saved partial rosters to the full roster. Keep original-car
+  rebalances separate and retain mutual exclusion with BS vehicles.
+
 ## 1.8.3-fzero-55-preview.8 - soundtrack download choices
 
 - Offer Windows ZIPs with and without bundled CGP music, sharing the same
