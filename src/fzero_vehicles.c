@@ -47,6 +47,8 @@ static unsigned selected_rival = 99;
 static unsigned selected_rival_slot = 99;
 static uint8_t race_acceleration[4][4][29], race_turn[4][4][30];
 enum { IMAGE_SIZE = 0x400000, ID_ADDRESS = 0x14dff,
+       INFO_BASE = 0x80000, INFO_CARD_SIZE = 0x580,
+       INFO_ENTRY_SIZE = INFO_CARD_SIZE + 6,
        RIVAL_ID = 0x14ce3, RIVAL_FIRST = 0x14ce4,
        RIVAL_VERSION = 0x14ce5, RIVAL_SLOT = 0x14ce6,
        RIVAL_ART = 0x350000, RIVAL_PALETTES = 0x358000 };
@@ -126,7 +128,7 @@ static bool manifest(unsigned group, CpPack *pack, char *error, size_t cap) {
       char expected[24];
       snprintf(expected, sizeof(expected), "cgp-p%u", group);
       if (bit == 1)
-        ok = !strcmp(v, "fzero-vehicles-1");
+        ok = !strcmp(v, "fzero-vehicles-2");
       if (bit == 2)
         ok = !strcmp(v, expected);
       if (bit == 4)
@@ -208,8 +210,9 @@ bool FzeroVehiclesLoad(const uint8_t *stock, size_t size, char *error,
         !cp_pack_apply(&pack, stock, size, path, &art[group - 1], &length,
                        error, cap))
       return false;
-    if (length != size) {
-      snprintf(error, cap, "Invalid vehicle artwork size");
+    if (length != size + 8 + 4 * INFO_ENTRY_SIZE ||
+        memcmp(art[group - 1] + size, "FZCARD1\0", 8)) {
+      snprintf(error, cap, "Invalid vehicle artwork/card payload");
       return false;
     }
     if (memcmp(art[group - 1] + 0x5ec00, stock + 0x5ec00, 0x400) ||
@@ -606,8 +609,10 @@ static void menu_resources(bool upload) {
     unsigned row = slot == 1 ? 2 : slot == 2 ? 1 : slot;
     const uint8_t *card = images[0] + 0xf5ba0 + row * 4;
     unsigned card_offset = (unsigned)card[2] * 0x8000 + (read16(card) & 0x7fff);
-    memcpy(rom + MENU_CARDS + position * 0x580, images[0] + card_offset, 0x580);
-    pointer(rom + 0xf5ba0 + position * 4, MENU_CARDS + position * 0x580);
+    card = group ? source + INFO_BASE + 8 + slot * INFO_ENTRY_SIZE
+                 : images[0] + card_offset;
+    memcpy(rom + MENU_CARDS + position * INFO_CARD_SIZE, card, INFO_CARD_SIZE);
+    pointer(rom + 0xf5ba0 + position * 4, MENU_CARDS + position * INFO_CARD_SIZE);
     if (!upload)
       continue;
     /* Native static previews are 5x3 BG tiles, with their own authored dim
@@ -759,7 +764,18 @@ void FzeroVehiclesEndFrame(Ppu *ppu) {
   pane_active = false;
 }
 static void menu_hook(CpuState *cpu, uint32_t pc) {
-  if (pc == 0x00c163) {
+  if (pc == 0x1ec4da) {
+    /* Native title/frame palettes follow the selected identity, not its
+     * current display row. Original cars retain their retail colors unless
+     * their individual rebalance is enabled. Leave the copy routine intact. */
+    unsigned id = FzeroVehicleSelected(), group = group_for(id);
+    unsigned slot = vehicles[id].slot;
+    const uint8_t *colors = group
+        ? art[group - 1] + INFO_BASE + 8 + slot * INFO_ENTRY_SIZE + INFO_CARD_SIZE
+        : stock_image + 0x18901 + slot * 6;
+    memcpy(g_ram + 0x532, colors, 6);
+    memcpy(g_ram + 0x544, colors, 6);
+  } else if (pc == 0x00c163) {
     /* Exhaust animation alternates $0760/$0860 into the HUD palette. Those
      * legacy tables can contain a retail or another donor car's marker.
      * Resolve only that color by identity in both phases, retaining every
@@ -902,7 +918,7 @@ void FzeroVehiclesInstallHooks(void) {
   if (!count)
     return;
   const unsigned sites[] = {0x1edd01, 0x1ec76e, 0x1ed90a, 0x1edb0c, 0x1ec81b,
-                            0x1ed04f, 0x1ec831, 0x00d54c, 0x00c163};
+                            0x1ed04f, 0x1ec831, 0x00d54c, 0x00c163, 0x1ec4da};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], menu_hook);
 }

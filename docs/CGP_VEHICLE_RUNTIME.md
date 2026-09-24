@@ -88,9 +88,9 @@ are independent of the last selected GP cup.
 Private evidence: `captures/feedback-20260923/native-menus-qualified`,
 `native-vehicles-final` and `desktop-menu-check/pad.log`.
 
-Remaining B03/B12 work includes importing authored numeric information-card
-artwork (the native panel currently retains the corresponding retail card),
-keeping existing record paths stable when unrelated vehicle packs are added,
+Authored numeric information-card artwork and colors are resolved in
+preview.6, as detailed below. Remaining B03/B12 work includes keeping existing
+record paths stable when unrelated vehicle packs are added,
 full-race/rival qualification and the replacement sharing release. The adapter
 currently qualifies these three CGP sources; an unknown vehicle format requires
 a reviewed adapter.
@@ -220,8 +220,8 @@ artwork. Snes9x reference captures of the small artwork donor and full CGP P2
 ROM show that body shape; the full donor also matches its central exhaust.
 Enabling the other three original-car rebalances does not replace its artwork.
 This does not claim complete pixel or full-race equivalence. The information
-panel still uses original numeric cards and color styling; the later Dragon
-Bird/Wild Goose card feedback remains open, separately from the fixed map dot.
+panel still used original numeric cards and color styling in preview.5.
+The later Dragon Bird/Wild Goose card feedback is resolved in preview.6 below.
 
 Private evidence under `captures/feedback-20260923`:
 
@@ -242,3 +242,57 @@ Private evidence under `captures/feedback-20260923`:
 - Core CTest: 12/12 passed after these changes.
 
 These focused checks do not close the broader B03/B10/B12 limitations.
+
+## Authored information cards (preview.6)
+
+The native confirmation panel now resolves its specification artwork and colors
+from the selected stable identity, independently of its current display row.
+Every CGP car uses its matching authored engine, power, speed, weight and
+acceleration graph. Original identities keep the native retail card until their
+individual rebalance is enabled. The original Satellaview layout, shared labels,
+Yes/No controls and animations remain intact. This changes presentation only.
+
+`tools/vehicle_cards.py` reads the native tilemap stream consumed by `$03:9892`
+and converts the three-plane menu atlas consumed by `$03:98EE`. It extracts the
+44 variable tiles in the existing Deluxe card layout and maps their white/curve
+colors to the shared Deluxe palette. Horizontal/vertical tile flips are honored;
+truncated/oversized streams, unsupported colors and curves outside the reviewed
+layout are rejected. The three accent colors come from `$03:8901 + slot * 6`.
+Extraction requires neither emulator execution nor hand-authored numeric values.
+All three supplied artwork donors produce exactly the same card payloads as the
+complete CGP P1/P2/P3 ROMs.
+
+`fzero-vehicles-2` IPS inputs append a data-only card section after the 512 KiB
+artwork image: eight-byte `FZCARD1` header (including NUL), then four physical-slot
+records, each containing `$580` tile bytes and six accent-color bytes. The loader
+verifies the whole target SHA-256, exact appendix length and header. Only selected
+card tiles enter the reserved menu cartridge area; the appendix is never executed
+or installed as donor game code. The original shared-HUD/fog guards remain.
+Untuned original cards continue to use the canonical native resources.
+
+The native `$1E:C4DA` hook assigns the two title/frame palette accents after the
+original palette routine copies them. It changes no guest registers or shared
+text/graph colors. Stock BS mode installs no expanded-catalog hooks. A snapshot-
+only version marker prevents loading older CGP states containing inherited retail
+card pixels/palettes in VRAM; gameplay signatures and course record keys stay
+unchanged. Current card snapshots and actual rewind restore identically.
+
+`tests/validate_vehicle_cards.py` passes 53 cases against independently executed
+Snes9x cards: all twelve CGP identities; all four untuned originals; each original
+rebalance enabled alone while viewing every original; every car in each standalone
+pack; and Practice. Thirteen cases switch the derived vehicle image before actual
+rewind and verify identical resimulation. Numeric fields and acceleration curves
+match the donor's rendered pixels; frame accents match source colors. Shared
+Deluxe label spacing is retained (some donors move their colons by one pixel).
+Dragon Bird and Red Gazelle also match through wide and HD composition.
+
+Private evidence: `captures/feedback-20260923/info-cards/{oracles,qualified2}`.
+The independent reference core is the same Snes9x core recorded in the identity
+audit. The existing 80 vehicle/race/rewind cases and 12 core CTests pass. All
+sixteen BS-isolation runs preserve identical RAM and frames for each of the eight
+cars with conflicting CGP settings. The broader presentation suite does expose
+an existing failure: unrebalanced Blue Falcon inherits the CGP cohort boost OAM
+layout. This reproduces in the shipped preview.5 desktop executable, independently
+of the card correction. Evidence: `info-cards/{bs-isolation,previous-boost-check}`.
+Per-car boost/exhaust isolation, broader full-race parity and record-namespace
+work remain open; this is not a passing claim for the whole presentation suite.

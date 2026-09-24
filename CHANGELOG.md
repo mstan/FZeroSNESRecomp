@@ -1,5 +1,17 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.6 - authored information cards
+
+- Replace inherited retail information cards with the selected CGP car's
+  authored specifications, acceleration graph and name/frame colors.
+  Original cars retain their original cards unless individually rebalanced.
+- Extract these resources automatically from the native tilemap and graphics
+  format. Keep the existing Satellaview panel, controls and shared labels.
+- Qualify all twelve CGP cards against reference-emulator captures, independent
+  rebalance settings, partial packs, Practice, rewind and wide/HD output.
+  Older CGP card snapshots are incompatible; existing course record keys stay
+  unchanged.
+
 ## 1.8.3-fzero-55-preview.5 - tester feedback fixes
 
 - Keep each authored P1/P2/P3 set together in its native selection column,

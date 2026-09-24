@@ -28,7 +28,9 @@ distinct identities including the original four. Each new ship has its own
 artwork, handling, energy boost and exhaust. Left/right changes car pages;
 up/down changes the selected ship. **Vehicle Rebalances** separately offers
 the author's versions of Blue Falcon, Golden Fox, Wild Goose and Fire Stingray.
-Those options modify the existing identities and default off.
+Those options modify the existing identities and default off. Information
+cards follow the same choice: authored CGP values, acceleration graphs and
+colors for CGP cars/rebalances; original cards for unmodified original cars.
 
 Each enabled CGP set occupies its own selection column, in the author's native
 top-to-bottom order:

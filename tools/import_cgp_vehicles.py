@@ -7,6 +7,7 @@ import argparse
 import hashlib
 from pathlib import Path
 from make_ips import make_ips
+from vehicle_cards import information_cards
 
 DONORS = [
     ('7266ff8b43456a6627ba4d73d6cb233e57b914f0d1170f165f4ffef4be3df1db',
@@ -42,9 +43,12 @@ def main():
         # These addresses are shared HUD/exhaust OAM and fog assets.
         for start,end in [(0x5ec00,0x5f000),(0x46f80,0x47000)]:
             assert donor[start:end]==stock[start:end],(file,hex(start),'shared resource changed')
+        # A data-only appendix: converted numeric/graph tiles and per-slot
+        # information colors. It is never installed as executable cartridge data.
+        image += information_cards(donor)
         patch=make_ips(stock,bytes(image))
         (a.out/f'cgp-p{group}.ips').write_bytes(patch)
-        lines=['format=fzero-vehicles-1',f'id=cgp-p{group}',f'profile={group}',
+        lines=['format=fzero-vehicles-2',f'id=cgp-p{group}',f'profile={group}',
                f'source_sha256={STOCK}',f'target_sha256={hashlib.sha256(image).hexdigest()}',
                f'# Author artwork input SHA-256: {expected}']
         lines += [f'vehicle={id}|{name}|{slot}|{role}' for slot,(id,name,role) in enumerate(ships)]

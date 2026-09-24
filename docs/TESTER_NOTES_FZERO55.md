@@ -1,4 +1,4 @@
-# F-Zero 55 preview.5: tester notes
+# F-Zero 55 preview.6: tester notes
 
 Extract this ZIP into a **new folder** and run `FZeroSNESRecomp.exe`. Select
 your own original F-Zero (USA) ROM. Keep older build folders and saves until
@@ -23,6 +23,9 @@ music are included.
 - Car minimap markers use their authored colors. Moon Shadow no longer
   alternates pink/blue with its exhaust animation; Dragon Bird no longer
   inherits Wild Goose's green marker.
+- CGP information cards now show each car's authored engine, power, speed,
+  weight, acceleration graph and name/frame colors. Original cars keep their
+  original cards until their individual rebalance is enabled.
 - Marine City's trampoline and Lightning's railroad landing have targeted
   fixes. Required course features accompany their courses automatically.
 - Volcania uses the author's approved replacement venue. The retired artwork
@@ -64,10 +67,9 @@ Rewind is on by default: **R** on keyboard. **D / C** are left/right shoulder;
 
 ## Known limitations
 
-- Car information cards still retain original-car numbers and color styling
-  (for example, Dragon Bird can show Wild Goose's green card). Those displayed
-  numbers are not a reliable description of CGP handling. Driving behavior
-  uses the separately checked per-car data.
+- With CGP cars enabled, an unrebalanced Blue Falcon can still inherit its
+  group's energy-boost indicator layout. This also occurs in preview.5;
+  per-car boost/exhaust isolation remains under investigation.
 - Changing enabled vehicle packs or gameplay rules can select a different
   record namespace, making earlier times appear absent. Existing files are
   retained. Keep the same configuration when comparing times.
@@ -93,7 +95,8 @@ optional local performance logs are described in
 [the diagnostics guide](docs/PERFORMANCE_DIAGNOSTICS.md).
 
 The source qualification includes 12 core checks, 44 GP roster cases, 41
-Practice catalog cases, 83 native-menu cases and 22 marker cases, covering all 12 CGP identities
+Practice catalog cases, 83 native-menu cases, 22 marker cases and 53 new
+information-card comparisons, covering all 12 CGP identities
 and all 16 cups. Bower's five courses were loaded through both engines and GP
 progression was checked through injected finish transitions. Carousel,
 results-screen, Practice heading and targeted landing checks were also run.

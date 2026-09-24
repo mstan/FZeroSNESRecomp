@@ -16,9 +16,10 @@ Preview.5 follow-up: authored selection columns and car-identity minimap colors
 are corrected. Marker coverage includes all twelve cars, untuned originals,
 stock/BS baselines, mixed Practice rivals and rewind. Native menu coverage
 checks every displayed row's source artwork and normal/dim palettes across
-partial installations. Original information-card numbers and styling remain
-open under B03/B10; the reported Dragon Bird green card is not fixed by the
-marker correction.
+partial installations. The original information-card limitation from preview.5
+is resolved in preview.6: each CGP identity has its authored specifications,
+acceleration graph and colors, checked against independent donor captures.
+Original cards still accompany untuned original identities.
 
 Planning issue: `beads-8wg.5.34`. The 12 work items below belong directly under
 `beads-8wg.5` (Game: F-Zero), under `beads-8wg` (System: SNES), in the central
@@ -176,7 +177,9 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   information panel; Left/Right changes car columns and Up/Down scrolls leagues.
   All 38 native-menu cases and 80 vehicle integration cases pass, plus a desktop
   SDL gamepad route through all 14 leagues. Authored dim palettes are included.
-  Native numeric spec-card art and additive record-path stability remain open.
+  Numeric spec-card art and colors are now resolved in preview.6, including
+  independent original-car rebalance choices, partial packs and rewind.
+  Additive record-path stability remains open.
   Latest playtest corrections: clipped adjacent car previews on both sides;
   native Practice rival panel reaches all enabled identities with independent
   rival art/stats/acceleration; Practice league and course selectors reach all
@@ -288,8 +291,13 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   native exhaust animation swapped in an unrelated slot color. Authored marker
   colors now follow all four racing identities through both palette phases,
   including cross-group Practice rivals. Dragon Bird's green marker is corrected;
-  its original information-card numbers/styling are still pending. See
+  its authored information-card numbers, graph and styling are also restored
+  in preview.6. See
   `CGP_VEHICLE_RUNTIME.md` for the current evidence.
+  Preview.6 regression follow-up: all eight BS conflict comparisons remain
+  identical, but unrebalanced Blue Falcon inherits its CGP cohort's boost HUD
+  layout. Confirmed in the shipped preview.5 executable as well; per-car
+  boost/exhaust isolation remains an explicit B10 follow-up.
 
 <a id="original-cups"></a>
 - [x] **B11 — Compare CGP's first three leagues** — `beads-8wg.5.45`, P2.
