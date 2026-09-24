@@ -1,4 +1,4 @@
-"""Private-ROM records audit. Returns 1 while the additive-browser defect exists.
+"""Private-ROM records browser regression checks.
 
 Seeds final-lap timing/checkpoints, then crosses each real finish line. Native
 record writes and result-to-records transitions run normally; the fixture skips
@@ -91,19 +91,23 @@ def main():
             saved = files[0].read_bytes()
             assert len(saved) == 32+32768+512
             assert totals(saved[32:]) == [BEST]*5, 'CGP native writes missing'
-            assert totals(sram) == [EMPTY]*5, 'Reassess changed browser behavior'
-            assert name_pixels(folder/'complete.ppm') == 0
-            report['defects'].append('CGP saves five times, but completion restores empty base SRAM before records rendering.')
+            assert '[records-browser] page=2 vehicle=BLUE FALCON mode=gp selected=10' in log
+            assert totals(sram[0x153-5:]) == [BEST]*5, 'Baron times missing from the third displayed cup'
+            assert totals(sram) == [EMPTY]*5, 'Baron times incorrectly assigned to BS-1 CGP'
         else:
             assert totals(sram) == [BEST]*5, (name, 'native writes missing')
             assert name_pixels(folder/'complete.ppm') > 100, (name, 'course names missing')
-            # Select the first completed course using native input.
-            detail, detail_sram, _ = run(folder, 'detail', env, 260,
-                                        FZERO_STATE_LOAD=str(folder/'records.sav'),
-                                        SNESRECOMP_INPUT_SCRIPT='60-66:8')
-            expected = b'\0\5\0' if name == 'stock' else b'\0\3\4'
-            assert detail[0x54:0x57] == expected, (name, 'record detail unreachable')
-            assert totals(detail_sram) == [BEST]*5
+        # Select the first completed course using native input.
+        detail, detail_sram, detail_log = run(folder, 'detail', env, 260,
+                                    FZERO_STATE_LOAD=str(folder/'records.sav'),
+                                    SNESRECOMP_INPUT_SCRIPT='60-66:8')
+        expected = b'\0\5\0' if name == 'stock' else b'\0\3\4'
+        assert detail[0x54:0x57] == expected, (name, 'record detail unreachable')
+        offset = 0x153-5 if name == 'cgp' else 0
+        assert totals(detail_sram[offset:]) == [BEST]*5
+        if name == 'cgp':
+            assert detail[0x14c25] == 10, 'Detail reads a different course slot'
+            assert 'cgp/cgp-1 course=marine-city' in detail_log
         # Reopen from battery SRAM, without loading a snapshot.
         script = folder/'open-records.txt'
         script.write_text('400 400 5a 02\n400 400 f2 0f\n')
@@ -111,8 +115,8 @@ def main():
                                FZERO_TEST_WRAM_SCRIPT=str(script),
                                SNESRECOMP_INPUT_SCRIPT='420-426:8')
         assert ram[0x54:0x57] == b'\0\3\0'
-        assert totals(reopened) == ([EMPTY]*5 if name == 'cgp' else [BEST]*5)
-        assert (name_pixels(folder/'reopen.ppm') > 100) == (name != 'cgp')
+        assert totals(reopened[offset:]) == [BEST]*5
+        if name != 'cgp': assert name_pixels(folder/'reopen.ppm') > 100
         report['checks'].append(f'{name}: native writes, completed-cup menu, battery-save restart')
         print(report['checks'][-1], flush=True)
 

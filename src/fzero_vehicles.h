@@ -11,6 +11,8 @@ void FzeroVehiclesSync(void);
 void FzeroVehiclesLoaded(void);
 void FzeroVehiclesInstallHooks(void);
 const char *FzeroVehicleIdentity(void);
+const char *FzeroVehicleRecordIdentity(unsigned index);
+const char *FzeroVehicleRecordName(unsigned index);
 unsigned FzeroVehicleCount(void);
 unsigned FzeroVehicleSelected(void);
 unsigned FzeroVehicleAcceleration(unsigned slot, unsigned speed);

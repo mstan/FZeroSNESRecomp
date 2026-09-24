@@ -1,4 +1,4 @@
-# Records investigation
+# Records investigation and browser fix
 
 Investigation: `beads-8wg.5.56`. Browser fix: `beads-8wg.5.57` (P1).
 Branch: `f-zero-forever`. Audited baseline: `2733f38`, using the current
@@ -14,15 +14,41 @@ Reported: blank/broken records-menu rows after completing a league.
 - [x] Check stock, BS and CGP configurations, including battery-save restart.
 - [x] Audit discovery and persistence when course packs are added/removed.
 - [x] Record limitations and focused validation; commit with this document.
-- [ ] Fix added-cup/vehicle records browsing (`beads-8wg.5.57`).
+- [x] Fix added-cup/vehicle records browsing (`beads-8wg.5.57`).
 
-The existing adapter gives imported cups separate native SRAM images keyed by
-stable cup/course identity, with per-vehicle contexts when applicable. The
-native records menu has no combined additive-library browser. These are
-separate concerns: preserved files alone do not prove that the menu displays
-the correct courses or times.
+## Implemented browser
 
-## Confirmed defect
+The native three-cup overview now pages over the enabled catalog. L/R shoulder
+buttons change cup pages, X/Y change vehicle context, and Select changes
+GP/Practice context. Arrows select courses, A/Start opens native detail, and B
+returns/exits. The selected/completed cup and car provide the initial focus.
+Page/car changes retain the menu frame without replaying its fade or music.
+Unplayed courses remain accessible and show empty times.
+
+The native detail screen uses the selected cup/course's names and minimap.
+Imported Deluxe courses reuse a native venue illustration matching their
+setting, colored from their decoded palette. Native total-time and best-lap
+rendering remains in use. Browsing assembles a read-only SRAM view from stable
+cup/vehicle keys; it never installs that view as a writable record context.
+Exiting restores the original SRAM and WRAM mirror. Missing/bad files stay
+untouched. The snapshot trailer retains its original size; browser state fits
+in the unused key field while viewing, so rewind and existing states still load.
+
+Two additional defects surfaced in validation and are fixed:
+
+- A fresh stock-engine/track-pack session did not create its base save directory
+  before creating `courses`, so its first records file could not be written.
+- Legacy PPU snapshots omit VMAIN. Cold-loading a Deluxe records state left it
+  at `$00`, shifting every high byte of later detail DMAs by one VRAM word.
+  Restoring the native records-mode `$80` latch fixes labels, venue and minimap.
+  Fresh-boot and loaded-state captures now agree on the native DMA tilemap.
+
+At the audited baseline, the adapter already gave imported cups separate
+native SRAM images keyed by stable cup/course identity, with per-vehicle
+contexts when applicable. The native menu lacked the corresponding browser.
+Preserved files alone did not prove that it displayed correct courses or times.
+
+## Original failure
 
 The completed Baron cup writes five valid BCD best times to its private
 `records.bin`. The final result fade enters native scene `$54,$55 = 00,02`.
@@ -38,11 +64,11 @@ the vehicle-record selector is also disabled there. Merely retaining CGP
 SRAM would put CGP times beneath **wrong stock course names** and still omit
 other cups. No such partial workaround was applied.
 
-There is no new renderer defect demonstrated by this audit. The stock and
-Satellaview control captures have the correct course names and accessible
-record detail pages; direct/reference-renderer checks agree. The earlier
-suspicion that the small BS capture had blank text was an inspection error.
-The right-hand pink arrow belongs to Deluxe's native records paging.
+The initial overview audit did not demonstrate a renderer defect; the stock
+and Satellaview overview controls had correct names and accessible details.
+Follow-up inspection of cold-loaded detail captures exposed the separate
+VMAIN restoration issue described above. The right-hand pink arrow belongs
+to Deluxe's native records paging.
 
 ## Validation
 
@@ -57,8 +83,14 @@ validate a physically driven full league or that animation.
 | Retail Knight: five native writes, overview, record detail, battery reload | Pass |
 | Original BS configuration / Knight: same checks | Pass |
 | CGP Baron, all cars/rebalances/rules: five native record writes | Pass |
-| CGP completed-cup overview and title-menu reopen | **Fail: base records shown** |
-| Original Knight with CGP cars/rebalances/rules | **Same context-switch failure** |
+| CGP completed-cup overview and title-menu reopen | Pass after fix; Baron times displayed in its own cup |
+| Original Knight with CGP cars/rebalances/rules | Pass after fix; Moon Shadow records accessible |
+| Vehicle and page cycling, detail course navigation, back/exit | Pass |
+| GP/Practice context switching; empty-context detail | Pass |
+| Actual rewind ring and snapshot reload | Pass |
+| Loaded detail VRAM equals native WRAM DMA source | Pass |
+| MAX, stock engine: fresh save, overview/detail, paging | Pass |
+| Original BS Forest I detail with MAX enabled | Pass; native BS resources retained |
 | Start Baron again with the same car/settings | Saved times reload |
 | Add MAX and Bower with those records present | Same record key and times |
 | Disable CGP, then re-enable it | Original file preserved; times reload |
@@ -79,24 +111,35 @@ Reproduce using a new output directory (the tool refuses to reuse one):
 python tests/validate_records.py --build build --stock <stock-ROM> --out captures/records/new-audit
 ```
 
-The audit deliberately returns **1** with a `CONFIRMED DEFECT` message and
-`audit.json` while the CGP browser failure remains. Passing native/storage
-checks must not be mistaken for an all-clear. Run the relevant synthetic
-checks with `ctest --test-dir build -R 'fzero_(tracks|course_parser|course_saves)$' --output-on-failure`.
+The formerly failing audit now returns **0** with no defects. Current private
+evidence is in `captures/records/browser-fix-01`, with navigation/native/MAX
+coverage in `browser-nav-04` and the final no-fade navigation check in
+`browser-nav-05`. Each run uses fresh private directories. Run the follow-up:
+
+```powershell
+python tests/validate_records_navigation.py --build build --stock <stock-ROM> --fixture <audit>/cgp --out captures/records/new-navigation
+```
+
+This cycles every enabled car/shared context and cup page, checks detail/back,
+GP/Practice separation, saved views, actual rewind/resimulation, compares the
+native detail DMA against VRAM, and verifies that browsing changes no records
+files. It also completes native Knight with Moon Shadow and MAX on the stock
+engine. `--navigation-only` repeats the shorter checks after UI-only changes.
+Synthetic checks: `ctest --test-dir build -R 'fzero_(tracks|course_parser|course_saves)$' --output-on-failure`.
 
 ## Browser fix burndown
 
-- [ ] Keep the completed cup and vehicle context through the records transition.
-- [ ] Resolve overview **and detail** names/course resources from the live catalog.
-- [ ] Make all enabled cups and applicable vehicle records reachable from title
+- [x] Keep the completed cup and vehicle context through the records transition.
+- [x] Resolve overview **and detail** names/course resources from the live catalog.
+- [x] Make all enabled cups and applicable vehicle records reachable from title
       and after completion, retaining the native menu aesthetic.
-- [ ] Keep original retail and BS records accessible without assigning imported
+- [x] Keep original retail and BS records accessible without assigning imported
       times to their slots or labels.
-- [ ] Cover CGP cars on native courses as well as imported courses: both can
+- [x] Cover CGP cars on native courses as well as imported courses: both can
       use private vehicle record contexts.
-- [ ] Verify GP and Practice record browsing, best lap/total, multiple cars,
+- [x] Verify GP and Practice record browsing, best lap/total, multiple cars,
       exit/back navigation, session restart, snapshots and rewind.
-- [ ] Turn the completed-cup audit green with correct names and times, then
+- [x] Turn the completed-cup audit green with correct names and times, then
       repeat the unrelated-pack and disable/re-enable preservation checks.
 
 ## Storage limits to account for
@@ -109,11 +152,12 @@ checks with `ctest --test-dir build -R 'fzero_(tracks|course_parser|course_saves
 - Changing a member course's content changes the cup key, so older files stay
   on disk but are not automatically discoverable under the revised cup.
 - `records.bin` stores a digest, native SRAM and the retail WRAM record mirror;
-  it has no human-readable cup/car index. A combined browser needs explicit
-  context discovery rather than guessing which hash directory belongs to a car.
+  it has no human-readable cup/car index. The browser computes keys from the
+  current catalog and enabled vehicle identities instead of guessing filenames.
 - Existing malformed-file tests verify preservation/read-only behavior. They
   are not a general recovery/migration implementation.
 
-No production records behavior was changed in the investigation commit.
-The missing browser integration remains a release blocker; the new private
-test fixture and this report are the validated outcome of the investigation.
+The browser is read-only; record deletion is deliberately not forwarded to
+native guest-slot deletion commands. It covers contexts in the current save
+root/catalog, not automatic migration across older gameplay signatures,
+cartridge save-name prefixes, or changed course resources.

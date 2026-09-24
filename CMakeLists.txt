@@ -199,7 +199,7 @@ target_compile_definitions(FZeroSNESRecomp PRIVATE
     RECOMP_UI_DEFAULT_RENDERER_KEY="")
 
 function(configure_fzero_target target)
-    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_gameplay.c src/fzero_vehicles.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c src/fzero_course_hooks.c src/fzero_course_menu.c src/fzero_course_saves.c)
+    target_sources(${target} PRIVATE src/fzero_deluxe.c src/fzero_gameplay.c src/fzero_vehicles.c src/fzero_state_mode.c src/fzero_msu.c src/fzero_track_runtime.c src/fzero_course_hooks.c src/fzero_course_menu.c src/fzero_course_saves.c src/fzero_records.c)
     target_link_libraries(${target} PRIVATE fzero_tracks)
     if(FZERO_DELUXE_GEN_DIR)
         target_sources(${target} PRIVATE $<TARGET_OBJECTS:fzero_deluxe_native>

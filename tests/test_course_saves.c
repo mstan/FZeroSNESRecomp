@@ -8,6 +8,7 @@
 #define MKDIR(p) mkdir(p, 0755)
 #endif
 #include "fzero_course_runtime.h"
+#include "fzero_records.h"
 #include "common_rtl.h"
 #include "snes/saveload.h"
 #include <stdio.h>
@@ -64,13 +65,27 @@ int main(void) {
         !memcmp(mirror, g_ram + 0x14800, sizeof(mirror)));
   CHECK(!strcmp(root, "test-course-records"));
   CHECK(FzeroTracksRecordsSelect(b) && sram[5] == 0x82);
+  uint8_t readback[0x400], missing[32] = {3};
+  CHECK(FzeroRecordsViewBegin() && FzeroRecordsViewState());
+  CHECK(!strcmp(root, "test-course-records"));
+  CHECK(FzeroRecordsRead(a, readback) && readback[5] == 0x81);
+  CHECK(FzeroRecordsRead(b, readback) && readback[5] == 0x82);
+  CHECK(FzeroRecordsRead(NULL, readback) && !memcmp(readback, original, sizeof(readback)));
+  CHECK(!FzeroRecordsRead(missing, readback) && readback[5] == 9);
+  memset(sram, 0xee, sizeof(sram)); /* Synthetic three-cup view is disposable. */
+  memset(g_ram + 0x14800, 0xdd, 0x200);
+  FzeroTracksFlush();
+  CHECK(FzeroTracksRecordsSelect(a) && !FzeroRecordsViewState() && sram[5] == 0x81);
+  CHECK(FzeroRecordsViewBegin());
   FzeroTracksSavesFinish();
+  CHECK(!memcmp(original, sram, sizeof(original)) && !memcmp(mirror, g_ram + 0x14800, sizeof(mirror)));
   const char *path = "test-course-records/courses/01000000000000000000000000000000/records.bin";
   FILE *f = fopen(path, "wb");
   CHECK(f);
   fputs("damaged", f);
   fclose(f);
   CHECK(FzeroTracksRecordsSelect(a) && sram[5] == 9);
+  CHECK(FzeroRecordsViewBegin() && !FzeroRecordsRead(a, readback) && readback[5] == 9);
   FzeroTracksSavesFinish();
   f = fopen(path, "rb");
   CHECK(f);

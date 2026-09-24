@@ -95,10 +95,13 @@ and that session is read-only. Library snapshots include the base backup,
 selected cup, full catalog identity and the framework execution-state chunk,
 including refresh timing needed for deterministic replay.
 
-**Known records UI defect (2026-09-24):** completed imported-cup times are
-saved and reload in a matching race, but the records menu restores base SRAM
-and has no added-cup/vehicle browser. Storage isolation is not records-menu
-support. See [the reproduced failure and fix burndown](RECORDS_BURNDOWN.md).
+The records browser retains the native three-cup overview and detail screen.
+L/R shoulder buttons page through enabled cups; X/Y select vehicle contexts
+(including shared records), and Select switches GP/Practice contexts. It opens
+on the selected/completed cup and car. Unplayed courses remain selectable.
+Names and minimaps resolve from the live catalog, and a temporary read-only
+SRAM view keeps browsing separate from persistent records. See
+[the regression checks and burndown](RECORDS_BURNDOWN.md).
 
 ## Build and validation
 
@@ -199,8 +202,8 @@ The decoder supports the MAX/CGP FZEdit resource representation, not every hack.
 An unfamiliar binary format or donor-only hazard/event needs a new typed
 adapter and qualification. Structural parsing alone cannot prove playability.
 The current GP adapter accepts one to five tracks per cup. Imported Practice
-selection, cross-pack assembled cups and a combined records browser are future
-work. Native Practice includes only enabled native courses. The CGP MSU
+selection and cross-pack assembled cups are separate from records browsing.
+Native Practice includes only enabled native courses. The CGP MSU
 adapter is separately opt-in and falls back to SPC without matching audio. Library snapshots require the same
 catalog; records survive adding/removing unrelated packs.
 

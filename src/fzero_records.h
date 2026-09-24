@@ -1,0 +1,23 @@
+#pragma once
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+/* Fits the formerly unused key while a read-only records view is active.
+ * This keeps the existing snapshot/rewind trailer layout compatible. */
+typedef struct FzeroRecordsView {
+  uint16_t page, previous_cup, input, hold;
+  uint8_t vehicle, practice, selected, reserved;
+  uint16_t label_tick;
+} FzeroRecordsView;
+FzeroRecordsView *FzeroRecordsViewState(void);
+bool FzeroRecordsViewBegin(void);
+void FzeroRecordsViewEnd(void);
+bool FzeroRecordsRead(const uint8_t *key, uint8_t records[0x400]);
+void FzeroRecordsTick(void);
+uint16_t FzeroRecordsInput(uint16_t input);
+void FzeroRecordsInstallHooks(void);
+void FzeroRecordsOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch);
+bool FzeroRecordsDetail(void);
+unsigned FzeroRecordsCup(void);
+unsigned FzeroRecordsOrder(void);

@@ -69,6 +69,12 @@ unsigned FzeroVehicleSelected(void) {
 const char *FzeroVehicleIdentity(void) {
   return count ? vehicles[FzeroVehicleSelected()].id : NULL;
 }
+const char *FzeroVehicleRecordIdentity(unsigned index) {
+  return index < count ? vehicles[roster[index]].id : NULL;
+}
+const char *FzeroVehicleRecordName(unsigned index) {
+  return index < count ? vehicles[roster[index]].name : "SHARED RECORDS";
+}
 static unsigned group_for(unsigned id) {
   if (id >= 4)
     return vehicles[id].group;

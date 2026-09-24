@@ -4,6 +4,7 @@
 #include "fzero_gameplay.h"
 #include "fzero_vehicles.h"
 #include "fzero_title.h"
+#include "fzero_records.h"
 #include "cpu_state.h"
 #include "common_rtl.h"
 #include "snes/interp_bridge.h"
@@ -25,7 +26,6 @@ static uint8_t identity[32];
 static uint16_t menu_last_input;
 static unsigned menu_hold;
 static const FzeroCourse *course;
-static uint8_t cup_hash[32];
 bool FzeroTracksActive(void) {
   return imported_count != 0 || FzeroGameplayActive();
 }
@@ -79,15 +79,21 @@ unsigned FzeroTracksRuntimeCount(void) {
     n += imported[i].pack->cup_count;
   return n;
 }
-bool FzeroTracksRuntimeSelect(unsigned n) {
+const CpTrack *FzeroTracksRuntimeTrack(unsigned n, unsigned order) {
+  const CpPack *p;
+  const CpCup *cup = FzeroTracksRuntimeCup(n, &p);
+  if (cup)
+    for (unsigned i = 0; i < p->track_count; ++i)
+      if (!strcmp(p->tracks[i].cup, cup->id) && !order--)
+        return &p->tracks[i];
+  return NULL;
+}
+bool FzeroTracksRecordKey(unsigned n, const char *vehicle, bool practice, uint8_t result[32]) {
   const CpPack *p = NULL;
   const CpCup *cup = FzeroTracksRuntimeCup(n, &p);
   if (!cup)
     return false;
-  menu_index = n;
-  active_pack = p;
-  active_cup = cup;
-  course = NULL;
+  memset(result, 0, 32);
   if (imported_pack(p)) {
     uint8_t key[CP_ID * 2 + CP_TRACKS * (CP_ID + 32)] = {0};
     size_t pos = CP_ID * 2;
@@ -102,8 +108,29 @@ bool FzeroTracksRuntimeSelect(unsigned n) {
             memcpy(key + pos, imported[i].courses[t].hash, 32);
             pos += 32;
           }
-    sha256_compute(key, pos, cup_hash);
+    sha256_compute(key, pos, result);
   }
+  if (vehicle) {
+    uint8_t data[32 + 3 * CP_ID] = {0};
+    memcpy(data, result, 32);
+    bool native_practice = practice && !imported_pack(p);
+    const char *pack_id = native_practice ? (FzeroDeluxeActive() ? "bs-deluxe" : "retail") : p->id;
+    const char *cup_id = native_practice ? "practice" : cup->id;
+    memcpy(data + 32, pack_id, strlen(pack_id));
+    memcpy(data + 32 + CP_ID, cup_id, strlen(cup_id));
+    memcpy(data + 32 + 2 * CP_ID, vehicle, strlen(vehicle));
+    sha256_compute(data, sizeof(data), result);
+  }
+  return imported_pack(p) || vehicle;
+}
+bool FzeroTracksRuntimeSelect(unsigned n) {
+  const CpPack *p;
+  const CpCup *cup = FzeroTracksRuntimeCup(n, &p);
+  if (!cup) return false;
+  menu_index = n;
+  active_pack = p;
+  active_cup = cup;
+  course = NULL;
   return true;
 }
 unsigned FzeroTracksCurrentCupSize(void) {
@@ -116,16 +143,22 @@ unsigned FzeroTracksCurrentCupSize(void) {
 }
 static void current_course(void) {
   course = NULL;
-  if (!active_cup || !imported_pack(active_pack) || g_ram[0x54] == 0)
-    return;
+  const CpPack *p = active_pack;
+  const CpCup *cup = active_cup;
   unsigned order = g_ram[0x53];
+  if (FzeroRecordsDetail()) {
+    cup = FzeroTracksRuntimeCup(FzeroRecordsCup(), &p);
+    order = FzeroRecordsOrder();
+  } else if (g_ram[0x54] == 0) return;
+  if (!cup || !imported_pack(p))
+    return;
   const char *test = getenv("FZERO_TEST_COURSE");
-  if (test)
+  if (test && !FzeroRecordsDetail())
     order = (unsigned)strtoul(test, NULL, 10);
   for (unsigned i = 0; i < imported_count; ++i)
-    if (imported[i].pack == active_pack)
-      for (unsigned t = 0; t < active_pack->track_count; ++t)
-        if (!strcmp(active_pack->tracks[t].cup, active_cup->id)) {
+    if (imported[i].pack == p)
+      for (unsigned t = 0; t < p->track_count; ++t)
+        if (!strcmp(p->tracks[t].cup, cup->id)) {
           if (!order--) {
             course = &imported[i].courses[t];
             return;
@@ -355,11 +388,13 @@ void FzeroTracksMenuTick(uint8_t *ram, uint32_t previous_scene) {
   if (FzeroTracksActive() && ram[0x58] && ram[0x54] == 1 && ram[0x55] == 1 &&
       ram[0x56] == 3 && (previous_scene >> 16) != 3)
     FzeroTracksRuntimeSelect(0);
-  if (g_ram[0x54] == 0)
+  FzeroRecordsTick();
+  if (g_ram[0x54] == 0 && !FzeroRecordsViewState())
     FzeroTracksRecordsSelect(NULL);
   current_course();
 }
 uint16_t FzeroTracksMenuInput(uint16_t input, const uint8_t *ram) {
+  if (FzeroRecordsViewState()) return FzeroRecordsInput(input);
   if (getenv("FZERO_TRACE_LIBRARY") && input)
     fprintf(stderr, "[library-input] %u scene=%u,%u,%u active=%u deluxe=%u index=%u\n", input,
             ram[0x54], ram[0x55], ram[0x56], imported_count, FzeroDeluxeActive(), menu_index);
@@ -402,23 +437,11 @@ bool FzeroTracksClassSelected(void) {
 }
 void FzeroTracksRefreshCourse(void) {
   current_course();
-  uint8_t vehicle_key[32];
-  const uint8_t *key=course?cup_hash:NULL;
-  const char *vehicle=FzeroVehicleIdentity();
-  if(vehicle && g_ram[0x54] != 0 && active_pack && active_cup) {
-    uint8_t data[32+3*CP_ID]={0};
-    if(key)memcpy(data,key,32);
-    /* Keep existing native Practice records reachable. Imported courses use
-     * their own course hash and cup, independent of the native selector. */
-    bool native_practice = g_ram[0x58] && !imported_pack(active_pack);
-    const char *pack_id = native_practice ? (FzeroDeluxeActive() ? "bs-deluxe" : "retail")
-                                          : active_pack->id;
-    const char *cup_id = native_practice ? "practice" : active_cup->id;
-    memcpy(data+32,pack_id,strlen(pack_id));
-    memcpy(data+32+CP_ID,cup_id,strlen(cup_id));
-    memcpy(data+32+2*CP_ID,vehicle,strlen(vehicle));
-    sha256_compute(data,sizeof(data),vehicle_key);key=vehicle_key;
-  }
+  if (FzeroRecordsViewState()) return;
+  uint8_t digest[32];
+  const uint8_t *key = NULL;
+  if (g_ram[0x54] && FzeroTracksRecordKey(menu_index, FzeroVehicleIdentity(), g_ram[0x58] != 0, digest))
+    key = digest;
   if (FzeroTracksActive() && !FzeroTracksRecordsSelect(key))
     course = NULL;
 }

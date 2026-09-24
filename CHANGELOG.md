@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## Unreleased
+
+- Browse all enabled cups and vehicle-specific records in the native records
+  overview/detail layout, including existing times after restart.
+- Keep browsing read-only, with cup pages, car selection and GP/Practice
+  contexts. Retain existing save keys and snapshot layout.
+- Restore the Deluxe records VRAM upload mode on snapshot load, fixing
+  garbled detail text, venue graphics and minimaps after loading a state.
+- Create the base save directory before a track-only setup's first cup save.
+
 ## 0.1.10 - F-Zero Forever version baseline
 
 - Continue the current work on `f-zero-forever`, branched from `fzero-55`.

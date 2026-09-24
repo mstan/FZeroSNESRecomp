@@ -3,6 +3,9 @@
 #include "fzero_gameplay.h"
 #include "fzero_vehicles.h"
 #include "fzero_deluxe.h"
+#include "fzero_records.h"
+#include "snes/cart.h"
+extern Snes *g_snes;
 #include "common_rtl.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -33,7 +36,88 @@ static void text(Canvas c, int x, int y, const char *s, unsigned limit, uint32_t
           box(c, x + (int)i * 8 + xx, y + yy, 1, 1, color);
   }
 }
+
+/* Native records lettering. Keep the three-cup arrangement and ruled rows. */
+static void record_text(Canvas c, int x, int y, const char *s, unsigned limit, uint32_t color) {
+  for (unsigned i = 0; s[i] && i < limit; ++i) {
+    unsigned ch = (unsigned)toupper((unsigned char)s[i]);
+    if (ch >= 'A' && ch <= 'Z') {
+      const uint8_t *glyph = g_snes->cart->rom + 0x75ea0 + (ch - 'A') * 16;
+      for (int yy = 0; yy < 8; ++yy)
+        for (int xx = 0; xx < 8; ++xx)
+          if (glyph[yy * 2 + 1] & (128u >> xx))
+            box(c, x + (int)i * 8 + xx, y + yy, 1, 1, color);
+    } else {
+      char glyph[2] = {(char)ch, 0};
+      text(c, x + (int)i * 8, y, glyph, 1, color);
+    }
+  }
+}
+static const char *scroll_label(const char *label, unsigned width, bool selected) {
+  size_t n = strlen(label);
+  if (selected && n > width) {
+    unsigned offset = FzeroRecordsViewState()->label_tick / 20 % (unsigned)(n - width + 12);
+    offset = offset < 6 ? 0 : offset - 6;
+    label += offset > n - width ? n - width : offset;
+  }
+  return label;
+}
+void FzeroRecordsOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch) {
+  FzeroRecordsView *v = FzeroRecordsViewState();
+  if (!v || !pixels || height < 224 || height % 224 || width / (height / 224) < 256) return;
+  bool detail = FzeroRecordsDetail();
+  if (g_ram[0x54] || g_ram[0x55] != (FzeroDeluxeActive() ? 3 : detail ? 5 : 3)) return;
+  if (FzeroDeluxeActive() && g_ram[0x56] != (detail ? 4 : 0)) return;
+  Canvas c = {pixels, pitch, height / 224, (width / (height / 224) - 256) / 2};
+  char label[80];
+  snprintf(label, sizeof(label), "%s / %s", FzeroVehicleRecordName(v->vehicle), v->practice ? "PRACTICE" : "GP");
+  box(c, 0, 0, 256, 16, 0xff000000);
+  record_text(c, (256 - (int)strlen(label) * 8) / 2, 4, label, 32, 0xffb8e8ff);
+  if (detail) {
+    const CpCup *cup = FzeroTracksRuntimeCup(FzeroRecordsCup(), NULL);
+    const CpTrack *track = FzeroTracksRuntimeTrack(FzeroRecordsCup(), FzeroRecordsOrder());
+    box(c, 8, 76, 120, 38, 0xff000000);
+    record_text(c, 16, 82, scroll_label(track->name, 14, true), 14, 0xffffffff);
+    record_text(c, 16, 104, scroll_label(cup->name, 14, true), 14, 0xffb8e8ff);
+    return;
+  }
+  static const uint32_t colors[] = {0xffb8fff0, 0xffffffa0, 0xffffc8e0};
+  for (unsigned col = 0; col < 3; ++col) {
+    int left = col == 2 ? 136 : 16, top = col == 1 ? 128 : 24;
+    const CpCup *cup = FzeroTracksRuntimeCup(v->page * 3 + col, NULL);
+    box(c, left - 8, top - 4, 128, 94, 0xff000000);
+    if (!cup) continue;
+    unsigned title_width = (unsigned)strlen(cup->name);
+    if (title_width > 14) title_width = 14;
+    record_text(c, left + (112 - (int)title_width * 8) / 2, top,
+                scroll_label(cup->name, 14, v->selected / 5 == col), 14, colors[col]);
+    for (unsigned row = 0; row < 5; ++row) {
+      const CpTrack *track = FzeroTracksRuntimeTrack(v->page * 3 + col, row);
+      if (!track) continue;
+      unsigned slot = col * 5 + row;
+      bool selected = v->selected == slot;
+      static const unsigned start[] = {5, 0xac, 0x153};
+      bool played = (g_sram[start[col] + row * 33] & 15) != 9;
+      int y = top + 16 + row * 16;
+      snprintf(label, sizeof(label), "%u", row + 1);
+      record_text(c, left, y, label, 1, colors[col]);
+      record_text(c, left + 16, y, scroll_label(track->name, 12, selected), 12,
+          selected ? 0xffffffff : played ? colors[col] : 0xff808080);
+      box(c, left, y + 9, 112, 1, colors[col]);
+      if (selected) text(c, left - 8, y, ">", 1, 0xffffff00);
+    }
+  }
+  box(c, 128, 128, 128, 32, 0xff000000);
+  record_text(c, 144, 144, "EXIT", 4, 0xffffffff);
+  if (v->selected == 15) text(c, 136, 144, ">", 1, 0xffffff00);
+  box(c, 128, 192, 128, 32, 0xff000000);
+  snprintf(label, sizeof(label), "L/R CUPS %u/%u", v->page + 1, (FzeroTracksRuntimeCount() + 2) / 3);
+  record_text(c, 144, 192, label, 14, 0xffb8e8ff);
+  record_text(c, 144, 204, FzeroVehicleCount() ? "X/Y CAR" : "SHARED TIMES", 14, 0xffb8e8ff);
+  if (FzeroVehicleCount() || FzeroBsTracks()) record_text(c, 144, 216, "SELECT GP/PR", 14, 0xffb8e8ff);
+}
 void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch) {
+  FzeroRecordsOverlay(pixels, width, height, pitch);
   if (!pixels || !FzeroTracksMenuVisible() || height < 224 || height % 224)
     return;
   static bool logged;

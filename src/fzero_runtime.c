@@ -22,6 +22,7 @@
 #include "fzero_deluxe.h"
 #include "fzero_tracks.h"
 #include "fzero_course_runtime.h"
+#include "fzero_records.h"
 #include "fzero_hdma.h"
 #include "fzero_state_mode.h"
 #include "fzero_msu.h"
@@ -568,6 +569,7 @@ static void session_reset(void) {
   FzeroTracksInstallHooks();
   FzeroGameplayInstallHooks();
   FzeroVehiclesInstallHooks();
+  FzeroRecordsInstallHooks();
   /* The runtime's own baseline is stock, not the shipped defaults: a host that
    * offers video settings calls FzeroSetViewport with them, and one that does
    * not (headless captures, tools) must stay at 4:3 unless FZERO_ASPECT opts
@@ -850,6 +852,14 @@ static void fzero_on_state_loaded(uint32_t version) {
   s_loaded_runtime_state = false;
   FzeroMsuRestoreAudio(g_ram);
   if (FzeroTracksActive()) RtlApplyExecutionState();
+
+  /* The legacy PPU snapshot chunk omits VMAIN. Deluxe records rely on the
+   * $80 latch retained from native video setup (e.g. $008439).
+   * Loading an overview directly after cold boot otherwise uses $00: each
+   * high byte lands one word late, garbling labels, the venue and minimap.
+   * Reconstruct this known native menu invariant for existing states too. */
+  if (FzeroDeluxeActive() && !g_ram[0x54] && g_ram[0x55] >= 2 && g_ram[0x55] <= 3)
+    ppu_write(g_ppu, 0x15, 0x80);
 
   /* Older snapshots discarded the race's final HDMA window latches. Results
    * have already collapsed that window and disabled its channel, so no later

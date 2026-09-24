@@ -8,6 +8,8 @@ void FzeroTracksInstallHooks(void);
 bool FzeroTracksRuntimeSelect(unsigned index);
 unsigned FzeroTracksRuntimeCount(void);
 const CpCup *FzeroTracksRuntimeCup(unsigned index, const CpPack **pack);
+const CpTrack *FzeroTracksRuntimeTrack(unsigned cup, unsigned order);
+bool FzeroTracksRecordKey(unsigned cup, const char *vehicle, bool practice, uint8_t key[32]);
 void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch);
 void FzeroTracksFlush(void);
 void FzeroTracksMenuReset(void);

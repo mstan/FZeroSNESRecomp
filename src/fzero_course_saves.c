@@ -5,6 +5,7 @@
 #include "fzero_course_runtime.h"
 #include "fzero_tracks.h"
 #include "fzero_deluxe.h"
+#include "fzero_records.h"
 #include "common_rtl.h"
 #include "sha256.h"
 #include "snes/saveload.h"
@@ -15,10 +16,14 @@
  * namespace, and the original cartridge's records remain the base context.
  * The backup is part of every library snapshot and rewind frame. */
 typedef struct CourseSaveState {
-  uint8_t external, backup_valid, read_only, reserved, key[32];
+  uint8_t external, backup_valid, read_only, view;
+  union { uint8_t key[32]; FzeroRecordsView browser; };
   uint8_t base_sram[0x8000], base_records[0x200];
 } CourseSaveState;
 static CourseSaveState state;
+_Static_assert(sizeof(FzeroRecordsView) <= 32, "Records view must fit the snapshot key");
+_Static_assert(sizeof(CourseSaveState) == 4 + 32 + 0x8000 + 0x200,
+               "Preserve the legacy course-save snapshot layout");
 static char base_root[96];
 static bool set_root(const uint8_t *key) {
   if (!key) {
@@ -32,6 +37,9 @@ static bool set_root(const uint8_t *key) {
     return false;
   char parent[96];
   snprintf(parent, sizeof(parent), "%s/courses", base_root);
+  /* A first run with only a track pack has no Deluxe/rules directory setup. */
+  RtlSetSaveRoot(base_root);
+  RtlEnsureSaveDir();
   RtlSetSaveRoot(parent);
   RtlEnsureSaveDir();
   RtlSetSaveRoot(root);
@@ -94,6 +102,7 @@ static void fresh_records(void) {
   memcpy(g_ram + 0x14800, g_sram, 0x200);
 }
 bool FzeroTracksRecordsSelect(const uint8_t *key) {
+  FzeroRecordsViewEnd();
   if ((!key && !state.external) || (key && state.external && !memcmp(key, state.key, 32)))
     return true;
   if (g_sram_size < 0x200 || g_sram_size > 0x8000)
@@ -139,6 +148,50 @@ bool FzeroTracksRecordsSelect(const uint8_t *key) {
     }
   }
   return true;
+}
+FzeroRecordsView *FzeroRecordsViewState(void) {
+  return state.view ? &state.browser : NULL;
+}
+bool FzeroRecordsViewBegin(void) {
+  if (state.view) return true;
+  if (!FzeroTracksRecordsSelect(NULL)) return false;
+  memcpy(state.base_sram, g_sram, g_sram_size);
+  memcpy(state.base_records, g_ram + 0x14800, 0x200);
+  state.backup_valid = state.view = 1;
+  memset(state.key, 0, sizeof(state.key));
+  return true;
+}
+void FzeroRecordsViewEnd(void) {
+  if (!state.view) return;
+  memcpy(g_sram, state.base_sram, g_sram_size);
+  memcpy(g_ram + 0x14800, state.base_records, 0x200);
+  state.view = 0;
+}
+/* Reading a context never changes the save root, creates directories, or
+ * installs it as writable SRAM. Missing/bad files yield an empty display. */
+bool FzeroRecordsRead(const uint8_t *key, uint8_t records[0x400]) {
+  memset(records, 0, 0x400);
+  const unsigned starts[] = {5, 0xac, 0x153, 0x205, 0x2ac, 0x353};
+  for (unsigned league = 0; league < 6; ++league)
+    for (unsigned i = 0; i < (league == 5 ? 22 : 55); ++i)
+      memcpy(records + starts[league] + i * 3, "\x09\x59\x99", 3);
+  if (!key) {
+    memcpy(records, (state.view || state.external) ? state.base_sram : g_sram, 0x400);
+    return true;
+  }
+  char hex[65], path[160];
+  cp_hash_format(key, hex);
+  snprintf(path, sizeof(path), "%s/courses/%.32s/records.bin", base_root, hex);
+  FILE *f = fopen(path, "rb");
+  if (!f) return false;
+  uint8_t hash[32], sram[0x8000], mirror[0x200];
+  bool ok = fread(hash, 1, 32, f) == 32 && !memcmp(hash, key, 32) &&
+      fread(sram, 1, g_sram_size, f) == (size_t)g_sram_size &&
+      fread(mirror, 1, sizeof(mirror), f) == sizeof(mirror) && fgetc(f) == EOF;
+  fclose(f);
+  if (ok) memcpy(records, sram, 0x400);
+  else FzeroTracksReport("Records file failed validation; displaying empty records without modifying it");
+  return ok;
 }
 size_t FzeroTracksSaveStateSize(void) {
   return sizeof(state);
