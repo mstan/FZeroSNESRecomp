@@ -15,7 +15,7 @@ int main(void) {
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
     packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
-  CHECK(p->package_count(NULL) == 10 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 9 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -23,7 +23,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 10 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 9 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -57,8 +57,9 @@ int main(void) {
     CHECK(!s.enhanced && !s.bs_deluxe && !s.hd_mode7 && !s.fps_enabled);
   }
   for (int i=3;i<FZERO_RULE_COUNT;++i) {
+    if (i == FZERO_RULE_MSU) continue;
     RecompLauncherCModFeature rule;
-    CHECK(p->feature_get(NULL,3+i,&rule) && !rule.enabled);
+    CHECK(p->feature_get(NULL,3+i-(i>FZERO_RULE_MSU),&rule) && !rule.enabled);
     CHECK(p->feature_resource_count(NULL,rule.package_id,rule.id)==0);
     CHECK(p->feature_enable(NULL,rule.package_id,rule.id,1));
     CHECK((s.gameplay.enabled & (1u<<i))!=0);
@@ -162,6 +163,47 @@ int main(void) {
     CHECK(p->commit(NULL, NULL));
     CHECK(FzeroTracksInit("test-mod-tracks", true));
     CHECK(!FzeroTracksTitleEnabled(cp_catalog_find(FzeroTracksCatalog(), "cgp")));
+  }
+  /* Presets touch only the CGP/BS family. Every MAX/Bower combination and
+   * unrelated launcher/display setting must survive all three recipes. */
+  const CpPack *bower=cp_catalog_find(FzeroTracksCatalog(),"bower-league");
+  max=cp_catalog_find(FzeroTracksCatalog(),"max-league");
+  cgp=cp_catalog_find(FzeroTracksCatalog(),"cgp");
+  CHECK(p->preset_count(NULL)==3);
+  for (unsigned extra=0; extra<4; ++extra) {
+    if (max) CHECK(FzeroTracksEnable(max,(extra&1)!=0));
+    if (bower) CHECK(FzeroTracksEnable(bower,(extra&2)!=0));
+    s.enhanced=true;s.fps_enabled=true;s.fps=144;s.hd_mode7=true;s.hd_scale=3;s.diagnostics=true;
+    for (int pick=0; pick<3; ++pick) {
+      RecompLauncherCSettings io={0};io.volume=37;io.rewind_enabled=1;io.fullscreen=2;
+      snprintf(io.msu1_dir,sizeof(io.msu1_dir),"my custom soundtrack");
+      RecompLauncherCModPreset recipe;
+      CHECK(p->preset_get(NULL,pick,&recipe));
+      CHECK(p->preset_apply(NULL,recipe.id,&io));
+      CHECK(!strcmp(p->preset_current(NULL,&io),recipe.id));
+      if(max)CHECK(FzeroTracksEnabled(max)==((extra&1)!=0));
+      if(bower)CHECK(FzeroTracksEnabled(bower)==((extra&2)!=0));
+      CHECK(io.volume==37 && io.rewind_enabled==1 && io.fullscreen==2);
+      CHECK(!strcmp(io.msu1_dir,"my custom soundtrack"));
+      CHECK(s.enhanced && s.fps_enabled && s.fps==144 && s.hd_mode7 && s.hd_scale==3 && s.diagnostics);
+      CHECK(s.bs_tracks==(pick==1) && s.bs_deluxe==(pick==1));
+      CHECK(s.gameplay.vehicle_packs==(pick==2?7u:0u));
+      CHECK(s.gameplay.stock_rebalance==(pick==2?15u:0u));
+      CHECK(s.gameplay.enabled==(pick==2?((1u<<FZERO_RULE_COUNT)-1)&~7u:0u));
+      CHECK(io.msu1_enabled==(pick==2));
+      CHECK(FzeroTracksEnabled(cgp)==(pick==2));
+      CHECK(FzeroTracksTitleEnabled(cgp)==(pick==2));
+      CHECK(p->commit(NULL,NULL) && FzeroVideoLoad(&loaded,"test-mods.ini"));
+      CHECK(!memcmp(&loaded.gameplay,&s.gameplay,sizeof(s.gameplay)));
+      CHECK(!p->preset_apply(NULL,"invalid",&io));
+      CHECK(!strcmp(p->preset_current(NULL,&io),recipe.id));
+      if(pick==2) {
+        CHECK(p->feature_enable(NULL,"cgp-legend","rules",0));
+        CHECK(!*p->preset_current(NULL,&io));
+        CHECK(p->preset_apply(NULL,"cgp",&io));
+        io.msu1_enabled=0;CHECK(!*p->preset_current(NULL,&io));
+      }
+    }
   }
   remove("test-mods.ini");
   puts("Independent widescreen and presentation FPS plugins passed");

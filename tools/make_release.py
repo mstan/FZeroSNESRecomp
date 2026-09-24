@@ -13,6 +13,7 @@ import shutil
 import struct
 import subprocess
 import zipfile
+from import_cgp_music import verify_music
 
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
@@ -77,8 +78,14 @@ stage = ROOT / a.output / name
 stage.mkdir(parents=True, exist_ok=False)
 shutil.copy2(exe, stage / "FZeroSNESRecomp.exe")
 # Build trees can contain privately imported shaders; never redistribute them.
-shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns("shaders"))
+shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns("shaders", "music"))
 shutil.copytree(ROOT / "assets/shaders", stage / "assets/shaders")
+# Reviewed CGP soundtrack only; never copy arbitrary user music from a build.
+music = ROOT / "music/cgp"
+verify_music(music)
+shutil.copytree(music, stage / "assets/music/cgp")
+shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
+shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
 patches = ROOT / "patches"
 if patches.is_dir():
     shutil.copytree(patches, stage / "patches")
@@ -110,6 +117,7 @@ shutil.copytree(ROOT / "mods/cgp-source", stage / "mods/cgp-source")
 shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
 shutil.copy2(ROOT / "docs/BOWER_AND_CGP_LEAGUES.md", stage / "docs/BOWER_AND_CGP_LEAGUES.md")
 shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
+shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own\n"
@@ -119,11 +127,14 @@ shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
     "Settings > Display contains aspect choices and shader presets including\n"
     "CRT Soft. Shaders start OFF (None). Browse imports a custom .glslp or\n"
     ".glsl shader; selecting one uses the OpenGL presentation path.\n\n"
-    "For MSU-1, put the supported Conn/Cubear v11 f-zero_msu1.ips beside\n"
-    "your pack's numbered PCM tracks, then enable MSU-1 and choose that\n"
-    "folder in Settings > Sound. Keep using your unmodified USA ROM.\n"
-    "The MSU patch, music and CRT-Geom shader are not bundled. See README.md\n"
-    "for import instructions and save-state/audio limitations.\n\n"
+    "For bundled music, enable MSU-1 in Settings > Audio and keep the source\n"
+    "on Community Grand Prix. Custom selects your own .msu file. Missing\n"
+    "tracks use SNES music. The separate legacy v11 patch is not bundled.\n"
+    "Save/load and rewind restart the restored song from its beginning.\n\n"
+    "Mods > Preset offers Vanilla, Satellaview and full Community Grand Prix.\n"
+    "CGP includes all cars, rebalances, rules including Legend, title and music.\n"
+    "Presets preserve MAX, Bower and other unrelated choices; all individual\n"
+    "options remain editable. See docs/CGP_MUSIC_AND_PRESETS.md.\n\n"
     "Mods defaults to Widescreen at Fit, which follows the\n"
     "window between 4:3 and 32:9, Presentation FPS at Auto, and BS vehicles.\n"
     "Turn any of them off in Mods, or choose a fixed aspect or rate there.\n\n"
@@ -147,10 +158,10 @@ shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
     "Required course fixes apply automatically; optional rules stay opt-in.\n"
     "Three optional CGP car packs combine into twelve identities; four retail\n"
     "rebalances are separate options. Stock BS cars exclude CGP car options.\n"
-    "All CGP vehicle options start off. No music is included.\n"
+    "All CGP vehicle options and MSU music start off; the CGP preset enables them.\n"
     "Enable or disable each track pack directly in Mods. MAX League is visible\n"
     "and defaults off. Bundled IPS patches and attribution\n"
-    "are under assets/track-packs; no MSU audio is included.\n"
+    "are under assets/track-packs; approved CGP audio is under assets/music.\n"
     "Other IPS/BPS course packs go in mods/track-packs; each enabled pack adds\n"
     "its cups to the in-game Grand Prix menu. See mods/README.md.\n\n"
     "F7 or Select+R opens the save-state menu: 12 slots with thumbnails,\n"
@@ -234,10 +245,12 @@ for name, pin in pins.items():
 manifest = {"version": version, "label": a.label, "commit": commit, "dependencies": pins, "files": {}}
 for path in sorted(stage.rglob("*")):
     if path.is_file():
-        if (path.suffix.lower() in (".sfc", ".smc", ".srm", ".sav", ".bin", ".c", ".pcm", ".msu")
+        if (path.suffix.lower() in (".sfc", ".smc", ".srm", ".sav", ".bin", ".c")
                 or path.name.lower() in ("config.ini", "rom.cfg", "fzero-video.ini", "f-zero_msu1.ips")
                 or path.name.lower().startswith("crt-geom")):
             raise SystemExit(f"Forbidden payload: {path}")
+        if path.suffix.lower() in (".pcm", ".msu") and path.parent != stage / "assets/music/cgp":
+            raise SystemExit(f"Unapproved music payload: {path}")
         manifest["files"][path.relative_to(stage).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 (stage / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 archive = stage.parent / (stage.name + ".zip")
@@ -245,6 +258,7 @@ with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     for path in sorted(stage.rglob("*")):
         if path.is_file():
             z.write(path, path.relative_to(stage.parent))
-digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+with archive.open("rb") as archive_file:
+    digest = hashlib.file_digest(archive_file, "sha256").hexdigest()
 archive.with_suffix(".zip.sha256").write_text(f"{digest}  {archive.name}\n", encoding="ascii")
 print(f"{archive}\nSHA256 {digest}\nSource {commit}")

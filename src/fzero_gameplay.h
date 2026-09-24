@@ -47,6 +47,7 @@ const uint8_t *FzeroGameplaySignature(void);
 bool FzeroGameplayPrepare(uint8_t **rom, size_t *size);
 const char *FzeroGameplayError(void);
 void FzeroGameplayInstallHooks(void);
+unsigned FzeroGameplayMusicTrack(unsigned command);
 void FzeroGameplayActivateVehicles(const FzeroGameplaySettings *settings, uint8_t *rom);
 void FzeroGameplaySetSignature(const uint8_t hash[32]);
 uint16_t FzeroGameplayMenuInput(uint16_t input, const uint8_t *ram);

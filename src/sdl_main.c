@@ -445,6 +445,11 @@ static void load_launcher_settings(RecompLauncherCSettings *settings) {
   if (FzeroIniReadString(g_config_path, "Sound", "Msu1Dir", text, sizeof(text))) {
     trim_ini_value(text);
     snprintf(settings->msu1_dir, sizeof(settings->msu1_dir), "%s", text);
+    if (*text) settings->msu1_pack[0]=0; /* Preserve existing custom installations. */
+  }
+  if (FzeroIniReadString(g_config_path,"Sound","Msu1Pack",text,sizeof(text))) {
+    trim_ini_value(text);
+    snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"%s",!strcmp(text,"cgp")?"cgp":"");
   }
 
   if (FzeroIniReadString(g_config_path, "Controller", "GuidP1", text, sizeof(text))) {
@@ -495,6 +500,7 @@ static void save_launcher_settings(const RecompLauncherCSettings *settings) {
   snprintf(number, sizeof(number), "%d", settings->msu1_enabled ? 1 : 0);
   launcher_ini_kv_write(g_config_path, "Sound", "Msu1Enabled", number);
   launcher_ini_kv_write(g_config_path, "Sound", "Msu1Dir", settings->msu1_dir);
+  launcher_ini_kv_write(g_config_path, "Sound", "Msu1Pack", settings->msu1_pack[0] ? settings->msu1_pack : "custom");
 
   launcher_ini_kv_write(g_config_path, "Controller", "GuidP1", settings->player_gamepad_guid[0]);
   snprintf(number, sizeof(number), "%d", settings->player_src[0]);
@@ -518,6 +524,7 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
   settings->enable_audio = 1;
   settings->audio_freq = 32040;
   settings->volume = 100;
+  snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"cgp");
   settings->player_src[0] = 1;
   settings->deadzone[0] = 25;
   settings->rewind_enabled = 1;
@@ -562,7 +569,10 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
       "option overrides this when that mod is enabled.";
   game.has_shader = 1;
   game.msu1_supported = 1;
-  game.msu1_note = "Select your own music folder. Enable CGP MSU music adapter under Mods for the CGP soundtrack mapping. The legacy stock/BS adapter requires Conn/Cubear v11 f-zero_msu1.ips. No music is included.";
+  static const RecompLauncherCMsuPack music_packs[] = {{"cgp","Community Grand Prix"}};
+  game.msu1_packs = music_packs;
+  game.num_msu1_packs = 1;
+  game.msu1_note = "CGP music is included. Custom selects your MSU file or music folder. Standard packs use their supplied Conn/Cubear v11 f-zero_msu1.ips; packs without that patch use CGP track numbering. Missing tracks use SNES music.";
   game.mods = FzeroModsProvider(&g_video, kVideoConfig);
   game.rom_cache_path = "rom.cfg";
   /* Draws the Controls page's SaveStateMenu and Rewind rows, and the
@@ -1604,6 +1614,22 @@ int main(int argc, char **argv) {
    * does not verify; say so on stderr and run the stock cartridge for this
    * session. The user's settings file is left alone, so fixing the build or
    * removing the override brings Deluxe back without touching it. */
+  const char *msu_override = getenv("SNESRECOMP_MSU1");
+  bool bundled_music = (!msu_override || !*msu_override) && launcher_settings.msu1_enabled &&
+                       !strcmp(launcher_settings.msu1_pack,"cgp");
+  const char *msu_pack = msu_override && *msu_override ? msu_override :
+      !launcher_settings.msu1_enabled ? "" :
+      !strcmp(launcher_settings.msu1_pack,"cgp") ? "assets/music/cgp/cgp" : launcher_settings.msu1_dir;
+  bool use_cgp_music = *msu_pack && strcmp(msu_pack,"off") && strcmp(msu_pack,"0") &&
+                      (bundled_music || !FzeroMsuHasLegacyPatch(msu_pack));
+  g_video.gameplay.enabled &= ~(1u << FZERO_RULE_MSU);
+  if (use_cgp_music) g_video.gameplay.enabled |= 1u << FZERO_RULE_MSU;
+  if (!FzeroMsuConfigure(msu_pack,use_cgp_music,rom_path)) {
+    fprintf(stderr,"[fzero-msu1] %s Starting with SNES music.\n",FzeroMsuError());
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING,"Music pack not loaded",FzeroMsuError(),NULL);
+    FzeroMsuConfigure("",false,rom_path);
+    g_video.gameplay.enabled &= ~(1u << FZERO_RULE_MSU);
+  }
   FzeroGameplayConfigure(&g_video.gameplay,g_video.bs_deluxe,g_video.bs_tracks);
   if (!FzeroTracksPrepare(&rom, &rom_size, g_video.bs_deluxe,
                           deluxe_override ? deluxe_override : deluxe_path)) {
@@ -1616,22 +1642,6 @@ int main(int argc, char **argv) {
     FzeroGameplayConfigure(&g_video.gameplay,false,false);
     if (!FzeroTracksPrepare(&rom, &rom_size, false, NULL)) { free(rom); return 2; }
   }
-  const char *msu_pack = getenv("SNESRECOMP_MSU1");
-  if (!msu_pack || !*msu_pack)
-    msu_pack = launcher_settings.msu1_enabled ?
-        (launcher_settings.msu1_dir[0] ? launcher_settings.msu1_dir : "auto") : "";
-  if (FzeroRuleEnabled(FZERO_RULE_MSU)) {
-#ifdef _WIN32
-    _putenv_s("SNESRECOMP_MSU1",msu_pack);
-#else
-    setenv("SNESRECOMP_MSU1",msu_pack,1);
-#endif
-  }
-  if (!FzeroTracksActive() && !FzeroMsuPrepare(&rom, &rom_size, msu_pack, rom_path)) {
-    fprintf(stderr, "[fzero-msu1] %s Starting with original audio.\n", FzeroMsuError());
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "MSU-1 pack not loaded", FzeroMsuError(), NULL);
-  }
-
   /* Match the shared host: keep gamepads live through launcher/game focus
    * transitions and host overlays (SDL otherwise suppresses their state). */
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");

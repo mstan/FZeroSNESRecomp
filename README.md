@@ -32,7 +32,7 @@ You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 - Gamepad support through SDL.
 - Optional BS F-Zero Deluxe content.
 - Experimental [additive track packs](docs/ADDITIVE_TRACK_PACKS.md) with bundled Community Grand Prix, Bower and MAX leagues and support for additional IPS/BPS packs.
-- Optional MSU-1 music packs for stock F-Zero and BS Deluxe (bring your own patch and audio).
+- Optional bundled CGP soundtrack, custom MSU-1 packs and editable content presets.
 
 ## Download And Play
 
@@ -95,36 +95,41 @@ compatibility with this app's differently licensed dependencies has not been
 established. User-selected CRT-Geom has been tested through the existing shader
 loader. An unreadable or invalid preset falls back to unfiltered output.
 
-### MSU-1 music
+### Presets and MSU-1 music
 
-1. Obtain the **Conn/Cubear v11** patch from the
-   [authors' BS F-Zero Deluxe MSU-1 page](https://www.zeldix.net/t2768-bs-f-zero-deluxe-msu-1).
-2. Extract `f-zero_msu1.ips` into your music pack's folder, alongside its
-   numbered `.pcm` tracks. Keep the pack's original track numbering and common
-   filename prefix. Use a pack made for this patch's track layout.
-3. Enable **MSU-1** in **Settings > Sound** and select that folder.
+**Mods > Preset** offers Vanilla, Satellaview and Community Grand Prix.
+Each applies an editable recipe for that content family. MAX, Bower and other
+unrelated choices remain as selected, as do display, controls and rewind.
+CGP enables all its courses, twelve cars, original-car rebalances, rules
+including Legend, credits, F-Zero 55 title and bundled music. Individual
+options remain editable. No preset is applied automatically on startup.
 
-Keep using your **unmodified USA ROM**. The app verifies the exact v11 patch
-(709 bytes, SHA-256 `9019013f085ff16f5501c4516531a044bc5f36703aadb58844e67c5456413532`)
-and applies it in memory, **after BS Deluxe** if enabled. No ROM file is
-rewritten. The patch and music are not included in downloads. Missing or
-unsupported patches produce a warning and leave the original soundtrack active.
-The patch handles missing PCM tracks through its original-audio fallback.
+The approved **Community Grand Prix** soundtrack is included in Windows
+previews. In **Settings > Audio**, enable **MSU-1 music** and leave its source
+on **Community Grand Prix**, or select the CGP preset in Mods. Music starts
+off on a fresh installation. Missing tracks and unrelated track packs use
+SNES music. Track selection works in both Grand Prix and Practice.
 
-Stock and Deluxe have been exercised with synthetic tracks and a user-supplied
-JUD6MENT pack, widescreen, and high-refresh presentation. Compatibility is
-limited to these two supported cartridge layouts;
-arbitrary third-party ROM patches are not accepted or claimed compatible.
+**Custom...** opens a picker for your pack's `.msu` file. Existing custom
+folder settings are retained. Standard packs require the supported
+**Conn/Cubear v11** `f-zero_msu1.ips` beside their numbered PCM files (available
+from the [authors' page](https://www.zeldix.net/t2768-bs-f-zero-deluxe-msu-1)).
+Keep the pack's original prefix and track numbering. Packs without this
+patch use CGP numbering. The v11 patch and third-party custom audio are not
+bundled. Unsupported patch versions are refused with an original-audio fallback.
 
-MSU sessions currently execute the patched cartridge through the interpreter,
-so compiled stock routines cannot bypass its audio hooks. Normal sessions
-retain native dispatch. Save states and rewind restore the selected song from
-its beginning, not its exact playback position. MSU saves are separate from
-non-MSU saves, as shown below.
+Keep using your **unmodified USA ROM**. Adapters apply in memory, including
+all derived vehicle images; no ROM file is rewritten. Save states and rewind
+restart the selected song from its beginning rather than its exact playback
+position. Existing non-MSU record/save namespaces remain separate.
 
-For command-line use, `SNESRECOMP_MSU1` can select a pack folder or filename
-prefix; `off` overrides a saved enabled setting. `FZERO_MSU1_PATCH` can point
-to the v11 IPS in another folder.
+For command-line use, `SNESRECOMP_MSU1` can select a `.msu` file, folder or
+filename prefix; `off` overrides a saved enabled setting. `FZERO_MSU1_PATCH`
+can point to the v11 IPS in another folder. Headless CGP music also requires
+`FZERO_RULES=cgp-msu` (or adding `cgp-msu` to other chosen rules).
+
+See [preset behavior and validation](docs/CGP_MUSIC_AND_PRESETS.md) and
+[soundtrack provenance / source-build import](assets/music/README.md).
 
 ## Save States And Rewind
 

@@ -275,6 +275,14 @@ add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMENT "Staging F-Zero shader presets"
     VERBATIM)
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp/cgp.msu")
+    add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp"
+            "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/music/cgp"
+        COMMENT "Staging approved Community Grand Prix music" VERBATIM)
+endif()
+
 if(SNESRECOMP_BUILD_VERSION)
     target_compile_definitions(FZeroSNESRecomp PRIVATE
         SNESRECOMP_BUILD_VERSION="${SNESRECOMP_BUILD_VERSION}")

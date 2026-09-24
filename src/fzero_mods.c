@@ -22,7 +22,11 @@ static const char *const descriptions[] = {
   "Record hardware, active video settings and frame timings in the diagnostics folder beside the game (beside the AppImage on Linux). Off by default. Enable, play through a slowdown, then attach the newest performance JSONL file to your report. Logs stay on your machine; no ROM or save data is included.",
   "Add the ten original BS courses in two leagues. Enabling this turns off Community Grand Prix, which includes corrected versions of these courses. BS vehicles have their own switch."
 };
-enum { VEHICLE_START=6+FZERO_RULE_COUNT-3, TRACK_START=VEHICLE_START+7 };
+enum { VEHICLE_START=6+FZERO_RULE_COUNT-4, TRACK_START=VEHICLE_START+7 };
+static unsigned visible_rule(unsigned index) {
+  unsigned rule = index - 3;
+  return rule >= FZERO_RULE_MSU ? rule + 1 : rule;
+}
 static const char *const vehicle_ids[]={"cgp-cars-p1","cgp-cars-p2","cgp-cars-p3",
   "cgp-blue-falcon","cgp-wild-goose","cgp-golden-fox","cgp-fire-stingray"};
 static const char *const vehicle_names[]={"CGP P1 vehicles","CGP P2 vehicles","CGP P3 vehicles",
@@ -43,7 +47,7 @@ static int identity(const char *package, const char *feature) {
   if (package && feature) for (int i = 0; i < 6; ++i)
     if (!strcmp(package, packages[i]) && !strcmp(feature, features[i])) return i + 1;
   if (package && feature && !strcmp(feature,"rules"))
-    for (int i=3;i<FZERO_RULE_COUNT;++i) if (!strcmp(package,fzero_rules[i].id)) return 7+i;
+    for (int i=3;i<FZERO_RULE_COUNT;++i) if (i != FZERO_RULE_MSU && !strcmp(package,fzero_rules[i].id)) return 7+i;
   if (package && feature && !strcmp(feature,"vehicles"))
     for (int i=0;i<7;++i) if (!strcmp(package,vehicle_ids[i])) return 100+i;
   return 0;
@@ -57,10 +61,10 @@ static int package_get(void *ctx, int index, RecompLauncherCModPackage *out) {
     out->enabled=vehicle_enabled(i);return 1;
   }
   if (index>=6 && out) {
-    const FzeroRuleInfo *r=&fzero_rules[index-3]; memset(out,0,sizeof(*out));
+    const FzeroRuleInfo *r=&fzero_rules[visible_rule((unsigned)index)]; memset(out,0,sizeof(*out));
     COPY(out->id,r->id); COPY(out->name,r->name); COPY(out->version,"1");
     COPY(out->author,"Fennor Virastar and the CGP contributors"); COPY(out->description,r->description);
-    out->enabled=(video->gameplay.enabled>>(index-3))&1; return 1;
+    out->enabled=(video->gameplay.enabled>>visible_rule((unsigned)index))&1; return 1;
   }
   (void)ctx;
   if (index < 0 || index > 5 || !out) return 0;
@@ -81,11 +85,11 @@ static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
     out->enabled=vehicle_enabled(i);COPY(out->status,out->enabled?"Enabled":"Disabled");return 1;
   }
   if (index>=6 && out) {
-    const FzeroRuleInfo *r=&fzero_rules[index-3]; memset(out,0,sizeof(*out));
+    const FzeroRuleInfo *r=&fzero_rules[visible_rule((unsigned)index)]; memset(out,0,sizeof(*out));
     COPY(out->id,"rules"); COPY(out->package_id,r->id); COPY(out->package_name,r->name); COPY(out->package_version,"1");
     COPY(out->name,r->name); COPY(out->group,"CGP Rules and Fixes");
     COPY(out->author,"Fennor Virastar and the CGP contributors"); COPY(out->description,r->description);
-    out->enabled=(video->gameplay.enabled>>(index-3))&1; COPY(out->status,out->enabled ? "Enabled" : "Disabled");
+    out->enabled=(video->gameplay.enabled>>visible_rule((unsigned)index))&1; COPY(out->status,out->enabled ? "Enabled" : "Disabled");
     out->option_count=0; return 1;
   }
   (void)ctx;
@@ -213,6 +217,57 @@ static int commit(void *ctx, const char *image) {
 }
 static const char *last_error(void *ctx) { (void)ctx; return *error_text ? error_text : FzeroTrackModsProvider()->last_error(ctx); }
 
+static const RecompLauncherCModPreset presets[] = {
+  {"vanilla", "Vanilla", "Original cars, rules, title and SNES music. Turns off CGP and BS content. Unrelated packs and personal settings stay as selected."},
+  {"satellaview", "Satellaview", "Original cars plus the four BS cars and ten BS courses, with their stock behavior and SNES music. Turns off CGP. Unrelated choices stay as selected."},
+  {"cgp", "Community Grand Prix", "CGP courses, all twelve cars and their authored rebalances, every CGP rule including Legend and credits, F-Zero 55 title and bundled music. Disables conflicting BS content; keeps unrelated choices."}
+};
+static int preset_count(void *ctx) { (void)ctx; return 3; }
+static int preset_get(void *ctx, int i, RecompLauncherCModPreset *out) {
+  (void)ctx;
+  if (i < 0 || i >= 3 || !out) return 0;
+  *out = presets[i]; return 1;
+}
+static const char *preset_current(void *ctx, const RecompLauncherCSettings *s) {
+  (void)ctx;
+  if (!s) return "";
+  const CpPack *cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
+  unsigned rules = video->gameplay.enabled & ~(1u << FZERO_RULE_MSU);
+  unsigned all = ((1u << FZERO_RULE_COUNT) - 1) & ~7u & ~(1u << FZERO_RULE_MSU);
+  if (FzeroTracksEnabled(cgp) && FzeroTracksTitleEnabled(cgp) &&
+      !video->bs_deluxe && !video->bs_tracks && video->gameplay.vehicle_packs == 7 &&
+      video->gameplay.stock_rebalance == 15 && rules == all && s->msu1_enabled && !strcmp(s->msu1_pack,"cgp")) return "cgp";
+  if (!FzeroTracksEnabled(cgp) && !rules && !video->gameplay.vehicle_packs &&
+      !video->gameplay.stock_rebalance && !s->msu1_enabled) {
+    if (video->bs_deluxe && video->bs_tracks) return "satellaview";
+    if (!video->bs_deluxe && !video->bs_tracks) return "vanilla";
+  }
+  return "";
+}
+static int preset_apply(void *ctx, const char *id, RecompLauncherCSettings *s) {
+  (void)ctx;
+  if (!s || !id) return 0;
+  unsigned index;
+  for (index=0; index<3; ++index) if (!strcmp(id,presets[index].id)) break;
+  if (index == 3) return 0;
+  const CpPack *cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
+  if (index == 2 && (!cgp || FzeroTracksHidden(cgp) || !FzeroTracksHasTitle(cgp))) {
+    COPY(error_text,"Community Grand Prix track pack is unavailable"); return 0;
+  }
+  if (cgp && !FzeroTracksEnable(cgp,index == 2)) {
+    COPY(error_text,"Unable to change the CGP track pack"); return 0;
+  }
+  if (cgp) FzeroTracksSetTitle(cgp,index == 2);
+  video->bs_deluxe = video->bs_tracks = index == 1;
+  video->gameplay.vehicle_packs = index == 2 ? 7 : 0;
+  video->gameplay.stock_rebalance = index == 2 ? 15 : 0;
+  video->gameplay.enabled = index == 2 ? ((1u << FZERO_RULE_COUNT)-1) & ~7u : 0;
+  s->msu1_enabled = index == 2;
+  if (index == 2) COPY(s->msu1_pack,"cgp");
+  error_text[0] = 0;
+  return 1;
+}
+
 const RecompLauncherCModProvider *FzeroModsProvider(FzeroVideoSettings *settings, const char *path) {
   static RecompLauncherCModProvider provider;
   video = settings; config_path = path; error_text[0] = 0;
@@ -225,6 +280,8 @@ const RecompLauncherCModProvider *FzeroModsProvider(FzeroVideoSettings *settings
   provider.feature_option_get = option_get; provider.feature_choice_get = choice_get;
   provider.feature_enable = enable; provider.feature_set_option = set_option;
   provider.commit = commit; provider.last_error = last_error;
+  provider.preset_count = preset_count; provider.preset_get = preset_get;
+  provider.preset_current = preset_current; provider.preset_apply = preset_apply;
   const RecompLauncherCModProvider *tracks = FzeroTrackModsProvider();
   provider.feature_resource_count = tracks->feature_resource_count;
   provider.feature_resource_get = tracks->feature_resource_get;

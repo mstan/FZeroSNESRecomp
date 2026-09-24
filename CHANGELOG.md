@@ -1,5 +1,16 @@
 ﻿# Changelog
 
+## 1.8.3-fzero-55-preview.7 - music and editable presets
+
+- Bundle the approved 61-track CGP soundtrack once, shared by all car groups.
+  Audio settings offer Community Grand Prix and Custom; music starts off.
+- Add Vanilla, Satellaview and complete CGP presets through recomp-ui's new
+  opt-in host API. Include Legend in CGP, preserve unrelated packs/settings,
+  resolve BS conflicts, and keep every option editable afterward.
+- Map GP and Practice music by cup and course, retain SPC fallback for missing
+  tracks, and compose the legacy custom adapter into derived car images.
+- Verify soundtrack hashes during import and packaging. No ROM is included.
+
 ## 1.8.3-fzero-55-preview.6 - authored information cards
 
 - Replace inherited retail information cards with the selected CGP car's

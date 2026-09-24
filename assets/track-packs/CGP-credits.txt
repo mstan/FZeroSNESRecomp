@@ -14,11 +14,13 @@ Donor SHA-256: 25383a9090265e6a4f007dc349fa224b6305c028e899c60069d63dc0bfc5ffb7
 IPS SHA-256: 6bbc07b92c45bc16d5fc10008295a671fa571ae672ec93073d0edf1550088b4c
 This revision replaces the retired Volcania venue artwork and changes seven
 course venue settings. Older P1/P2/P3 course donors are no longer recognized.
-This adapter imports the 30 new courses and ten corrected
-Satellaview courses, omitting the 15 original courses. The original BS track
-pack is mutually exclusive with CGP to avoid duplicates. It preserves
-the native roster, rules, HUD and renderer. The donor's engine changes and
-MSU soundtrack are not imported. No MSU/PCM/audio files are bundled.
+This adapter adds 40 courses beyond the original 15: thirty new CGP courses
+and ten corrected Satellaview courses. It also supplies separate cups with
+revisions of the original fifteen. Original BS tracks exclude CGP to avoid
+duplicates. Vehicle groups, authored rebalances and rules have separate
+options; required course mechanics follow their courses automatically.
+The approved soundtrack is available separately in Settings > Audio or the
+CGP preset. See assets/music/README.md for its provenance.
 
 Continue using your own original F-Zero (USA) ROM; the game extracts these
 courses automatically. The original archive's emulator/music setup steps

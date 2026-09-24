@@ -9,7 +9,8 @@ inferred from receiving the source.
 All gameplay options are **off by default** in Mods. They work independently
 of the course pack. P1, P2 and P3 are coherent vehicle sets, exposed as three
 combinable vehicle packs plus four separate retail-identity rebalances.
-Artwork-only IPS deltas live in `assets/vehicle-packs`; no ROM or music is bundled.
+Artwork-only IPS deltas live in `assets/vehicle-packs`; no ROM is bundled.
+The separately approved CGP soundtrack is documented in `assets/music/README.md`.
 
 | Mods option | Source files |
 | --- | --- |

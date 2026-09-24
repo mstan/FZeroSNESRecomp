@@ -1,9 +1,10 @@
-# F-Zero 55 preview.6: tester notes
+# F-Zero 55 preview.7: tester notes
 
 Extract this ZIP into a **new folder** and run `FZeroSNESRecomp.exe`. Select
 your own original F-Zero (USA) ROM. Keep older build folders and saves until
-you have finished comparing them. No ROM, personal settings, saves or MSU
-music are included.
+you have finished comparing them. No ROM, personal settings or saves are
+included. The approved CGP soundtrack is bundled; it accounts for roughly
+1.2 GB after extraction.
 
 ## What is included
 
@@ -30,6 +31,22 @@ music are included.
   fixes. Required course features accompany their courses automatically.
 - Volcania uses the author's approved replacement venue. The retired artwork
   is no longer an accepted CGP course source.
+
+## New in this preview
+
+- **Mods > Preset** applies Vanilla, Satellaview or full Community Grand Prix.
+  CGP includes all three vehicle groups, four rebalances, every authored rule
+  including Legend and credits, courses, F-Zero 55 title and bundled music.
+  You can change any individual option afterward.
+- Presets preserve MAX, Bower, other packs and personal settings. Vanilla
+  turns off the CGP/BS family; it does not silently disable unrelated packs.
+- **Settings > Audio** offers Community Grand Prix and **Custom...**. Music
+  remains off on a fresh install until enabled directly or by the CGP preset.
+  Custom accepts your `.msu` file; previously selected folders still work.
+- Music maps the current cup/course in GP and Practice. Missing tracks and
+  packs without a CGP mapping use their SNES soundtrack.
+- Save/load and rewind restart the restored song. They do not restore its
+  exact playback position.
 
 ## Choosing cars and settings
 

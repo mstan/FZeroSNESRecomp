@@ -1,4 +1,5 @@
 #include "fzero_gameplay.h"
+#include "fzero_msu.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "fzero_course_runtime.h"
@@ -179,6 +180,7 @@ bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
     (*rom)[0xf5963] = 0;
   }
   if (!settings.enabled) {
+    if (!FzeroMsuApplyConfigured(rom,size)) { snprintf(error,sizeof(error),"%.190s",FzeroMsuError());return false; }
     sign_program(*rom, *size);
     return true;
   }
@@ -216,6 +218,7 @@ bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
    * projection and save hooks remain installed in the shared runtime. */
   cpu_select_program(patched_program, 0, NULL, 0);
   interp_bridge_set_scheduler_aot_policy(0);
+  if (!FzeroMsuApplyConfigured(rom,size)) { snprintf(error,sizeof(error),"%.190s",FzeroMsuError());return false; }
   sign_program(*rom, *size);
   fprintf(
       stderr,
@@ -244,8 +247,6 @@ static unsigned music_course(void) {
   const CpCup *cup = FzeroTracksRuntimeCup(FzeroTracksMenuIndex(), &pack);
   if (!cup || !pack)
     return 0;
-  if (g_ram[0x58])
-    return g_ram[0x53];
   unsigned order = g_ram[0x53];
   if (!strcmp(pack->id, "cgp")) {
     unsigned base = !strcmp(cup->id, "knight-cgp") ? 0
@@ -262,6 +263,9 @@ static unsigned music_course(void) {
    * intentionally missing track makes the author's SPC fallback take over. */
   return 200;
 }
+unsigned FzeroGameplayMusicTrack(unsigned command) {
+  return command == 6 ? 10 + music_course() : command;
+}
 static void rule_hook(CpuState *cpu, uint32_t pc) {
   pc &= 0x7fffff;
   switch (pc) {
@@ -275,9 +279,7 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
     }
     break;
   case CGP_MSU_SELECTOR: {
-    unsigned value = g_ram[0x46] & 7;
-    if (value == 6)
-      value = 10 + music_course();
+    unsigned value = FzeroGameplayMusicTrack(g_ram[0x46] & 7);
     accum(cpu, value);
     interp_bridge_pre_opcode_redirect(CGP_MSU_RETURN);
     break;

@@ -1,4 +1,5 @@
 #include "fzero_msu.h"
+#include "fzero_gameplay.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "sha256.h"
@@ -6,11 +7,13 @@
 #include "snes/msu1.h"
 
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
 static bool active;
+static char legacy_pack[1024], source_rom[1024];
 static char error[256];
 /* Conn/Cubear v11, from the patch-only archive linked by its authors at
  * https://www.zeldix.net/t2768-bs-f-zero-deluxe-msu-1 . No patch is bundled. */
@@ -30,6 +33,58 @@ static void set_pack(const char *value) {
 #else
   setenv("SNESRECOMP_MSU1", value, 1);
 #endif
+}
+
+static void trim_msu_suffix(char *base) {
+  size_t n = strlen(base);
+  if (n >= 2 && base[0] == '"' && base[n-1] == '"') {
+    memmove(base, base+1, n-2); base[n-2]=0; n-=2;
+  }
+  if (n >= 4 && base[n-4] == '.' &&
+      tolower((unsigned char)base[n-3]) == 'm' &&
+      tolower((unsigned char)base[n-2]) == 's' &&
+      tolower((unsigned char)base[n-1]) == 'u') base[n-4]=0;
+}
+bool FzeroMsuHasLegacyPatch(const char *pack) {
+  if (!pack || !*pack) return false;
+  const char *override = getenv("FZERO_MSU1_PATCH");
+  if (override && *override) return true;
+  char directory[1024], path[1200];
+  if (strlen(pack) >= sizeof(directory)) return false;
+  snprintf(directory,sizeof(directory),"%s",pack);
+  trim_msu_suffix(directory);
+  /* Preserve the legacy command-line shortcut for music beside the ROM. */
+  if (!strcmp(directory,"auto") || !strcmp(directory,"on") || !strcmp(directory,"1"))
+    return true;
+  struct stat st;
+  if (stat(directory,&st) != 0 || !(st.st_mode & S_IFDIR)) {
+    char *slash=strrchr(directory,'/'), *back=strrchr(directory,'\\');
+    if (!slash || (back && back>slash)) slash=back;
+    if (slash) *slash=0; else snprintf(directory,sizeof(directory),".");
+  }
+  snprintf(path,sizeof(path),"%s/f-zero_msu1.ips",directory);
+  return stat(path,&st)==0;
+}
+bool FzeroMsuConfigure(const char *pack, bool cgp, const char *rom_path) {
+  active=false; legacy_pack[0]=0; error[0]=0;
+  char requested[1024];
+  if (pack && strlen(pack)>=sizeof(requested)) { snprintf(error,sizeof(error),"Music path is too long");set_pack("");return false; }
+  snprintf(requested,sizeof(requested),"%s",pack?pack:"");
+  trim_msu_suffix(requested);
+  if (cgp || !*requested || !strcmp(requested,"off") || !strcmp(requested,"0")) {
+    set_pack(requested); return true;
+  }
+  /* Validate the user patch before any game image is prepared. */
+  uint8_t *probe=calloc(1,0x80000);size_t length=0x80000;
+  if (!probe) { snprintf(error,sizeof(error),"Cannot validate music adapter");return false; }
+  bool ok=FzeroMsuPrepare(&probe,&length,requested,rom_path);free(probe);
+  if (!ok) return false;
+  snprintf(legacy_pack,sizeof(legacy_pack),"%s",requested);
+  snprintf(source_rom,sizeof(source_rom),"%s",rom_path?rom_path:"");
+  return true;
+}
+bool FzeroMsuApplyConfigured(uint8_t **rom, size_t *size) {
+  return !*legacy_pack || FzeroMsuPrepare(rom,size,legacy_pack,source_rom);
 }
 
 bool FzeroMsuPrepare(uint8_t **rom, size_t *size, const char *pack, const char *rom_path) {
@@ -55,6 +110,7 @@ bool FzeroMsuPrepare(uint8_t **rom, size_t *size, const char *pack, const char *
     if (!slash || (back && back > slash)) slash = back;
     if (dot && (!slash || dot > slash)) *dot = 0;
   }
+  trim_msu_suffix(base);
   const char *override = getenv("FZERO_MSU1_PATCH");
   if (override && *override) {
     if (snprintf(path, sizeof(path), "%s", override) >= (int)sizeof(path)) goto invalid;
@@ -82,10 +138,11 @@ bool FzeroMsuPrepare(uint8_t **rom, size_t *size, const char *pack, const char *
   if (!read_ok) goto invalid;
   sha256_compute(patch, count, digest);
   if (memcmp(digest, patch_hash, 32)) goto invalid;
-  if (!rom || !*rom || !size || (*size != 0x80000 && *size != 0x100000)) goto invalid;
-  uint8_t *mapped = malloc(0x100000);
+  if (!rom || !*rom || !size || (*size != 0x80000 && *size != 0x100000 && *size != 0x400000)) goto invalid;
+  size_t mapped_size = *size > 0x100000 ? *size : 0x100000;
+  uint8_t *mapped = malloc(mapped_size);
   if (!mapped) goto invalid;
-  memset(mapped, 0xff, 0x100000);
+  memset(mapped, 0xff, mapped_size);
   memcpy(mapped, *rom, *size);
   /* Digest-pinned IPS still gets checked bounds; never publish a partial image. */
   size_t pos = 5;
@@ -102,7 +159,7 @@ bool FzeroMsuPrepare(uint8_t **rom, size_t *size, const char *pack, const char *
     pos += length;
   }
   if (pos + 3 != count || memcmp(patch + pos, "EOF", 3)) { free(mapped); goto invalid; }
-  free(*rom); *rom = mapped; *size = 0x100000;
+  free(*rom); *rom = mapped; *size = mapped_size;
   cpu_select_program(patched_program, 0, NULL, 0);
   interp_bridge_set_scheduler_aot_policy(0);
   set_pack(base);
@@ -127,6 +184,16 @@ bool FzeroMsuSelectSaveRoot(void) {
 }
 
 void FzeroMsuRestoreAudio(const uint8_t *ram) {
+  if (FzeroRuleEnabled(FZERO_RULE_MSU) && msu1_enabled()) {
+    msu1_write(0x2007,0);
+    unsigned command=ram[0x181] ? ram[0x46]&7 : ram[0x180];
+    if (!command || ram[0x182] || !ram[0x183]) return;
+    unsigned track=FzeroGameplayMusicTrack(command);
+    msu1_write(0x2004,(uint8_t)track); msu1_write(0x2005,(uint8_t)(track>>8));
+    msu1_write(0x2006,ram[0x181] ? 0 : ram[0x184]);
+    if (!ram[0x181]) msu1_write(0x2007,command<=3 ? 1 : 3);
+    return;
+  }
   if (!active || !msu1_enabled()) return;
   msu1_write(0x2007, 0);
   /* v11 stores its selected PCM number and fallback flag in guest RAM.

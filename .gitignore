@@ -15,6 +15,10 @@
 src/gen/
 assets/*
 !assets/README.md
+!assets/music/
+assets/music/*
+!assets/music/*.json
+!assets/music/*.md
 !assets/img/
 assets/img/*
 !assets/img/boxart.tga
@@ -88,3 +92,6 @@ ghidra/*
 
 # User-owned course payloads and local configuration.
 /mods/track-packs/
+
+# Reproducibly imported approved music; packaged separately from source.
+/music/

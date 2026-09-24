@@ -356,13 +356,11 @@ int main(int argc, char **argv) {
                        )) { fprintf(stderr, "%s\n", FzeroTracksError()); free(rom); return 2; }
   const char *deluxe_data = getenv("FZERO_DELUXE_DATA");
   FzeroGameplayHeadless(deluxe_data && *deluxe_data);
+  if (!FzeroMsuConfigure(getenv("SNESRECOMP_MSU1"), FzeroRuleEnabled(FZERO_RULE_MSU), argv[1])) {
+    fprintf(stderr,"[fzero-msu1] %s\n",FzeroMsuError());free(rom);return 2;
+  }
   if (!FzeroTracksPrepare(&rom, &rom_size, deluxe_data && *deluxe_data, deluxe_data)) {
     fprintf(stderr, "[content] %s %s\n", FzeroTracksError(), FzeroDeluxeError());
-    free(rom);
-    return 2;
-  }
-  if (!FzeroTracksActive() && !FzeroMsuPrepare(&rom, &rom_size, getenv("SNESRECOMP_MSU1"), argv[1])) {
-    fprintf(stderr, "[fzero-msu1] %s\n", FzeroMsuError());
     free(rom);
     return 2;
   }
