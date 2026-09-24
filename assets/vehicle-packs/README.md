@@ -12,6 +12,8 @@ or a rebalance. Title, course, shared HUD, fog and donor executable changes are
 excluded. Handling, boost and exhaust come from the separately retained author
 ASM in `mods/cgp-source/CGP/<profile>`.
 
+The three resource files are enabled together by the single **CGP vehicles**
+mod; they remain separate internally to preserve the authored cohorts.
 This version of the vehicle adapter qualifies three known CGP cohorts. Adding
 an unknown vehicle format needs a reviewed resource/behavior adapter; these
 manifests do not authorize arbitrary executable writes or guess a patch's

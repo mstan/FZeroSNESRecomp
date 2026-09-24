@@ -15,7 +15,7 @@ int main(void) {
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
     packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
-  CHECK(p->package_count(NULL) == 9 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 7 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -23,7 +23,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 9 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 7 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -70,19 +70,37 @@ int main(void) {
   CHECK(!p->feature_enable(NULL,"cgp-tuning","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-boost","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-exhaust","rules",1));
-  const char *car_packs[]={"cgp-cars-p1","cgp-cars-p2","cgp-cars-p3"};
-  for(unsigned mask=0;mask<8;++mask) {
-    for(unsigned i=0;i<3;++i) CHECK(p->feature_enable(NULL,car_packs[i],"vehicles",(mask>>i)&1));
-    CHECK(s.gameplay.vehicle_packs==mask && !s.bs_deluxe);
+  const char *old_car_packs[]={"cgp-cars-p1","cgp-cars-p2","cgp-cars-p3"};
+  for(unsigned i=0;i<3;++i)
+    CHECK(!p->feature_enable(NULL,old_car_packs[i],"vehicles",1));
+  unsigned cgp_entries=0;
+  int cgp_car_index=-1;
+  for(int i=0;i<p->feature_count(NULL);++i) {
+    CHECK(p->feature_get(NULL,i,&f));
+    if(!strcmp(f.group,"Vehicle Packs") && strcmp(f.package_id,"bs-cars")) {
+      CHECK(!strcmp(f.package_id,"cgp-cars") && !strcmp(f.name,"CGP vehicles"));
+      ++cgp_entries;cgp_car_index=i;
+    }
+  }
+  CHECK(cgp_entries==1);
+  for(unsigned enabled=0;enabled<2;++enabled) {
+    CHECK(p->feature_enable(NULL,"cgp-cars","vehicles",enabled));
+    CHECK(s.gameplay.vehicle_packs==(enabled?7u:0u) && !s.bs_deluxe);
+    CHECK(p->feature_get(NULL,cgp_car_index,&f) && f.enabled==(int)enabled);
     CHECK(p->commit(NULL,NULL) && FzeroVideoLoad(&loaded,"test-mods.ini"));
-    CHECK(loaded.gameplay.vehicle_packs==mask && !loaded.bs_deluxe);
+    CHECK(loaded.gameplay.vehicle_packs==s.gameplay.vehicle_packs && !loaded.bs_deluxe);
   }
-  for(unsigned i=0;i<3;++i) {
-    CHECK(p->feature_enable(NULL,"bs-cars","vehicles",1));
-    CHECK(s.bs_deluxe && !s.gameplay.vehicle_packs);
-    CHECK(p->feature_enable(NULL,car_packs[i],"vehicles",1));
-    CHECK(!s.bs_deluxe && s.gameplay.vehicle_packs==(1u<<i));
-  }
+  CHECK(p->feature_enable(NULL,"bs-cars","vehicles",1));
+  CHECK(s.bs_deluxe && !s.gameplay.vehicle_packs);
+  CHECK(p->feature_enable(NULL,"cgp-cars","vehicles",1));
+  CHECK(!s.bs_deluxe && s.gameplay.vehicle_packs==7);
+  /* The unified roster does not select or clear the original-car rebalances. */
+  CHECK(!s.gameplay.stock_rebalance);
+  CHECK(p->feature_enable(NULL,"cgp-blue-falcon","vehicles",1));
+  CHECK(p->feature_enable(NULL,"cgp-cars","vehicles",0));
+  CHECK(!s.gameplay.vehicle_packs && s.gameplay.stock_rebalance==1);
+  CHECK(p->feature_enable(NULL,"cgp-cars","vehicles",1));
+  CHECK(s.gameplay.vehicle_packs==7 && s.gameplay.stock_rebalance==1);
   CHECK(p->feature_enable(NULL,"cgp-blue-falcon","vehicles",1));
   CHECK(s.gameplay.stock_rebalance==1 && !s.bs_deluxe);
   CHECK(p->feature_enable(NULL,"bs-cars","vehicles",1));

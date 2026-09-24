@@ -21,6 +21,12 @@ is resolved in preview.6: each CGP identity has its authored specifications,
 acceleration graph and colors, checked against independent donor captures.
 Original cards still accompany untuned original identities.
 
+Current roster UI follow-up: one **CGP vehicles** mod enables all three authored
+groups together. Saved partial pack choices migrate to the complete roster;
+BS exclusion and independent original-car rebalances remain intact. Internal
+P1/P2/P3 resources, selection columns and Grand Prix cohorts are unchanged.
+The partial-pack checks below describe historical adapter coverage.
+
 Planning issue: `beads-8wg.5.34`. The 12 work items below belong directly under
 `beads-8wg.5` (Game: F-Zero), under `beads-8wg` (System: SNES), in the central
 database at `F:\Software\beads\issues`. Beads owns status; this file is the

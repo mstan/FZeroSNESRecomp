@@ -22,9 +22,10 @@ and CGP are mutually exclusive; enabling either turns off the other. The
 vehicle option works with either track set, or just the original 15 courses.
 CGP and BS vehicles are enabled by default; original BS tracks are off.
 
-**CGP P1, P2 and P3 vehicles** are three independent, opt-in packs. Enable any
-combination to add their ships to the car selector; all three give twelve
-distinct identities including the original four. Each new ship has its own
+**CGP vehicles** is one opt-in mod for all three car groups together: eight
+additional ships plus the original four, for twelve distinct identities.
+Previously enabled individual groups migrate to this complete roster.
+Each new ship has its own
 artwork, handling, energy boost and exhaust. Left/right changes car pages;
 up/down changes the selected ship. **Vehicle Rebalances** separately offers
 the author's versions of Blue Falcon, Golden Fox, Wild Goose and Fire Stingray.
@@ -32,7 +33,7 @@ Those options modify the existing identities and default off. Information
 cards follow the same choice: authored CGP values, acceleration graphs and
 colors for CGP cars/rebalances; original cards for unmodified original cars.
 
-Each enabled CGP set occupies its own selection column, in the author's native
+Each CGP set occupies its own selection column, in the author's native
 top-to-bottom order:
 
 | P1 | P2 | P3 |
@@ -42,19 +43,19 @@ top-to-bottom order:
 | Dragon Bird | P. Emerald | Wild Goose |
 | Death Anchor | Black Bull | Fire Stingray |
 
-Original cars appear once, in their enabled group. If a group is disabled,
-its original cars remain available in a separate column. Group placement does
-not enable their optional artwork/stat rebalances.
+Original cars appear once, in their authored group. With CGP vehicles off,
+they return to their original column. Group placement does not enable their
+optional artwork/stat rebalances.
 
-In Grand Prix, selecting any member of an enabled CGP set brings the other
+In Grand Prix, selecting any member of a CGP set brings the other
 three as its main rivals: **P1** Moon Shadow / Dragon Bird / Great Star /
 Death Anchor; **P2** Blue Falcon / P. Emerald / Golden Fox / Black Bull;
 **P3** White Cat / Wild Goose / Red Gazelle / Fire Stingray. This does not
-require enabling the original cars' stat rebalances. With the corresponding
-pack off, original cars use their original rivals. **Practice** allows any
+require enabling the original cars' stat rebalances. With CGP vehicles off,
+original cars use their original rivals. **Practice** allows any
 enabled car as the opponent.
 
-Stock BS vehicles conflict with all three CGP vehicle packs and the stock-car
+Stock BS vehicles conflict with the CGP vehicles mod and the stock-car
 rebalances. Enabling one mode disables the other. This does not affect the
 selected courses. Old independent tuning/boost/exhaust profiles are retired;
 old selections do not silently enable new ships or rebalances.

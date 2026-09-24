@@ -23,25 +23,23 @@ static const char *const descriptions[] = {
   "Record hardware, active video settings and frame timings in the diagnostics folder beside the game (beside the AppImage on Linux). Off by default. Enable, play through a slowdown, then attach the newest performance JSONL file to your report. Logs stay on your machine; no ROM or save data is included.",
   "Add the ten original BS courses in two leagues. Enabling this turns off Community Grand Prix, which includes corrected versions of these courses. BS vehicles have their own switch."
 };
-enum { VEHICLE_START=6+FZERO_RULE_COUNT-4, TRACK_START=VEHICLE_START+7 };
+enum { VEHICLE_START=6+FZERO_RULE_COUNT-4, TRACK_START=VEHICLE_START+5 };
 static unsigned visible_rule(unsigned index) {
   unsigned rule = index - 3;
   return rule >= FZERO_RULE_MSU ? rule + 1 : rule;
 }
-static const char *const vehicle_ids[]={"cgp-cars-p1","cgp-cars-p2","cgp-cars-p3",
+static const char *const vehicle_ids[]={"cgp-cars",
   "cgp-blue-falcon","cgp-wild-goose","cgp-golden-fox","cgp-fire-stingray"};
-static const char *const vehicle_names[]={"CGP P1 vehicles","CGP P2 vehicles","CGP P3 vehicles",
+static const char *const vehicle_names[]={"CGP vehicles",
   "CGP Blue Falcon rebalance","CGP Wild Goose rebalance","CGP Golden Fox rebalance","CGP Fire Stingray rebalance"};
 static const char *const vehicle_descriptions[]={
-  "Add Moon Shadow, Dragon Bird, Great Star and Death Anchor with their matching artwork, handling, energy boost and exhaust. Combine with P2 and P3. Disables stock BS vehicles.",
-  "Add P. Emerald and Black Bull with their matching artwork, handling, energy boost and exhaust. Blue Falcon and Golden Fox rebalances are separate options. Combine with P1 and P3. Disables stock BS vehicles.",
-  "Add White Cat and Red Gazelle with their matching artwork, handling, energy boost and exhaust. Wild Goose and Fire Stingray rebalances are separate options. Combine with P1 and P2. Disables stock BS vehicles.",
+  "Enable all three CGP car groups together: eight additional ships plus the original four, for twelve identities. Keeps each group in its own selection column and Grand Prix rival set. New ships include their matching artwork, handling, boost and exhaust. Original-car rebalances remain separate. Disables stock BS vehicles.",
   "Opt in to CGP's Blue Falcon artwork, handling, energy boost and exhaust. Modifies the existing identity on any course; adds no duplicate ship. Disables stock BS vehicles.",
   "Opt in to CGP's Wild Goose artwork, handling, energy boost and exhaust. Modifies the existing identity on any course; adds no duplicate ship. Disables stock BS vehicles.",
   "Opt in to CGP's Golden Fox artwork, handling, energy boost and exhaust. Modifies the existing identity on any course; adds no duplicate ship. Disables stock BS vehicles.",
   "Opt in to CGP's Fire Stingray artwork, handling, energy boost and exhaust. Modifies the existing identity on any course; adds no duplicate ship. Disables stock BS vehicles."};
 static bool vehicle_enabled(unsigned i) {
-  return i<3 ? (video->gameplay.vehicle_packs&(1u<<i))!=0 : (video->gameplay.stock_rebalance&(1u<<(i-3)))!=0;
+  return i==0 ? video->gameplay.vehicle_packs!=0 : (video->gameplay.stock_rebalance&(1u<<(i-1)))!=0;
 }
 static int count(void *ctx) { (void)ctx; return TRACK_START + FzeroTrackModsProvider()->feature_count(ctx); }
 static int identity(const char *package, const char *feature) {
@@ -50,7 +48,7 @@ static int identity(const char *package, const char *feature) {
   if (package && feature && !strcmp(feature,"rules"))
     for (int i=3;i<FZERO_RULE_COUNT;++i) if (i != FZERO_RULE_MSU && !strcmp(package,fzero_rules[i].id)) return 7+i;
   if (package && feature && !strcmp(feature,"vehicles"))
-    for (int i=0;i<7;++i) if (!strcmp(package,vehicle_ids[i])) return 100+i;
+    for (int i=0;i<5;++i) if (!strcmp(package,vehicle_ids[i])) return 100+i;
   return 0;
 }
 static int package_get(void *ctx, int index, RecompLauncherCModPackage *out) {
@@ -81,7 +79,7 @@ static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
   if (index>=VEHICLE_START && out) {
     unsigned i=(unsigned)(index-VEHICLE_START);memset(out,0,sizeof(*out));
     COPY(out->id,"vehicles");COPY(out->package_id,vehicle_ids[i]);COPY(out->package_name,vehicle_names[i]);
-    COPY(out->package_version,"1");COPY(out->name,vehicle_names[i]);COPY(out->group,i<3?"Vehicle Packs":"Vehicle Rebalances");
+    COPY(out->package_version,"1");COPY(out->name,vehicle_names[i]);COPY(out->group,i==0?"Vehicle Packs":"Vehicle Rebalances");
     COPY(out->author,"Fennor Virastar and the CGP contributors");COPY(out->description,vehicle_descriptions[i]);
     out->enabled=vehicle_enabled(i);COPY(out->status,out->enabled?"Enabled":"Disabled");return 1;
   }
@@ -168,8 +166,8 @@ static int enable(void *ctx, const char *package, const char *feature, int enabl
   if (!identity(package, feature)) return 0;
   if (identity(package,feature)>=100) {
     unsigned i=(unsigned)(identity(package,feature)-100);
-    unsigned *bits=i<3?&video->gameplay.vehicle_packs:&video->gameplay.stock_rebalance;
-    unsigned bit=1u<<(i<3?i:i-3);
+    unsigned *bits=i==0?&video->gameplay.vehicle_packs:&video->gameplay.stock_rebalance;
+    unsigned bit=i==0?7u:1u<<(i-1);
     if(enabled) { *bits|=bit;video->bs_deluxe=false; } else *bits&=~bit;
   } else if (identity(package,feature)>=7) {
     uint32_t bit=1u<<(identity(package,feature)-7);
@@ -282,6 +280,7 @@ const RecompLauncherCModProvider *FzeroModsProvider(FzeroVideoSettings *settings
   has_bundled_music = bundled_music;
   video->gameplay.enabled &= ~7u;
   if(video->bs_deluxe)video->gameplay.vehicle_packs=video->gameplay.stock_rebalance=0;
+  else if(video->gameplay.vehicle_packs)video->gameplay.vehicle_packs=7;
   if (FzeroTracksEnabled(cp_catalog_find(FzeroTracksCatalog(),"cgp"))) video->bs_tracks=false;
   memset(&provider, 0, sizeof(provider));
   provider.package_count = count; provider.package_get = package_get;

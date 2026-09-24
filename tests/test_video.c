@@ -152,6 +152,18 @@ static void config_tests(void) {
     CHECK(a.bs_deluxe && !a.gameplay.vehicle_packs && !a.gameplay.stock_rebalance);
     f=fopen("test-video.ini","w");CHECK(f);fputs("BSVehicles=0\nCGPRules=7\n",f);fclose(f);
     CHECK(FzeroVideoLoad(&a,"test-video.ini") && !a.gameplay.enabled && !a.gameplay.vehicle_packs && !a.gameplay.stock_rebalance);
+  /* Migrate saved partial car packs to the complete roster, including when
+   * skipping the launcher; an explicit BS vehicle choice still wins. */
+  for(unsigned bs=0;bs<2;++bs) for(unsigned mask=0;mask<8;++mask) {
+    f=fopen("test-video.ini","w");CHECK(f);
+    fprintf(f,"BSVehicles=%u\nCGPCars=%u\nCGPStockRebalance=5\n",bs,mask);
+    fclose(f);
+    CHECK(FzeroVideoLoad(&a,"test-video.ini"));
+    CHECK(a.gameplay.vehicle_packs==(!bs && mask?7u:0u));
+    CHECK(a.gameplay.stock_rebalance==(bs?0u:5u));
+    CHECK(FzeroVideoSave(&a,"test-video.ini") && FzeroVideoLoad(&b,"test-video.ini"));
+    CHECK(b.gameplay.vehicle_packs==a.gameplay.vehicle_packs);
+  }
   remove("test-video.ini");
   CHECK(FzeroVideoLoad(&b, "test-video.ini"));
   CHECK(b.enhanced && b.fps_enabled && b.bs_deluxe && b.aspect == FZERO_ASPECT_FIT); /* first run: all mods on */
