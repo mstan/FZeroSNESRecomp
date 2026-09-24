@@ -19,6 +19,8 @@ bool FzeroTracksEnable(const CpPack *pack, bool enabled);
 bool FzeroTracksHasTitle(const CpPack *pack);
 bool FzeroTracksTitleEnabled(const CpPack *pack);
 bool FzeroTracksSetTitle(const CpPack *pack, bool enabled);
+const char *FzeroTracksTitleStyle(const CpPack *pack);
+bool FzeroTracksSetTitleStyle(const CpPack *pack, const char *style);
 bool FzeroTracksSetPatch(const CpPack *pack, const char *path);
 bool FzeroTracksSave(void);
 /* Diagnostics are catalog-wide: bad files never disappear silently. */

@@ -55,5 +55,4 @@ const FzeroRuleInfo fzero_rules[FZERO_RULE_COUNT] = {
      "Sound. Missing tracks fall back to the original soundtrack. No music is "
      "included."},
     {"cgp-credits", "CGP ending credits",
-     "Use the CGP author's ending credits. Completing CGP VI shows them on any "
-     "difficulty; other cups retain the usual ending requirement."}};
+     "Retired console ending patch; reserved identity for older configurations."}};

@@ -441,6 +441,17 @@ int main(int argc, char **argv) {
 
   for (long frame = 0; frame < frame_limit; frame++) {
     replay_wram_before(frame);
+    /* Export a private replay fixture without the lifecycle test's reset or
+     * speculative execution. The normal mode/signature guard still applies
+     * when this snapshot is loaded by either host. */
+    const char *export_state = getenv("FZERO_STATE_SAVE");
+    if (export_state && *export_state && frame == save_frame) {
+      if (!RtlSaveSnapshot(export_state)) {
+        fputs("fixture: snapshot export failed\n", stderr);
+        return 8;
+      }
+      fprintf(stderr, "fixture: saved frame %ld to %s\n", frame, export_state);
+    }
     if (getenv("FZERO_REWIND_TEST") && frame == save_frame) {
       size_t cap = 2u * 1024u * 1024u;
       uint8_t *initial = malloc(cap);

@@ -23,7 +23,7 @@ static uint8_t native_frequency[45];
 static uint16_t class_last_input;
 static unsigned class_hold;
 bool FzeroRuleEnabled(FzeroRule r) {
-  return (settings.enabled & (1u << r)) != 0;
+  return r != FZERO_RULE_CREDITS && (settings.enabled & (1u << r)) != 0;
 }
 bool FzeroBsCars(void) { return cars; }
 bool FzeroBsTracks(void) { return tracks; }
@@ -42,6 +42,7 @@ static void sign_program(const uint8_t *rom, size_t size) {
 void FzeroGameplayConfigure(const FzeroGameplaySettings *s, bool vehicles,
                             bool courses) {
   settings = *s;
+  settings.enabled &= FZERO_RULE_ACTIVE_MASK;
   if (vehicles) settings.vehicle_packs = settings.stock_rebalance = 0;
   cars = vehicles;
   tracks = courses &&
@@ -161,6 +162,7 @@ static void tuning_metadata(uint8_t *rom) {
 }
 void FzeroGameplayActivateVehicles(const FzeroGameplaySettings *s, uint8_t *rom) {
   settings = *s;
+  settings.enabled &= FZERO_RULE_ACTIVE_MASK;
   if (FzeroRuleEnabled(FZERO_RULE_TUNING)) tuning_metadata(rom);
 }
 void FzeroGameplaySetSignature(const uint8_t hash[32]) { memcpy(signature,hash,32); }
@@ -282,15 +284,6 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
     unsigned value = FzeroGameplayMusicTrack(g_ram[0x46] & 7);
     accum(cpu, value);
     interp_bridge_pre_opcode_redirect(CGP_MSU_RETURN);
-    break;
-  }
-  case 0x039b9f: {
-    const CpPack *pack = NULL;
-    const CpCup *cup = FzeroTracksRuntimeCup(FzeroTracksMenuIndex(), &pack);
-    bool last =
-        cup && pack && !strcmp(pack->id, "cgp") && !strcmp(cup->id, "cgp-6");
-    accum(cpu, last || g_ram[0x57] >= 2 ? 10 : 0);
-    interp_bridge_pre_opcode_redirect(0x039ba1); /* Run the source's CMP. */
     break;
   }
   case 0x008976:
@@ -517,8 +510,6 @@ void FzeroGameplayInstallHooks(void) {
     interp_bridge_set_pre_opcode_hook(0x009c55, rule_hook);
     interp_bridge_set_pre_opcode_hook(0x009c6b, rule_hook);
   }
-  if (FzeroRuleEnabled(FZERO_RULE_CREDITS))
-    interp_bridge_set_pre_opcode_hook(0x039b9f, rule_hook);
   if (FzeroRuleEnabled(FZERO_RULE_MSU))
     interp_bridge_set_pre_opcode_hook(CGP_MSU_SELECTOR, rule_hook);
   if (available_rule(FZERO_RULE_DMAG)) {

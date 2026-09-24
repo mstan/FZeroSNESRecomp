@@ -15,7 +15,7 @@ int main(void) {
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
     packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
-  CHECK(p->package_count(NULL) == 7 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 6 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -23,7 +23,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 7 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 6 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -45,7 +45,9 @@ int main(void) {
       CHECK(option.type == RECOMP_MOD_OPTION_CHOICE && option.choice_count == 2);
       RecompLauncherCModChoice choice;
       CHECK(p->feature_choice_get(NULL, pack.package_id, pack.id, option.id, 1, &choice));
-      CHECK(!strcmp(choice.value, "fzero-55"));
+      CHECK(!strcmp(choice.value, "cgp"));
+      CHECK(!p->feature_choice_get(NULL, pack.package_id, pack.id, option.id, 2, &choice));
+      CHECK(!p->feature_set_option(NULL, pack.package_id, pack.id, option.id, "fzero-55"));
       CHECK(p->feature_set_option(NULL, pack.package_id, pack.id, option.id, choice.value));
       CHECK(!p->feature_set_option(NULL, pack.package_id, pack.id, option.id, "unknown"));
       CHECK(!p->feature_option_get(NULL, pack.package_id, pack.id, 1, &option));
@@ -57,7 +59,7 @@ int main(void) {
     CHECK(!s.enhanced && !s.bs_deluxe && !s.hd_mode7 && !s.fps_enabled);
   }
   for (int i=3;i<FZERO_RULE_COUNT;++i) {
-    if (i == FZERO_RULE_MSU) continue;
+    if (i == FZERO_RULE_MSU || i == FZERO_RULE_CREDITS) continue;
     RecompLauncherCModFeature rule;
     CHECK(p->feature_get(NULL,3+i-(i>FZERO_RULE_MSU),&rule) && !rule.enabled);
     CHECK(p->feature_resource_count(NULL,rule.package_id,rule.id)==0);
@@ -67,6 +69,7 @@ int main(void) {
     CHECK(!rule.option_count);
   }
   CHECK(!s.gameplay.enabled);
+  CHECK(!p->feature_enable(NULL,"cgp-credits","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-tuning","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-boost","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-exhaust","rules",1));
@@ -174,7 +177,7 @@ int main(void) {
     cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
     CHECK(!FzeroTracksEnabled(cgp) && FzeroTracksTitleEnabled(cgp));
     CHECK(p->feature_option_get(NULL, "cgp", "tracks", 0, &option));
-    CHECK(!strcmp(option.value, "fzero-55") && !strcmp(option.default_value, "original"));
+    CHECK(!strcmp(option.value, "cgp") && !strcmp(option.default_value, "original"));
     CHECK(p->feature_enable(NULL, "cgp", "tracks", 1));
     CHECK(FzeroTracksTitleEnabled(cgp));
     CHECK(p->feature_set_option(NULL, "cgp", "tracks", "title-screen", "original"));
@@ -207,7 +210,7 @@ int main(void) {
       CHECK(s.bs_tracks==(pick==1) && s.bs_deluxe==(pick==1));
       CHECK(s.gameplay.vehicle_packs==(pick==2?7u:0u));
       CHECK(s.gameplay.stock_rebalance==(pick==2?15u:0u));
-      CHECK(s.gameplay.enabled==(pick==2?((1u<<FZERO_RULE_COUNT)-1)&~7u:0u));
+      CHECK(s.gameplay.enabled==(pick==2?FZERO_RULE_SELECTABLE_MASK:0u));
       CHECK(io.msu1_enabled==(pick==2));
       CHECK(FzeroTracksEnabled(cgp)==(pick==2));
       CHECK(FzeroTracksTitleEnabled(cgp)==(pick==2));

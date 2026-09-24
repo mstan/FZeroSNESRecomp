@@ -11,17 +11,17 @@ The included MSU adapter source credits Conn, Khilendel and Catador in
 `mods/cgp-source/fzedit-msu.asm`. This permission does not change the licenses
 or ownership of the music.
 
-The owner supplied `F-Zero CGP P1.zip`, `F-Zero CGP P2.zip` and
-`F-Zero CGP P3.zip`. All three contain the same 61 PCM files, verified by
-SHA-256. The importer now retains 53 and skips eight confirmed exclusions,
-renaming retained files to the common `cgp` prefix. Retained audio bytes and loop
-points are unchanged. `cgp.json` records every retained/excluded size and hash.
-The retained files are not yet cleared of all work by the two excluded authors.
-The actual extracted source set is `music/cgp`: 53 PCM files and an empty
-`cgp.msu` descriptor. Excluded recordings are not retained there. Pruning uses
-physical file deletion after validating each excluded recording by hash; Git
-ignore patterns are only a secondary guard.
-No ROM or unrelated archive contents are extracted.
+The complete source is now **F-Zero CGP P1 MSU PCPORT.zip**, replacing the
+older P1/P2/P3 soundtrack archives. It contains 29 PCM recordings (about 567 MB
+uncompressed) and an empty descriptor. Files are renamed to the common `cgp`
+prefix without changing audio or loop points. `cgp.json` records their hashes,
+the eight author exclusions, and 24 superseded recordings to physically remove
+from old staging directories. Missing recordings use the game's SNES music.
+The remaining contributor attribution is still unresolved.
+
+The canonical extracted set is `music/cgp`. Excluded and superseded recordings
+are physically removed after checking their hashes; Git ignores are only a
+secondary guard. No ROM or unrelated archive contents are extracted.
 
 Select **Settings > Audio > Enable MSU-1 music**, leaving the source on
 **Community Grand Prix**, or apply that preset in Mods. Music starts off on
@@ -32,18 +32,18 @@ SNES audio until a custom source has been selected.
 
 ## Building from source
 
-Large PCM files are not stored in Git. Import any one of the original archives:
+Large PCM files are not stored in Git. Import the complete replacement archive:
 
 ```powershell
-python tools/import_cgp_music.py 'E:\Downloads\F-Zero CGP P1.zip'
+python tools/import_cgp_music.py 'E:\Downloads\F-Zero CGP P1 MSU PCPORT.zip'
 ```
 
 This creates the ignored `music/cgp` directory. Reconfigure and build to stage
 it beside the executable under `assets/music/cgp`. The release tool validates
-the 53 retained files before packaging, rejects excluded or unexpected files,
+the 29 retained files before packaging, rejects excluded or unexpected files,
 and warns that attribution is still incomplete. Do not place arbitrary user
 music in this directory. For an old import, run
-`python tools/import_cgp_music.py --prune-excluded music/cgp` before building.
+`python tools/import_cgp_music.py --prune-retired music/cgp` before building.
 Previously generated music ZIPs that contained the excluded files have been
 physically deleted from this worktree, along with reference music archives and
 leftover excluded PCM copies in older capture/staging folders.

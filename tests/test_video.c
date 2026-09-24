@@ -142,7 +142,7 @@ static void config_tests(void) {
     b.gameplay.enabled=((1u<<FZERO_RULE_COUNT)-1)&~7u;
   b.gameplay.tuning=0; b.gameplay.boost=1; b.gameplay.exhaust=2;
   CHECK(FzeroVideoSave(&b,"test-video.ini") && FzeroVideoLoad(&a,"test-video.ini"));
-  CHECK(!a.bs_deluxe && a.bs_tracks && a.gameplay.enabled==b.gameplay.enabled);
+  CHECK(!a.bs_deluxe && a.bs_tracks && a.gameplay.enabled==(b.gameplay.enabled & FZERO_RULE_SELECTABLE_MASK));
     CHECK(a.gameplay.tuning==0 && a.gameplay.boost==1 && a.gameplay.exhaust==2);
     b.gameplay.vehicle_packs=7;b.gameplay.stock_rebalance=15;
     CHECK(FzeroVideoSave(&b,"test-video.ini") && FzeroVideoLoad(&a,"test-video.ini"));

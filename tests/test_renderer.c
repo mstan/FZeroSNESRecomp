@@ -227,13 +227,20 @@ static void test_loss_window(void) {
 }
 static void test_results_fade(void) {
   static uint32_t results[FZERO_MAX_WIDTH * 224];
+  for (int completed = 0; completed <= 1; ++completed)
   for (int aspect = FZERO_ASPECT_STOCK; aspect <= FZERO_ASPECT_FIT; ++aspect) {
     FzeroVideoSettings s; FzeroVideoStock(&s);
     s.enhanced = true; s.aspect = aspect;
     FzeroViewport v = FzeroCalculateViewport(&s, 5120, 1440);
     setup(); memset(p.vram, 0, sizeof(p.vram));
     ram[0x54] = 3; ram[0x55] = 0; ram[0x56] = 5;
-    p.bgmode = 9; p.screenEnabled[0] = 0x94; /* Results: BG3 + OBJ, no track. */
+    ram[0x5f] = completed ? 0x84 : 0x87;
+    p.bgmode = 9; p.screenEnabled[0] = completed ? 0x97 : 0x94;
+    if (completed) {
+      /* Successful results retain the centered colour-window placing art. */
+      p.windowsel = 2u << 20; p.window1left = 120; p.window1right = 135;
+      p.cgwsel = 0x10; p.cgadsub = 0x20; p.fixedColor = 0x7c00;
+    }
     p.bgXsc[2] = 0x74; p.bgTileAdr = 0x100;
     p.vram[0x7400 + 3 * 32 + 2] = 1; /* score */
     p.vram[0x7400 + 8 * 32 + 12] = 1; /* centered table, not score */
@@ -250,10 +257,21 @@ static void test_results_fade(void) {
     }
     p.oam[126 * 2] = (190 << 8) | 208; p.oam[126 * 2 + 1] = 0x3801;
     p.highOam[31] &= ~0x30;
+    /* The lap table also reuses former car slots. Stale actor coordinates
+     * and piece counts must not move or cull those number sprites. */
+    ram[0x50] = 1; word(0xac0, 0x320); word(0xb02, 0x88);
+    word(0xc52, (unsigned)-350); ram[0x11d2] = 0;
+    p.oam[68 * 2] = (100 << 8) | 150; p.oam[68 * 2 + 1] = 0x3801;
+    p.highOam[17] &= ~3;
     publish(1); CHECK(FzeroRendererDraw(results, v, 1));
     CHECK(results[24 * v.width + 16] == 0xff0000);
     CHECK(results[64 * v.width + v.extra + 96] == 0xff0000);
     CHECK(results[190 * v.width + 2 * v.extra + 208] == 0x00ff00);
+    CHECK(results[100 * v.width + v.extra + 150] == 0x00ff00);
+    if (completed) {
+      CHECK(results[80 * v.width + v.extra + 120] == 0x0000ff);
+      CHECK(results[80 * v.width + v.extra + 119] == 0);
+    }
     for (int x = 80; x < 192; ++x)
       CHECK(results[128 * v.width + v.extra + x] == 0x00ff00);
     for (int choice = 0; choice <= 1; ++choice) {

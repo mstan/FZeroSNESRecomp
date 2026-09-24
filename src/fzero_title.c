@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* F-Zero 55 retains the original title's sprite layout and DMA descriptors at
+/* Community Grand Prix retains the original title's sprite layout and DMA descriptors at
  * $03:9965. Its title tiles live at $0C:EC00-FFFF and palette at $0F:C2E0-C35F.
  * Apply the bundled artwork-only IPS to a disposable copy of the stock input,
  * then retain only those resources. No donor code or MSU data can be installed.

@@ -23,10 +23,17 @@ def verify_file(path, item):
             raise ValueError(f"Unexpected content: {path}")
 
 
-def prune_excluded(folder):
-    """Remove only positively identified excluded files from this exact folder."""
+def prune_excluded(folder, *, superseded=False):
+    """Physically remove identified obsolete files from this exact folder.
+
+    Superseded means absent from the PC-port replacement, not author-excluded.
+    """
+    manifest = load_manifest()
+    retired = dict(manifest.get("excluded_tracks", {}))
+    if superseded:
+        retired.update(manifest.get("superseded_tracks", {}))
     excluded = []
-    for track, item in load_manifest().get("excluded_tracks", {}).items():
+    for track, item in retired.items():
         path = folder / f"cgp-{track}.pcm"
         if path.exists():
             # Do not delete a user's replacement just because its number matches.
@@ -53,7 +60,7 @@ def stage_music(source, destination):
     manifest = verify_music(source)
     destination.mkdir(parents=True, exist_ok=True)
     # copy_directory alone would retain excluded recordings from older builds.
-    prune_excluded(destination)
+    prune_excluded(destination, superseded=True)
     for track in manifest["tracks"]:
         name = f"cgp-{track}.pcm"
         shutil.copy2(source / name, destination / name)
@@ -69,10 +76,15 @@ def main():
     operations.add_argument("--stage-from", type=Path)
     operations.add_argument("--prune-excluded", type=Path,
                             help="Remove hash-verified excluded files from an existing import/build")
+    operations.add_argument("--prune-retired", type=Path,
+                            help="Remove hash-verified excluded and superseded PC-port recordings")
     p.add_argument("--out", type=Path, default=ROOT / "music/cgp")
     a = p.parse_args()
-    if bool(a.archive) + bool(a.stage_from) + bool(a.prune_excluded) != 1:
-        p.error("Choose an archive, --stage-from, or --prune-excluded")
+    if bool(a.archive) + bool(a.stage_from) + bool(a.prune_excluded) + bool(a.prune_retired) != 1:
+        p.error("Choose an archive, --stage-from, --prune-excluded, or --prune-retired")
+    if a.prune_retired:
+        print(f"Removed {prune_excluded(a.prune_retired, superseded=True)} retired CGP files from {a.prune_retired}")
+        return
     if a.prune_excluded:
         print(f"Removed {prune_excluded(a.prune_excluded)} excluded CGP files from {a.prune_excluded}")
         return

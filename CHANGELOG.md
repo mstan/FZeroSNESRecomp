@@ -1,6 +1,16 @@
 ﻿# Changelog
 
-## Unreleased - soundtrack contributor exclusions
+## 1.8.3-fzero-55-preview.10 - CGP presentation and PC-port soundtrack
+
+- Replace the previous music bundle with the author's 29-recording PC-port set.
+  Physically remove superseded recordings from extracted staging.
+- Restore Community GP title artwork and the CGP energy HUD lightning symbol
+  and underline. Retain F-Zero 55 artwork with its launcher choice hidden.
+- Retire the console ending-credits ASM from runtime, presets and Mods.
+- Fix successful race results splitting lap/rank digits during the fade to the
+  next race. Preserve native table and placing-graphic alignment in wide/HD views.
+- Honor MAX League's authored palette cycles, fixing Metal Forest flashing.
+  Port Canyon flashing remains unconfirmed in direct and GP-progression checks.
 
 - Exclude eight CosmicTailz recordings identified by exact reference hashes.
 - Retain attribution evidence and a before-release requirement to identify and

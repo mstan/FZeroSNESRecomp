@@ -60,6 +60,13 @@ class MusicExclusionTests(unittest.TestCase):
         self.assertFalse((dst / 'cgp-25.pcm').exists())
         self.assertEqual((dst / 'cgp-4.pcm').read_bytes(), self.keep)
 
+    def test_pcport_staging_physically_removes_superseded_recordings(self):
+        self.manifest["superseded_tracks"] = {"10": self.manifest["excluded_tracks"]["25"]}
+        src, dst = self.folder("pcport"), self.folder("legacy")
+        (dst / "cgp-10.pcm").write_bytes(self.excluded)
+        music.stage_music(src, dst)
+        self.assertEqual({p.name for p in dst.iterdir()}, {"cgp.msu", "cgp-4.pcm"})
+
     def test_prune_preserves_replacements_with_the_same_number(self):
         dst = self.folder('custom')
         replacement = b'a different recording'

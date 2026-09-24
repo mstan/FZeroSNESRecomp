@@ -1,9 +1,9 @@
-# F-Zero 55 preview.9: tester notes
+# F-Zero 55 preview.10: tester notes
 
 Extract this ZIP into a **new folder** and run `FZeroSNESRecomp.exe`. Select
 your own original F-Zero (USA) ROM. Keep older build folders and saves until
 you have finished comparing them. No ROM, personal settings or saves are
-included. Choose **with-msu** for the approved CGP soundtrack (roughly 1.2 GB
+included. Choose **with-msu** for the replacement CGP PC-port soundtrack (about 567 MB
 of audio after extraction), or **without-msu** to supply your own music.
 Both ZIPs retain MSU support and contain the same game content and executable.
 
@@ -43,6 +43,18 @@ captures and staging. The without-msu editions contain no bundled audio.
 
 ## New in this preview
 
+- Replace the old soundtrack with the author's complete 29-recording PC-port
+  set. Superseded recordings are physically removed from local staging.
+- Use CGP's own Community GP title. F-Zero 55 artwork is retained but hidden.
+- Restore the CGP lightning symbol and speed underline; stock and stock BS
+  configurations keep the POWER artwork.
+- Remove the console ending-credits ASM from runtime, presets and Mods.
+- Keep completed-race lap/rank text and the placing graphic aligned during
+  the fade to the next race in widescreen and HD.
+- Fix Metal Forest's flashing by importing MAX's authored palette cycles.
+
+## Also included from preview.9
+
 - **CGP vehicles** is now one checkbox for all three car groups together.
   Existing partial selections migrate to the full twelve-car roster (eight
   additions plus the original four). Selection columns and Grand Prix rivals
@@ -57,7 +69,7 @@ captures and staging. The without-msu editions contain no bundled audio.
   Additional IPS/BPS track packs still use the `mods/track-packs` directory.
 - **Mods > Preset** applies Vanilla, Satellaview or full Community Grand Prix.
   CGP includes all three vehicle groups, four rebalances, every authored rule
-  including Legend and credits, courses, F-Zero 55 title and bundled music.
+  including Legend, courses, Community Grand Prix title and bundled music.
   You can change any individual option afterward.
 - Presets preserve MAX, Bower, other packs and personal settings. Vanilla
   turns off the CGP/BS family; it does not silently disable unrelated packs.
@@ -75,8 +87,8 @@ A fresh installation enables **BS Satellaview vehicles**: the original four
 cars plus Blue Thunder, Luna Bomber, Green Amazone and Fire Scorpion, retaining
 their original individual behavior.
 
-CGP's three vehicle packs are opt-in. Enabling one disables BS vehicles;
-enabling all three provides **12 distinct selectable cars**, including the
+**CGP vehicles** enables all three groups together and disables BS vehicles.
+It provides **12 distinct selectable cars**, including the
 original four. The four original-car rebalances are separate, default-off
 options. A new CGP car's artwork, handling, boost and exhaust travel together.
 
@@ -89,7 +101,7 @@ Grand Prix uses the selected car's enabled CGP group for its three main rivals:
 | P3 | White Cat, Wild Goose, Red Gazelle, Fire Stingray |
 
 These groups do not require enabling the original-car rebalances. Practice
-allows any enabled car as the opponent. With a corresponding CGP pack off,
+allows any enabled car as the opponent. With CGP vehicles off,
 original cars use their original Grand Prix rivals.
 
 Vehicle choices are independent of track packs. The original **BS tracks**
@@ -97,7 +109,7 @@ and CGP are mutually exclusive because CGP includes corrected BS courses.
 
 Fresh defaults enable CGP and Bower tracks, giving 15 cups / 75 versions.
 MAX, CGP cars, original-car rebalances, optional gameplay rules, Legend
-difficulty and the F-Zero 55 title artwork start off. Existing settings are
+difficulty and the Community Grand Prix title artwork start off. Existing settings are
 respected. No soundtrack is enabled by a track pack.
 
 Rewind is on by default: **R** on keyboard. **D / C** are left/right shoulder;
@@ -105,6 +117,9 @@ Rewind is on by default: **R** on keyboard. **D / C** are left/right shoulder;
 
 ## Known limitations
 
+- MAX Port Canyon background flashing has not reproduced in direct starts
+  or native Grand Prix progression. Metal Forest flashing is reproduced
+  and fixed; report any remaining MAX issue with the course name.
 - With CGP cars enabled, an unrebalanced Blue Falcon can still inherit its
   group's energy-boost indicator layout. This also occurs in preview.5;
   per-car boost/exhaust isolation remains under investigation.

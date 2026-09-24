@@ -18,7 +18,8 @@ static char patches[CP_PACKS][CP_PATH];
 static bool disabled[CP_PACKS];
 static bool bundled[CP_PACKS];
 static bool hidden[CP_PACKS];
-static bool custom_title[CP_PACKS];
+/* 0=stock, 1=CGP, 2=F-Zero 55 (retained, hidden in the launcher). */
+static uint8_t custom_title[CP_PACKS];
 static char diagnostics[CP_PACKS][256];
 static unsigned diagnostic_count;
 static char ambiguous[CP_PACKS][CP_ID];
@@ -68,6 +69,19 @@ bool FzeroTracksSetTitle(const CpPack *p, bool enabled) {
     int i = index_of(p);
     if (i < 0 || !FzeroTracksHasTitle(p)) return false;
     custom_title[i] = enabled;
+    return true;
+}
+const char *FzeroTracksTitleStyle(const CpPack *p) {
+    int i = index_of(p);
+    return i < 0 || !custom_title[i] ? "original" : custom_title[i] == 2 ? "fzero-55" : "cgp";
+}
+bool FzeroTracksSetTitleStyle(const CpPack *p, const char *style) {
+    int i = index_of(p);
+    if (i < 0 || !FzeroTracksHasTitle(p) || !style) return false;
+    unsigned value = !strcmp(style,"original") ? 0 : !strcmp(style,"cgp") ? 1 :
+                     !strcmp(style,"fzero-55") ? 2 : 3;
+    if (value > 2) return false;
+    custom_title[i] = (uint8_t)value;
     return true;
 }
 static bool path_for(char *out, size_t cap, const char *id, const char *suffix) {
@@ -222,7 +236,7 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
         path_for(path, sizeof(path), catalog.packs[i]->id, ".title");
         if (FzeroTracksHasTitle(catalog.packs[i]) && read_line(path, flag, sizeof(flag)))
-            custom_title[i] = !strcmp(flag, "1");
+            custom_title[i] = !strcmp(flag, "2") ? 2 : !strcmp(flag, "1");
         snprintf(path,sizeof(path),"assets/track-packs/%s.hidden",catalog.packs[i]->id);
         if (read_line(path,flag,sizeof(flag)) && !strcmp(flag,"1")) {
             hidden[i] = true;
@@ -280,7 +294,7 @@ bool FzeroTracksSave(void) {
         if ((!bundled[i] && !write_line(catalog.packs[i]->id, ".path", patches[i])) ||
             !write_line(catalog.packs[i]->id, ".disabled", disabled[i] ? "1" : "0")) return false;
         if (FzeroTracksHasTitle(catalog.packs[i]) &&
-            !write_line(catalog.packs[i]->id, ".title", custom_title[i] ? "1" : "0")) return false;
+            !write_line(catalog.packs[i]->id, ".title", custom_title[i] == 2 ? "2" : custom_title[i] ? "1" : "0")) return false;
     }
     return true;
 }

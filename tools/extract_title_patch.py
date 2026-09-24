@@ -1,7 +1,7 @@
 """Clip an IPS to F-Zero's original title tile/palette layout, without a ROM.
 
 This is a presentation adapter, not a general hack converter: the donor must
-retain the original title sprite layout and DMA descriptors. FZero55 v2 does.
+retain the original title sprite layout and DMA descriptors. Community Grand Prix does.
 Writes outside these two resource ranges (including MSU/code) are discarded.
 """
 import argparse

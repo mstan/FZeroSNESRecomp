@@ -179,7 +179,9 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
       ok = FzeroCourseExtract(donor, donor_size, &layout, p->tracks[t].slot, &courses[t], error,
                               sizeof(error));
     if (ok && FzeroTracksTitleEnabled(p) &&
-        !FzeroTitlePrepare(*rom, *size, "assets/track-packs/presentation/fzero-55.ips", error, sizeof(error))) {
+        !FzeroTitlePrepare(*rom, *size,
+          !strcmp(FzeroTracksTitleStyle(p), "fzero-55") ? "assets/track-packs/presentation/fzero-55.ips" :
+          "assets/track-packs/presentation/cgp.ips", error, sizeof(error))) {
       char message[256];
       snprintf(message, sizeof(message), "CGP title: %.160s; using the original title", error);
       FzeroTracksReport(message);
@@ -250,7 +252,9 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
     if (FzeroTitleHash()) {
       memcpy(hashes + length, FzeroTitleHash(), 32);
       length += 32;
-      fprintf(stderr, "[track-library] F-Zero 55 title artwork enabled\n");
+      fprintf(stderr, "[track-library] %s title artwork enabled\n",
+          !strcmp(FzeroTracksTitleStyle(cp_catalog_find(FzeroTracksCatalog(), "cgp")), "fzero-55") ?
+          "F-Zero 55" : "Community Grand Prix");
     }
     sha256_compute(hashes, length, identity);
   }

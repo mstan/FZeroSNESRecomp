@@ -106,12 +106,13 @@ release. See [the evidence and outstanding work](assets/music/CGP_ATTRIBUTION.md
 Each applies an editable recipe for that content family. MAX, Bower and other
 unrelated choices remain as selected, as do display, controls and rewind.
 CGP enables all its courses, twelve cars, original-car rebalances, rules
-including Legend, credits, F-Zero 55 title and bundled music. Individual
-options remain editable. No preset is applied automatically on startup.
+including Legend, Community Grand Prix title and bundled music. Individual
+options remain editable. The console ending-credits patch is retired. F-Zero 55
+title artwork is retained but hidden for a future course pack. No preset is applied automatically on startup.
 
 Windows previews come in **with-msu** and **without-msu** ZIPs. Both support
-MSU playback; only with-msu includes the approved **Community Grand Prix**
-soundtrack. In **Settings > Audio**, enable **MSU-1 music** and leave its source
+MSU playback; only with-msu includes the replacement **Community Grand Prix PC-port**
+soundtrack (29 recordings; attribution review remains open). In **Settings > Audio**, enable **MSU-1 music** and leave its source
 on **Community Grand Prix**, or select the CGP preset in Mods. Music starts
 off on a fresh installation. Missing tracks and unrelated track packs use
 SNES music. Track selection works in both Grand Prix and Practice.

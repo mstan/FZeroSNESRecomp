@@ -22,9 +22,12 @@ typedef enum FzeroRule {
   FZERO_RULE_UP_MAGNET,
   FZERO_RULE_FOG,
   FZERO_RULE_MSU,
-  FZERO_RULE_CREDITS,
+  FZERO_RULE_CREDITS, /* Retired; keep the saved bit number reserved. */
   FZERO_RULE_COUNT
 } FzeroRule;
+/* Credits are source attribution only; never install their SNES ending patch. */
+#define FZERO_RULE_ACTIVE_MASK (((1u << FZERO_RULE_COUNT) - 1u) & ~(1u << FZERO_RULE_CREDITS))
+#define FZERO_RULE_SELECTABLE_MASK (FZERO_RULE_ACTIVE_MASK & ~7u)
 typedef struct FzeroGameplaySettings {
   uint32_t enabled;
   unsigned tuning, boost, exhaust; /* 0=P1, 1=P2, 2=P3. Retained while off. */

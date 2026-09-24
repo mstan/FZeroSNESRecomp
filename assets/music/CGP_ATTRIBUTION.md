@@ -16,6 +16,17 @@ The author's [CGP release credits](https://romhackplaza.org/romhacks/f-zero-comm
 name Silverreploid CLE, TheBlurCafe, Cobalt Star, CosmicTailz, Facecat,
 Cody O'Quinn and Doktor Fill. No track-by-track assignment is given.
 
+## Replacement PC-port source
+
+On 2026-09-24 the owner replaced the three old soundtrack inputs with
+`F-Zero CGP P1 MSU PCPORT.zip`. It contains 29 recordings (566,847,024 audio
+bytes) and an empty descriptor. None of the eight confirmed exclusions is
+present. The retained files match their previous hashes. The other 24
+previously retained recordings are now superseded, not newly attributed to
+either excluded author. Their hashes remain in `superseded_tracks` solely
+so staging can physically delete old copies. This archive is the complete
+soundtrack source, not an additive update.
+
 ## Confirmed exclusions
 
 The [BS Deluxe MSU release thread](https://www.zeldix.net/t2768-bs-f-zero-deluxe-msu-1)
@@ -59,7 +70,7 @@ that CGP contains none of TheBlurCafe's work**: conversions, edits, alternate
 recordings or references not in this pack may differ. Likewise, the eight exact
 CosmicTailz matches do not establish that no other contributions exist.
 
-The retained 53 files are therefore **not certified free of those contributors**.
+The retained 29 PC-port files are therefore **not certified free of those contributors**.
 Obtain an authoritative composer-to-PCM/course list, or additional attributable
 recordings, before clearing this release requirement. Add confirmed removals to
 `excluded_tracks`, prune/reimport, and regenerate the bundled download. Do not
@@ -80,7 +91,7 @@ A fresh audit found no known excluded recording in any remaining PCM file
 or ZIP in this worktree; no PCM/MSU/ZIP files are tracked in Git.
 
 The canonical extracted source set, `music/cgp`, and active build staging each
-contain 53 retained PCM files plus the empty descriptor. Exclusions are absent
+contain 29 retained PCM files plus the empty descriptor. Exclusions are absent
 on disk, not merely hidden by Git. Global PCM/MSU ignore patterns provide a
 secondary guard. Future imports never extract known excluded tracks.
 
@@ -90,10 +101,10 @@ extracted preview directories have been pruned and are no longer exact
 reproductions of the deleted ZIPs; regenerate a new package from source when
 the remaining attribution requirement is resolved.
 
-For an existing source import, first remove only the hash-verified exclusions:
+For an existing source import, remove the hash-verified exclusions and superseded files:
 
 ```powershell
-python tools/import_cgp_music.py --prune-excluded music/cgp
+python tools/import_cgp_music.py --prune-retired music/cgp
 ```
 
 New imports skip the excluded recordings automatically. Existing build output
@@ -114,35 +125,12 @@ mapping; an original course and its CGP revision share the same PCM number.
 | `4` | Title |
 | `5` | Selection / records |
 | `7` | Ending |
-| `10` | Mute City I CGP |
-| `11` | Big Blue CGP |
-| `12` | Sand Ocean CGP |
-| `13` | Death Wind I CGP |
-| `14` | Silence CGP |
-| `15` | Mute City II CGP |
-| `16` | Port Town I CGP |
-| `17` | Red Canyon I CGP |
-| `18` | White Land I CGP |
-| `19` | White Land II CGP |
-| `20` | Mute City III CGP |
-| `21` | Death Wind II CGP |
-| `22` | Port Town II CGP |
-| `23` | Red Canyon II CGP |
-| `24` | Fire Field CGP |
-| `26` | Big Blue II |
-| `27` | Sand Storm I |
-| `29` | Silence II |
-| `30` | Mute City IV |
-| `32` | Sand Storm II |
 | `35` | Marine City I |
-| `36` | Big Blue III |
 | `37` | Mercury Sea |
 | `38` | Forest IV |
 | `39` | Sulfur Swamp |
-| `40` | Mute City V |
 | `41` | Cloud Carpet |
 | `42` | Lethal Cave |
-| `43` | Red Canyon III |
 | `44` | Crystal Forest I |
 | `45` | Warp Sector I |
 | `46` | Sand Ocean II |
@@ -152,7 +140,6 @@ mapping; an original course and its CGP revision share the same PCM number.
 | `50` | Huckmine |
 | `51` | Big Blue IV |
 | `52` | Empyrean Colony |
-| `54` | Volcania |
 | `55` | Metal Fort III |
 | `57` | Cloud Carpet II |
 | `59` | Lightning |

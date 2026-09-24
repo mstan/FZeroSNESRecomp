@@ -1,4 +1,18 @@
-Optional F-Zero 55 title artwork
+Optional title artwork
+
+Community Grand Prix
+
+Source: the bundled track-packs/cgp.ips, supplied by the CGP authors.
+Credits: Fennor Virastar, Worthy MF and the CGP contributors.
+The artwork reads "Community GP" and is offered under the CGP track pack,
+disabled by default. The CGP preset enables it.
+
+cgp.ips is generated with:
+  python tools/extract_title_patch.py assets/track-packs/cgp.ips assets/track-packs/presentation/cgp.ips
+Output SHA-256:
+27d02127016b848caaae7531e84ad5fd0370d196a6ae396ccb4c440bcb9b445f
+
+F-Zero 55 (retained, hidden)
 
 Source: FZero55.ips from the owner's FZero55.zip, version 2.
 Original IPS SHA-256:
@@ -16,6 +30,6 @@ palette ($0F:C2E0-C35F) are retained. No engine changes, tracks, vehicle
 changes, MSU support or music are present. A user-supplied original USA
 ROM supplies the unchanged bytes; no ROM is bundled.
 
-CGP P1/P2/P3 have a different "Community GP" logo. The F-Zero 55 artwork
-is offered under CGP for this all-in-one build, disabled by default.
-Its dropdown choice applies only while the CGP track pack is enabled.
+F-Zero 55 remains a separate backend style and artwork patch. Its menu choice
+is hidden for now; it is not selected by the CGP preset. It is retained for a
+future F-Zero 55 course pack.

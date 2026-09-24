@@ -3,9 +3,7 @@
   "format": "msu1-pcm-1",
   "prefix": "cgp",
   "source_archives": [
-    "F-Zero CGP P1.zip",
-    "F-Zero CGP P2.zip",
-    "F-Zero CGP P3.zip"
+    "F-Zero CGP P1 MSU PCPORT.zip"
   ],
   "tracks": {
     "1": {
@@ -13,99 +11,9 @@
       "sha256": "7acb2dd4eb29f69791d7b086b203aff048e9b8a6dc11da2c13938d7851f4d97e",
       "loop": 0
     },
-    "10": {
-      "bytes": 17780772,
-      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
-      "loop": 0
-    },
-    "11": {
-      "bytes": 21139916,
-      "sha256": "ee3079b8e675559530bfed93777d56d1f6561e0774b51e9f18741b290697aaed",
-      "loop": 0
-    },
-    "12": {
-      "bytes": 20300540,
-      "sha256": "d34050af358295cb7795aaf8d12d2d6034357b94cbdad9431c7300949aea1f08",
-      "loop": 0
-    },
-    "13": {
-      "bytes": 20278292,
-      "sha256": "9351024a005c4da027478ef476880c79786268a0c1ee2a3983285fea7f1e1d88",
-      "loop": 0
-    },
-    "14": {
-      "bytes": 13556636,
-      "sha256": "fe95e0bac836ed464d900a70e33d0e111fd0bcff234ff9aa08ae3be7fda91802",
-      "loop": 0
-    },
-    "15": {
-      "bytes": 17780772,
-      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
-      "loop": 0
-    },
-    "16": {
-      "bytes": 21343576,
-      "sha256": "c0076690c5e28180323cc790b73048dd7dbf2bc663e502fb7e14e28a6c52938f",
-      "loop": 0
-    },
-    "17": {
-      "bytes": 21255880,
-      "sha256": "c4623c4c4b608af134373055432f3340dd211f1f22f395766a11001d4ff3241d",
-      "loop": 0
-    },
-    "18": {
-      "bytes": 17334800,
-      "sha256": "35a1470f7bd4ae0cad0c6223940cca9b7b96f23fc96d746ea80bec001e79a0ea",
-      "loop": 0
-    },
-    "19": {
-      "bytes": 15562720,
-      "sha256": "3a2279a8581b974084852825c450a946fc619f1ad9566f6d3600717d22e7a971",
-      "loop": 0
-    },
     "2": {
       "bytes": 576008,
       "sha256": "d592d098847b3132a9110ca384b1f91d2602e98fc5a417cdd9a755db45f99f04",
-      "loop": 0
-    },
-    "20": {
-      "bytes": 17780772,
-      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
-      "loop": 0
-    },
-    "21": {
-      "bytes": 20278292,
-      "sha256": "9351024a005c4da027478ef476880c79786268a0c1ee2a3983285fea7f1e1d88",
-      "loop": 0
-    },
-    "22": {
-      "bytes": 21343576,
-      "sha256": "c0076690c5e28180323cc790b73048dd7dbf2bc663e502fb7e14e28a6c52938f",
-      "loop": 0
-    },
-    "23": {
-      "bytes": 21255880,
-      "sha256": "c4623c4c4b608af134373055432f3340dd211f1f22f395766a11001d4ff3241d",
-      "loop": 0
-    },
-    "24": {
-      "bytes": 29843716,
-      "sha256": "c5b8cc49137aa21d8bf8130461084299d42552c853d0477b9795f61f2353b2d3",
-      "loop": 0
-    },
-    "26": {
-      "bytes": 21139916,
-      "sha256": "ee3079b8e675559530bfed93777d56d1f6561e0774b51e9f18741b290697aaed",
-      "loop": 0
-    },
-    "27": {
-      "bytes": 12655244,
-      "sha256": "de54e6091f3af6b90f0cd514c6f36b51242aca97157504ac8d002d7bfcb9cfe2",
-      "loop": 0
-    },
-    "29": {
-      "bytes": 13556636,
-      "sha256": "fe95e0bac836ed464d900a70e33d0e111fd0bcff234ff9aa08ae3be7fda91802",
       "loop": 0
     },
     "3": {
@@ -113,24 +21,24 @@
       "sha256": "ec505824ce70cfb6f2f904fc4e27a11e5d22331a17e46e0ae3e275d2e01164fb",
       "loop": 0
     },
-    "30": {
-      "bytes": 17780772,
-      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
+    "4": {
+      "bytes": 12465236,
+      "sha256": "f64595a4bf8abe7028c872f57a83042e20456e8d67bde528e1e1e24db757044b",
       "loop": 0
     },
-    "32": {
-      "bytes": 12825828,
-      "sha256": "92facad88d8b2d6bd3575f87894295df7d1281ed13efb3bd1c4bc50af8c38e2c",
+    "5": {
+      "bytes": 11146760,
+      "sha256": "ec505824ce70cfb6f2f904fc4e27a11e5d22331a17e46e0ae3e275d2e01164fb",
+      "loop": 0
+    },
+    "7": {
+      "bytes": 10522204,
+      "sha256": "7c939e8ebfe4c19f0bd87e109aa8c2958ca59799dab4519ce6735f65634b7920",
       "loop": 0
     },
     "35": {
       "bytes": 27472212,
       "sha256": "62adc591af3610c96c7b09cd3cda9895e60e6985cdad7a86a0e8e40210963770",
-      "loop": 0
-    },
-    "36": {
-      "bytes": 21139916,
-      "sha256": "ee3079b8e675559530bfed93777d56d1f6561e0774b51e9f18741b290697aaed",
       "loop": 0
     },
     "37": {
@@ -148,16 +56,6 @@
       "sha256": "61e514b1db9a1500c539b14bb3d353901ea1ba3dab2eca30e1d5a51f942f0636",
       "loop": 0
     },
-    "4": {
-      "bytes": 12465236,
-      "sha256": "f64595a4bf8abe7028c872f57a83042e20456e8d67bde528e1e1e24db757044b",
-      "loop": 0
-    },
-    "40": {
-      "bytes": 17780772,
-      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
-      "loop": 0
-    },
     "41": {
       "bytes": 16851988,
       "sha256": "98c1e3fa99272e936610ab08f104262cb55085f73cb9e07bce4f1b68524d4c34",
@@ -166,11 +64,6 @@
     "42": {
       "bytes": 18627288,
       "sha256": "3ab04986697837f6f9638958b7164202944e13628d75ac59122b8f59fbf060fe",
-      "loop": 0
-    },
-    "43": {
-      "bytes": 11478076,
-      "sha256": "7c9181c252f651eb7082081ba9b8c79dedf3eabfa99cd69067cda12d50a3fe99",
       "loop": 0
     },
     "44": {
@@ -203,11 +96,6 @@
       "sha256": "73b1488f162ee53fcb2083ea5cdea6b8db9d13d6e5c334334ac98fdc85915f33",
       "loop": 0
     },
-    "5": {
-      "bytes": 11146760,
-      "sha256": "ec505824ce70cfb6f2f904fc4e27a11e5d22331a17e46e0ae3e275d2e01164fb",
-      "loop": 0
-    },
     "50": {
       "bytes": 17359856,
       "sha256": "8b0491d8ba38c3f46d08940dd57c5f755ad68276a7e04fe2314dfb90181c03c3",
@@ -221,11 +109,6 @@
     "52": {
       "bytes": 20533632,
       "sha256": "0162f4ceadb2e0385b975d5474dcd68315416fad5df97150718bf6745c0c92c5",
-      "loop": 0
-    },
-    "54": {
-      "bytes": 69487784,
-      "sha256": "299db97fe6a5cc0a957f66df3a15d1e88f7295205bcbfb6f9e12faebcc72b7d9",
       "loop": 0
     },
     "55": {
@@ -266,11 +149,6 @@
     "64": {
       "bytes": 65940488,
       "sha256": "7a8fd2ab6e8e3a90733642272c030fd1d73ffb1f16833e3d2a422687801a8955",
-      "loop": 0
-    },
-    "7": {
-      "bytes": 10522204,
-      "sha256": "7c939e8ebfe4c19f0bd87e109aa8c2958ca59799dab4519ce6735f65634b7920",
       "loop": 0
     }
   },
@@ -373,5 +251,134 @@
     "note": "Eight CosmicTailz files are excluded by exact reference hashes. No reliable TheBlurCafe track mapping has been established; the retained files are not certified free of either contributor. Resolve this before release.",
     "issue": "beads-8wg.5.53",
     "report": "CGP_ATTRIBUTION.md"
-  }
+  },
+  "previous_source_archives": [
+    "F-Zero CGP P1.zip",
+    "F-Zero CGP P2.zip",
+    "F-Zero CGP P3.zip"
+  ],
+  "source_archive_sha256": "6917ab1887094e4dd84328e7044c8a9a3f76a1b1b24c04bbecca9dcebe0590aa",
+  "superseded_tracks": {
+    "10": {
+      "bytes": 17780772,
+      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
+      "loop": 0
+    },
+    "11": {
+      "bytes": 21139916,
+      "sha256": "ee3079b8e675559530bfed93777d56d1f6561e0774b51e9f18741b290697aaed",
+      "loop": 0
+    },
+    "12": {
+      "bytes": 20300540,
+      "sha256": "d34050af358295cb7795aaf8d12d2d6034357b94cbdad9431c7300949aea1f08",
+      "loop": 0
+    },
+    "13": {
+      "bytes": 20278292,
+      "sha256": "9351024a005c4da027478ef476880c79786268a0c1ee2a3983285fea7f1e1d88",
+      "loop": 0
+    },
+    "14": {
+      "bytes": 13556636,
+      "sha256": "fe95e0bac836ed464d900a70e33d0e111fd0bcff234ff9aa08ae3be7fda91802",
+      "loop": 0
+    },
+    "15": {
+      "bytes": 17780772,
+      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
+      "loop": 0
+    },
+    "16": {
+      "bytes": 21343576,
+      "sha256": "c0076690c5e28180323cc790b73048dd7dbf2bc663e502fb7e14e28a6c52938f",
+      "loop": 0
+    },
+    "17": {
+      "bytes": 21255880,
+      "sha256": "c4623c4c4b608af134373055432f3340dd211f1f22f395766a11001d4ff3241d",
+      "loop": 0
+    },
+    "18": {
+      "bytes": 17334800,
+      "sha256": "35a1470f7bd4ae0cad0c6223940cca9b7b96f23fc96d746ea80bec001e79a0ea",
+      "loop": 0
+    },
+    "19": {
+      "bytes": 15562720,
+      "sha256": "3a2279a8581b974084852825c450a946fc619f1ad9566f6d3600717d22e7a971",
+      "loop": 0
+    },
+    "20": {
+      "bytes": 17780772,
+      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
+      "loop": 0
+    },
+    "21": {
+      "bytes": 20278292,
+      "sha256": "9351024a005c4da027478ef476880c79786268a0c1ee2a3983285fea7f1e1d88",
+      "loop": 0
+    },
+    "22": {
+      "bytes": 21343576,
+      "sha256": "c0076690c5e28180323cc790b73048dd7dbf2bc663e502fb7e14e28a6c52938f",
+      "loop": 0
+    },
+    "23": {
+      "bytes": 21255880,
+      "sha256": "c4623c4c4b608af134373055432f3340dd211f1f22f395766a11001d4ff3241d",
+      "loop": 0
+    },
+    "24": {
+      "bytes": 29843716,
+      "sha256": "c5b8cc49137aa21d8bf8130461084299d42552c853d0477b9795f61f2353b2d3",
+      "loop": 0
+    },
+    "26": {
+      "bytes": 21139916,
+      "sha256": "ee3079b8e675559530bfed93777d56d1f6561e0774b51e9f18741b290697aaed",
+      "loop": 0
+    },
+    "27": {
+      "bytes": 12655244,
+      "sha256": "de54e6091f3af6b90f0cd514c6f36b51242aca97157504ac8d002d7bfcb9cfe2",
+      "loop": 0
+    },
+    "29": {
+      "bytes": 13556636,
+      "sha256": "fe95e0bac836ed464d900a70e33d0e111fd0bcff234ff9aa08ae3be7fda91802",
+      "loop": 0
+    },
+    "30": {
+      "bytes": 17780772,
+      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
+      "loop": 0
+    },
+    "32": {
+      "bytes": 12825828,
+      "sha256": "92facad88d8b2d6bd3575f87894295df7d1281ed13efb3bd1c4bc50af8c38e2c",
+      "loop": 0
+    },
+    "36": {
+      "bytes": 21139916,
+      "sha256": "ee3079b8e675559530bfed93777d56d1f6561e0774b51e9f18741b290697aaed",
+      "loop": 0
+    },
+    "40": {
+      "bytes": 17780772,
+      "sha256": "0d0199e13993fed8d7163241ff5d703572efba1ead7459d7cb055a33a99e5add",
+      "loop": 0
+    },
+    "43": {
+      "bytes": 11478076,
+      "sha256": "7c9181c252f651eb7082081ba9b8c79dedf3eabfa99cd69067cda12d50a3fe99",
+      "loop": 0
+    },
+    "54": {
+      "bytes": 69487784,
+      "sha256": "299db97fe6a5cc0a957f66df3a15d1e88f7295205bcbfb6f9e12faebcc72b7d9",
+      "loop": 0
+    }
+  },
+  "superseded_reason": "Omitted by the replacement PC-port soundtrack; not an artist attribution. Remove old copies when staging."
 }

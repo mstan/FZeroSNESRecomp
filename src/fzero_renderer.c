@@ -369,7 +369,9 @@ static void sprites(const Ppu *p, const FzeroSourceFrame *frame,
      * They already belong to the right edge while the course name is centered. */
     bool intro_counter = !race_hud && frame->ram[0x58] == 0 &&
         (results || frame->ram[0x55] <= 2) && slot >= 126;
-    int owner = intro_counter ? -1 : object_owner(frame, slot);
+    /* Results reuse the former car reservations for text and numbers. The
+     * frozen race's actor/DMA tables no longer describe those sprites. */
+    int owner = intro_counter || results ? -1 : object_owner(frame, slot);
     /* The screen-locked player and unowned effects use offscreen X as a
      * hiding mechanism, sometimes retaining Y and stale tile attributes.
      * Only verified opponent reservations can reveal those signed positions. */
@@ -517,14 +519,15 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
   /* $81 selects live track scenery on the title screen as well as in races.
    * Scene $54=2 additionally owns vehicle identity and adaptive race HUD. */
   bool scenery = f->ram[0x81] != 0;
-  /* Scene 3 serves both the race/attract exit and the black results/menu.
-   * Both can fade in phase 5. Distinguish the actual published PPU layout:
-   * results disable the track backgrounds, retaining BG3 + OBJ ($94), while
-   * the live race keeps BG1/BG2 ($17). Phase alone splits END GAME's reused
-   * OBJ slots 20..30 across the viewport as soon as its fade begins. */
+  /* Scene 3 also contains exits from a live race. The native result setup
+   * ($03:99C5) sets $5F bit 7 for both successful and failed races. Successful
+   * results keep the frozen track visible ($97); losses use a black backdrop
+   * ($94). Testing only the background mask misclassified a successful
+   * result's phase-5 fade as a race HUD and split the lap/rank digits. */
   memcpy(&scanout, f->lines[100].registers, PPU_SAVESTATE_REGS_SIZE);
   bool results = scenery && f->ram[0x54] == 3 &&
-      !(scanout.screenEnabled[0] & 3);
+      ((f->ram[0x5f] & 0x80) || !(scanout.screenEnabled[0] & 3));
+  bool result_scenery = results && (scanout.screenEnabled[0] & 3);
   bool race_exit = f->ram[0x54] == 3 &&
       !results && (f->ram[0x55] == 4 || f->ram[0x55] == 5);
   bool world = scenery && (f->ram[0x54] == 2 || race_exit);
@@ -547,9 +550,9 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
         abs((int)remainder(read_i16(previous->ram + 0xb90) - read_i16(f->ram + 0xb90), 4096)) > 128)
       interpolate = false;
   }
-  /* Only a widened viewport reaches outside retail's streamed square, and
-   * only a live race scene has course tables to resolve it from. */
-  FzeroCourse course = course_open(f, world && viewport.enhanced);
+  /* A widened viewport can reach outside retail's streamed square. Both a
+   * live race and its frozen finish backdrop retain the course tables. */
+  FzeroCourse course = course_open(f, (world || result_scenery) && viewport.enhanced);
   uint16_t object_pixels[FZERO_MAX_WIDTH];
   uint32_t row[FZERO_MAX_WIDTH];
   for (int y = 0; y < 224; ++y) {
@@ -640,12 +643,16 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
          * Its HDMA band must travel with the right-anchored BG3 outline. */
         /* Loss keeps its score at the left edge, but its collapsed colour
          * window must not expand into the former race meter/HDMA panel. */
-        int colour_x = results ? sx : x;
+        /* A successful finish draws its large placing numeral through the
+         * colour window over the frozen course. Keep that native graphic
+         * centered; only the collapsed black-results window is edge based. */
+        bool black_results = results && !result_scenery;
+        int colour_x = black_results ? sx : x;
         if (race_hud && mode == 1 && y >= 19 && y <= 27 &&
             scanout.window1left >= 176 && scanout.window1right <= 239)
           colour_x -= viewport.extra;
         row[sx] = colour(&scanout, l->palette, screens[0], screens[1],
-            in_window(&scanout, 5, colour_x, results ? 0 : viewport.extra));
+            in_window(&scanout, 5, colour_x, black_results ? 0 : viewport.extra));
       }
       /* Preserve the meter's composed fill, including its fixed-colour HDMA,
        * without letting a different section of skyline show through it. */

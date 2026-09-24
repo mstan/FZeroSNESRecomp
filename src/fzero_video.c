@@ -174,7 +174,7 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
   /* Old slot profiles cannot establish which ships the user intended. Retire
    * those three choices without silently opting into new content. A saved
    * conflict resolves to the explicitly preserved stock BS vehicle mode. */
-  s->gameplay.enabled &= ~7u;
+  s->gameplay.enabled &= FZERO_RULE_SELECTABLE_MASK;
   if(s->bs_deluxe)s->gameplay.vehicle_packs=s->gameplay.stock_rebalance=0;
   /* Former P1/P2/P3 selections now opt into the complete CGP roster. */
   else if(s->gameplay.vehicle_packs)s->gameplay.vehicle_packs=7;

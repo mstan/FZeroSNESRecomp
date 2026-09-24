@@ -7,10 +7,10 @@ the MSU source credits Conn, Khilendel and Catador. No additional license is
 inferred from receiving the source.
 
 All gameplay options are **off by default** in Mods. They work independently
-of the course pack. P1, P2 and P3 are coherent vehicle sets, exposed as three
-combinable vehicle packs plus four separate retail-identity rebalances.
+of the course pack. P1, P2 and P3 are coherent vehicle sets, enabled together through one
+CGP vehicles mod plus four separate retail-identity rebalances.
 Artwork-only IPS deltas live in `assets/vehicle-packs`; no ROM is bundled.
-The separately approved CGP soundtrack is documented in `assets/music/README.md`.
+The CGP soundtrack and outstanding contributor review is documented in `assets/music/README.md`.
 
 | Mods option | Source files |
 | --- | --- |
@@ -32,7 +32,10 @@ The separately approved CGP soundtrack is documented in `assets/music/README.md`
 | Reverse magnets | `Reverse_DMAG .asm` |
 | Smooth fog | `Smooth_Fog.asm` |
 | CGP MSU music adapter | `fzedit-msu.asm` |
-| CGP ending credits | `CGP_Credits.asm` |
+| Retired ending patch (source only) | `CGP_Credits.asm` |
+
+`CGP_Credits.asm` is retained for attribution but is not assembled or installed.
+Its saved rule bit is reserved; older configurations cannot reactivate it.
 
 The three top-level `CGP*.asm` tuning/boost/exhaust files duplicate P3.
 Illusion and gravity share one switch because they describe the same Rainbow

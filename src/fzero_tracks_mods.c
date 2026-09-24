@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #define COPY(field, value) snprintf(field, sizeof(field), "%s", value)
+/* Keep F-Zero 55 available for a future pack, without offering it as CGP. */
+static const bool show_fzero_55_title = false;
 static const CpPack *external(unsigned index) {
     const CpCatalog *c = FzeroTracksCatalog();
     for (unsigned i = 0; i < c->count; ++i) if (!strcmp(c->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(c->packs[i])) {
@@ -51,28 +53,29 @@ static int option_get(void *ctx, const char *package, const char *feature, int i
     if (!out || index || !title_option(package, feature)) return 0;
     memset(out, 0, sizeof(*out));
     COPY(out->id, "title-screen"); COPY(out->label, "Title screen");
-    COPY(out->description, "Use the F-Zero 55 title artwork while Community Grand Prix is enabled.");
-    out->type = RECOMP_MOD_OPTION_CHOICE; out->choice_count = 2; out->step = 1;
+    COPY(out->description, "Use the Community Grand Prix title artwork while Community Grand Prix is enabled.");
+    out->type = RECOMP_MOD_OPTION_CHOICE; out->choice_count = show_fzero_55_title ? 3 : 2; out->step = 1;
     COPY(out->default_value, "original");
-    COPY(out->value, FzeroTracksTitleEnabled(find(package)) ? "fzero-55" : "original");
+    COPY(out->value, FzeroTracksTitleStyle(find(package)));
     return 1;
 }
 static int choice_get(void *ctx, const char *package, const char *feature, const char *option,
                       int index, RecompLauncherCModChoice *out) {
     (void)ctx;
-    if (!out || !option || strcmp(option, "title-screen") || index < 0 || index > 1 ||
+    if (!out || !option || strcmp(option, "title-screen") || index < 0 || index > (show_fzero_55_title ? 2 : 1) ||
         !title_option(package, feature)) return 0;
     memset(out, 0, sizeof(*out));
-    COPY(out->value, index ? "fzero-55" : "original");
-    COPY(out->label, index ? "F-Zero 55" : "Original");
+    COPY(out->value, index == 2 ? "fzero-55" : index ? "cgp" : "original");
+    COPY(out->label, index == 2 ? "F-Zero 55" : index ? "Community Grand Prix" : "Original");
     return 1;
 }
 static int set_option(void *ctx, const char *package, const char *feature, const char *option,
                       const char *value) {
     (void)ctx;
     if (!title_option(package, feature) || !option || strcmp(option, "title-screen") ||
-        !value || (strcmp(value, "original") && strcmp(value, "fzero-55"))) return 0;
-    return FzeroTracksSetTitle(find(package), !strcmp(value, "fzero-55"));
+        !value || (strcmp(value, "original") && strcmp(value, "cgp") &&
+                   (!show_fzero_55_title || strcmp(value, "fzero-55")))) return 0;
+    return FzeroTracksSetTitleStyle(find(package), value);
 }
 static int resources(void *ctx, const char *package, const char *feature) {
     (void)ctx; const CpPack *p=find(package);

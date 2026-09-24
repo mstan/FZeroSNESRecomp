@@ -130,7 +130,7 @@ shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
 shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
-    + ("WITH MSU MUSIC: approved CGP soundtrack included.\n\n" if bundled_music else
+    + ("WITH MSU MUSIC: replacement CGP PC-port soundtrack included.\n\n" if bundled_music else
        "WITHOUT MSU MUSIC: no soundtrack files included; MSU playback is supported.\n"
        "Use Settings > Audio to select your own music folder and enable MSU-1.\n"
        "The CGP preset uses SNES audio until a custom music folder is selected.\n\n") +
@@ -172,7 +172,7 @@ shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND
     "15 cups / 75 course versions. Enable MAX for 16 cups / 80 versions.\n"
     "CGP and original BS tracks are mutually exclusive; cars are independent.\n"
     "Required course fixes apply automatically; optional rules stay opt-in.\n"
-    "Three optional CGP car packs combine into twelve identities; four retail\n"
+    "One CGP vehicles option enables all twelve identities; four retail\n"
     "rebalances are separate options. Stock BS cars exclude CGP car options.\n"
     "CGP vehicle options and MSU music start off; its preset enables available content.\n"
     "Enable or disable each track pack directly in Mods. MAX League is visible\n"

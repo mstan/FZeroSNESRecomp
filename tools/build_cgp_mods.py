@@ -79,7 +79,8 @@ def main():
                 start = body.index('  LDA $90')
                 end = body.index('  BNE Regular_Gravity', start)
                 body = body[:start] + '  LDA $0ADF\n  CMP #$FF\n' + body[end:]
-            writes = assemble(args.asar.resolve(), source, args.work / f'{int(deluxe)}-{i}', 0x30+i, body)
+            # Keep the index reserved, but omit the retired console credits.
+            writes = [] if source.name == 'CGP_Credits.asm' else assemble(args.asar.resolve(), source, args.work / f'{int(deluxe)}-{i}', 0x30+i, body)
             omitted = set()
             if source.name == 'Legend_Difficulty.asm':
                 omitted |= {0x5432,0x18819,0x1882a,0x18841,0x189e1}
@@ -100,6 +101,7 @@ def main():
                     lines.append('  '+','.join(f'0x{x:02x}' for x in values[n:n+24])+',')
                 lines.append('};')
             lines.append(f'static const RuleWrite {symbol}[] = {{')
+            if not writes: lines.append('  {0, 0, NULL},')
             for j,(offset,values) in enumerate(writes):
                 lines.append(f'  {{0x{offset:x}, {len(values)}, {symbol}_{j}}},')
             lines.append('};')
@@ -123,7 +125,7 @@ def main():
         lines.append(' {')
         for i in range(len(files)):
             symbol=f'rule_{deluxe}_{i}'
-            lines.append(f'  {{{symbol}, sizeof({symbol})/sizeof(*{symbol})}},')
+            lines.append(f'  {{{symbol}, {len(out[symbol]["writes"])} }},')
         lines.append(' },')
     lines.append('};')
     msu = bytearray(0x20000)

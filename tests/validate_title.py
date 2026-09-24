@@ -42,7 +42,7 @@ def main():
             route += ',400-406:128'
         frames = 1600 if screen == 'race' else 570 if screen == 'car-select' else 300
         if screen == 'missing-art':
-            (folder/'assets/track-packs/presentation/fzero-55.ips').unlink()
+            (folder/'assets/track-packs/presentation/cgp.ips').unlink()
         enabled = bool(title) and screen not in ('pack-off', 'missing-art')
         env = dict(clean, FZERO_BS_CARS=str(cars), FZERO_BS_TRACKS='0', FZERO_RULES='',
                    FZERO_DELUXE_DATA='embedded', FZERO_TRACK_PACKS=str(packs),
@@ -56,7 +56,7 @@ def main():
                                   cwd=folder, env=env, stdout=log, stderr=log, timeout=120)
         log = (folder/'run.log').read_text()
         assert proc.returncode == 0 and 'fzero_native: PASS' in log, (name, log[-2000:])
-        assert ('F-Zero 55 title artwork enabled' in log) == enabled, name
+        assert ('Community Grand Prix title artwork enabled' in log) == enabled, name
         assert '[MSU-1] enabled:' not in log and '[cgp-rules] enabled=' not in log, name
         ram = (folder/'ram.bin').read_bytes()
         if screen == 'race':

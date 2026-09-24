@@ -1,7 +1,7 @@
 """Build vehicle-only IPS inputs from privately supplied author artwork.
 
 Only reviewed graphics/palette/preview resources enter the delta. Title,
-track, HUD and engine edits in the supplied images are deliberately excluded.
+track, unrelated HUD and engine edits in the supplied images are deliberately excluded.
 """
 import argparse
 import hashlib
@@ -34,6 +34,10 @@ def main():
         assert hashlib.sha256(donor).hexdigest()==expected,(file,'unexpected donor')
         image=bytearray(stock)
         for start,end in [(0x40000,0x60000),(0x76180,0x76800),(0x7cd80,0x7ce00)]:
+            image[start:end]=donor[start:end]
+        # The authored energy HUD: three underline tiles and eight POWER/bolt
+        # tiles. No digits, map layout, palettes or executable donor bytes.
+        for start,end in [(0x640d0,0x64100),(0x641b0,0x64230)]:
             image[start:end]=donor[start:end]
         # One minimap marker color per native HUD row. Runtime selects this by
         # stable vehicle identity; never import the surrounding shared HUD.

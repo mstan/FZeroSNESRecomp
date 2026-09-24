@@ -1,15 +1,17 @@
 # CGP vehicle artwork
 
 These three bundled IPS files contain only the reviewed vehicle graphics,
-palettes and preview resources extracted from artwork supplied by the CGP
+palettes, preview resources and the energy HUD glyphs extracted from artwork supplied by the CGP
 authors. They require the user's verified retail F-Zero USA ROM. No ROM is
 included. Credits: Fennor Virastar, Worthy MF and the CGP contributors.
 
 `tools/import_cgp_vehicles.py` reproduces these deltas from the private author
 inputs. Each manifest records source/target hashes, the original author-input
 hash, stable ship identities, source slots and whether the entry is an addition
-or a rebalance. Title, course, shared HUD, fog and donor executable changes are
-excluded. Handling, boost and exhaust come from the separately retained author
+or a rebalance. The energy HUD imports only the lightning/POWER glyphs and three speed
+underline tiles; it is selected with CGP vehicle mechanics. Original and stock
+BS cars retain their own HUD. Title, course, other shared HUD, fog and donor
+executable changes are excluded. Handling, boost and exhaust come from the separately retained author
 ASM in `mods/cgp-source/CGP/<profile>`.
 
 The three resource files are enabled together by the single **CGP vehicles**

@@ -315,6 +315,12 @@ bool FzeroVehiclesPrepare(uint8_t **rom, size_t *size, char *error,
         copy_changes(images[group], donor, 0x7cd80 + slot * 32, 32);
       }
     }
+    if (group) {
+      /* CGP race images include their energy-boost HUD artwork. The stock
+       * image and the separate stock BS path keep the original POWER HUD. */
+      memcpy(images[group] + 0x640d0, art[group - 1] + 0x640d0, 0x30);
+      memcpy(images[group] + 0x641b0, art[group - 1] + 0x641b0, 0x80);
+    }
     ok = FzeroGameplayPrepare(&images[group], &length);
     if (!ok)
       break;

@@ -31,9 +31,12 @@ For example, applying Vanilla while MAX is enabled leaves MAX enabled.
 | BS vehicles / original BS tracks | Off / off | On / on | Off / off |
 | CGP courses, including revised original and BS versions | Off | Off | On |
 | CGP P1/P2/P3 vehicle groups | Off | Off | All on; 12 total identities |
-| CGP rules, including Legend and credits | Off | Off | All on |
-| F-Zero 55 title | Off | Off | On |
+| CGP rules, including Legend | Off | Off | All on |
+| Community Grand Prix title | Off | Off | On |
 | MSU music | Off | Off | Bundled CGP or configured custom source; otherwise SNES audio |
+
+The console ending-credits patch is retired. The F-Zero 55 title backend and
+artwork are retained, but its launcher choice is hidden for a future pack.
 
 Legend adds its difficulty choice; the player still chooses a race difficulty.
 Required course mechanics continue to accompany their courses independently.
@@ -63,10 +66,12 @@ The shared UI stores a selected ID; each game resolves it to its own assets.
 
 ## Soundtrack and runtime
 
-- P1, P2 and P3 archives each contain the same 61 PCM files, totaling
-  1,226,929,940 bytes originally. The importer now retains 53 files and excludes
-  eight hash-confirmed CosmicTailz recordings. The remaining contributor audit
-  is unresolved; retained files are not yet cleared for release.
+- The complete replacement source is F-Zero CGP P1 MSU PCPORT.zip: 29 PCM
+  files, totaling 566,847,024 bytes. It supersedes the P1/P2/P3 audio sets.
+  Eight hash-confirmed CosmicTailz exclusions remain enforced; another 24
+  superseded recordings have been physically removed from staging. The
+  remaining contributor audit is unresolved; retained files are not yet
+  cleared for release.
 - CGP's adapter maps stable cup identity plus course ordinal to PCM 10–64.
   Both GP and Practice use this mapping. Original courses use the equivalent
   CGP music; unrelated packs without a mapping use their SNES music.
