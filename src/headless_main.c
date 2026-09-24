@@ -435,12 +435,40 @@ int main(int argc, char **argv) {
   long next_completed_result = 1450;
   const char *save_frame_text = getenv("FZERO_TEST_SAVE_FRAME");
   long save_frame = save_frame_text ? strtol(save_frame_text, NULL, 10) : 1500;
+  /* Private records QA: cross each course's actual finish line on the final
+   * lap. Native finish, record-writing and cup-completion code still runs. */
+  bool records_test = getenv("FZERO_TEST_RECORDS_CUP") != NULL;
+  unsigned records_course = 99, records_race_frames = 0;
   if (!replay_wram_init()) { fputs("Invalid WRAM replay fixture\n", stderr); return 10; }
   if (getenv("FZERO_TEST_STOCK_LANDING"))
     interp_bridge_set_pre_opcode_hook(0x009c9a, stock_landing_probe);
 
   for (long frame = 0; frame < frame_limit; frame++) {
     replay_wram_before(frame);
+    bool records_racing = records_test && g_ram[0x54] == 2 && g_ram[0x55] == 3;
+    /* Skip only the final winner's fly-away animation after native record
+     * writes. A teleported fixture has no physically driven approach path. */
+    if (records_racing && g_ram[0xc3] == 0x11) {
+      g_ram[0x54] = 3;
+      g_ram[0x55] = 1;
+      g_ram[0x56] = 0;
+      records_racing = false;
+    }
+    if (!records_racing) records_race_frames = 0;
+    if (records_racing && ++records_race_frames == 120 && records_course != g_ram[0x53]) {
+      records_course = g_ram[0x53];
+      static const uint8_t times[] = {0,0x20,0x52, 0,0x41,0x27, 1,0,0x59,
+                                      1,0x20,0x40, 0xff,0xff,0xff};
+      memcpy(g_ram + 0xe90, times, sizeof(times));
+      memset(g_ram + 0xf30, 1, 6);
+      g_ram[0xc0] = 1; g_ram[0xc1] = 0x30; g_ram[0xc2] = 0x32;
+      g_ram[0xd40] = 4; g_ram[0xd41] = 0x80; g_ram[0xd00] = 0;
+      g_ram[0xb70] = 0x90; g_ram[0xb71] = g_ram[0xae];
+      g_ram[0xb90] = 0x80; g_ram[0xb91] = g_ram[0xaf];
+      g_ram[0xdc8] = 1;
+      fprintf(stderr, "records-fixture: finish crossing course=%u frame=%ld\n",
+              records_course, frame);
+    }
     /* Export a private replay fixture without the lifecycle test's reset or
      * speculative execution. The normal mode/signature guard still applies
      * when this snapshot is loaded by either host. */
@@ -559,13 +587,22 @@ int main(int argc, char **argv) {
       FzeroBeginDrawing(pixels, (size_t)frame_width * 4u);
       fprintf(stderr, "[fzero-viewport] frame=%ld width=%d\n", frame, frame_width);
     }
-    (void)RtlRunFrame(scripted_input(input_spans, input_span_count, frame));
+    uint16_t frame_input = scripted_input(input_spans, input_span_count, frame);
+    if (records_racing) frame_input |= 1;
+    if (records_test && g_ram[0x54] == 3 && g_ram[0x55] == 1 &&
+        g_ram[0x56] == 3 && !(frame & 15))
+      frame_input |= 8;
+    (void)RtlRunFrame(frame_input);
     if (wram_trace && fwrite(g_ram, 1, 0x2000, wram_trace) != 0x2000) return 10;
     if (getenv("FZERO_SCENE_TRACE"))
       fprintf(stderr, "scene %ld state=%02x,%02x,%02x training=%02x scenery=%02x sound=%02x,%02x,%02x,%02x,%02x msu=%02x,%02x,%02x,%02x brightness=%02x\n",
               frame, g_ram[0x54], g_ram[0x55], g_ram[0x56], g_ram[0x58], g_ram[0x81],
               g_ram[0x45], g_ram[0x46], g_ram[0x47], g_ram[0x48], g_ram[0x49],
               g_ram[0x180], g_ram[0x181], g_ram[0x182], g_ram[0x183], g_snes->ppu->inidisp);
+    if (records_test && g_ram[0x54] == 0 && g_ram[0x55] == 2)
+      fprintf(stderr, "records-fixture: browser SRAM=%02x%02x%02x mirror=%02x%02x%02x root=%s\n",
+              g_sram[5], g_sram[6], g_sram[7], g_ram[0x14805], g_ram[0x14806],
+              g_ram[0x14807], RtlSaveRoot());
     if (g_fail || !FzeroLastLleResult()) {
       fprintf(stderr, "fzero_native: runtime failure frame=%ld pc=$%06x bus_fault=%d execution=%d state=%02x,%02x,%02x car=%02x\n",
               frame, (unsigned)FzeroResumePc(), g_fail, FzeroLastLleResult(),
@@ -611,6 +648,13 @@ int main(int argc, char **argv) {
                   write_ppm(getenv("SNESRECOMP_FRAME_DUMP"), pixels,
                             frame_width) &&
                   write_wram_dump(getenv("SNESRECOMP_WRAM_DUMP"));
+  const char *sram_dump = getenv("FZERO_TEST_SRAM_DUMP");
+  if (sram_dump && *sram_dump) {
+    FILE *f = fopen(sram_dump, "wb");
+    if (!f) return 10;
+    bool ok = fwrite(g_sram, 1, g_sram_size, f) == (size_t)g_sram_size;
+    if (fclose(f) || !ok) return 10;
+  }
   uint32_t audio_samples = g_snes->apu->dsp->sampleWrite;
   AudioTraceStats audio_stats;
   audio_trace_get_stats(&audio_stats);
@@ -637,6 +681,9 @@ int main(int argc, char **argv) {
           (unsigned long long)stats.audio_active_frames, stats.audio_peak,
           (unsigned long long)stats.audio_underruns);
   FzeroTracksSavesFinish();
+  /* Opt-in persistence for private records QA, matching the SDL host's exit.
+   * The caller must choose an isolated SNESRECOMP_SAVE_ROOT. */
+  if (getenv("FZERO_TEST_SAVE_SRAM")) RtlWriteSram();
   if (getenv("FZERO_PRACTICE_PROBE")) {
     extern bool FzeroPracticeProbe(const char *path);
     if (!FzeroPracticeProbe(getenv("FZERO_PRACTICE_PROBE"))) { free(rom); return 9; }

@@ -95,6 +95,11 @@ and that session is read-only. Library snapshots include the base backup,
 selected cup, full catalog identity and the framework execution-state chunk,
 including refresh timing needed for deterministic replay.
 
+**Known records UI defect (2026-09-24):** completed imported-cup times are
+saved and reload in a matching race, but the records menu restores base SRAM
+and has no added-cup/vehicle browser. Storage isolation is not records-menu
+support. See [the reproduced failure and fix burndown](RECORDS_BURNDOWN.md).
+
 ## Build and validation
 
 Worktrees started from FZeroSNESRecomp `1686df4` and snesrecomp `bb37c87` on
