@@ -27,7 +27,14 @@ as do any other platform bundles produced for that release. Do not continue
 the old `1.8.3-fzero-55-preview.N` sequence or give variants independent numbers.
 Use the plain version without a `fzero-55-preview` label.
 
-## Preparing the next release
+## Current release
+
+The first Forever tester bundle is **0.2.0** (2026-09-25): Astra Front, the
+independent title selector and expanded records browsing are new features.
+Both Windows music variants use 0.2.0. The next fix release is 0.2.1; the next
+feature release is 0.3.0. Tracked by `beads-8wg.5.64`.
+
+## Preparing a release
 
 1. Update `VERSION`, add the matching changelog entry and refresh tester notes.
 2. Reconfigure the existing build so `SNESRECOMP_BUILD_VERSION` matches

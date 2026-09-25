@@ -1,7 +1,11 @@
 ﻿# Changelog
 
-## Unreleased
+## 0.2.0 - Astra Front and expanded records
 
+- Consolidate all four CGP original-car rebalances into one opt-in and migrate
+  existing partial choices. Preserve the independent added-vehicle switch.
+- Import Astra's authored intro lettering, fixing the corrupted Z in U Zero
+  without changing course or record keys.
 - Add Astra Front as an optional pack: ten courses in the authored Astra and
   Front cups, with donor music and scoped CGP-compatible terrain behavior.
   Exclude unused donor courses and validate each new cup's records.

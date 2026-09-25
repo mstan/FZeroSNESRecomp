@@ -1,4 +1,4 @@
-# F-Zero 55 preview.10: tester notes
+# F-Zero Forever 0.2.0: tester notes
 
 Extract this ZIP into a **new folder** and run `FZeroSNESRecomp.exe`. Select
 your own original F-Zero (USA) ROM. Keep older build folders and saves until
