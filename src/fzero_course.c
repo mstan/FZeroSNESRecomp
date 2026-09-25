@@ -48,6 +48,7 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
   uint32_t vals[19] = {0}, seen = 0;
   uint8_t required = 0, course_required[128] = {0};
   uint8_t spc_override[128] = {0};
+  FzeroCourseLayout letters = {0};
   unsigned last_required = 0;
   bool format = false, ok = true;
   char line[160];
@@ -67,6 +68,26 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
       break;
     }
     *v++ = 0;
+    if (!strcmp(line, "intro_glyph")) {
+      unsigned code, top, bottom;
+      int end = 0;
+      if (sscanf(v, "%x|%x|%x%n", &code, &top, &bottom, &end) != 3 || v[end] ||
+          !((code >= 0x64 && code <= 0x6f) || (code >= 0x8a && code <= 0x8f) ||
+            (code >= 0xa0 && code <= 0xa9)) ||
+          top > 0xffffff || bottom > 0xffffff ||
+          (top & 0xffff) < 0x8000 || (bottom & 0xffff) < 0x8000 ||
+          (top & 0x7f0000) >= 0x7e0000 || (bottom & 0x7f0000) >= 0x7e0000) {
+        ok = false; break;
+      }
+      for (unsigned j = 0; j < letters.intro_glyph_count; ++j)
+        if (letters.intro_glyphs[j].code == code) ok = false;
+      if (!ok || letters.intro_glyph_count == 28) { ok = false; break; }
+      unsigned j = letters.intro_glyph_count++;
+      letters.intro_glyphs[j].code = (uint8_t)code;
+      letters.intro_glyphs[j].top = top;
+      letters.intro_glyphs[j].bottom = bottom;
+      continue;
+    }
     if (!strcmp(line, "spc")) {
       static const char *const songs[] = {
           "mute-city", "big-blue", "sand-ocean", "silence", "port-town",
@@ -138,11 +159,13 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
     return fail(error, cap, "Invalid course extraction manifest");
   FzeroCourseLayout l = {vals[0],  vals[1],  vals[2],  vals[3],  vals[4],  vals[5],
                          vals[6],  vals[7],  vals[8],  vals[9],  vals[10], vals[11],
-                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17], 0, {0}, 0, {0}};
+                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17], 0, {0}, 0, {0}, 0, {{0}}};
   l.required = required;
   memcpy(l.course_required, course_required, sizeof(course_required));
   l.music = vals[18];
   memcpy(l.spc_override, spc_override, sizeof(spc_override));
+  l.intro_glyph_count = letters.intro_glyph_count;
+  memcpy(l.intro_glyphs, letters.intro_glyphs, sizeof(l.intro_glyphs));
   *out = l;
   return true;
 }
@@ -364,6 +387,23 @@ bool FzeroCourseExtract(const uint8_t *r, size_t n, const FzeroCourseLayout *l, 
   if (ok && l->spc_override[i]) {
     ok = l->spc_override[i] <= 10;
     if (ok) { c->has_music = 1; c->music = (uint8_t)((l->spc_override[i] - 1) * 9); }
+  }
+  if (ok && l->intro_glyph_count > 28) ok = false;
+  for (unsigned j = 0; ok && j < l->intro_glyph_count; ++j) {
+    const uint8_t *top = span(r, n, l->intro_glyphs[j].top, 16);
+    const uint8_t *bottom = span(r, n, l->intro_glyphs[j].bottom, 16);
+    if (!top || !bottom) { ok = false; break; }
+    /* Names start with a six-byte native positioning/color prefix. Keep
+     * unused overrides out of VRAM, and keep font artwork out of record IDs. */
+    bool used = false;
+    for (unsigned k = 6; k < sizeof(c->name) && c->name[k]; ++k)
+      used |= c->name[k] == l->intro_glyphs[j].code;
+    if (used) {
+      unsigned k = c->intro_glyph_count++;
+      c->intro_glyphs[k].code = l->intro_glyphs[j].code;
+      memcpy(c->intro_glyphs[k].pixels, top, 16);
+      memcpy(c->intro_glyphs[k].pixels + 16, bottom, 16);
+    }
   }
   if (ok) {
     c->required = l->required | l->course_required[i];

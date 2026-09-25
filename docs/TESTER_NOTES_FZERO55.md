@@ -35,7 +35,7 @@ captures and staging. The without-msu editions contain no bundled audio.
   inherits Wild Goose's green marker.
 - CGP information cards now show each car's authored engine, power, speed,
   weight, acceleration graph and name/frame colors. Original cars keep their
-  original cards until their individual rebalance is enabled.
+  original cards until the original-car rebalance mod is enabled.
 - Marine City's trampoline and Lightning's railroad landing have targeted
   fixes. Required course features accompany their courses automatically.
 - Volcania uses the author's approved replacement venue. The retired artwork
@@ -68,7 +68,7 @@ captures and staging. The without-msu editions contain no bundled audio.
 - Remove the unsupported Install .psxmod button from F-Zero's Mods views.
   Additional IPS/BPS track packs still use the `mods/track-packs` directory.
 - **Mods > Preset** applies Vanilla, Satellaview or full Community Grand Prix.
-  CGP includes all three vehicle groups, four rebalances, every authored rule
+  CGP includes all three vehicle groups, the all-four rebalance option, every authored rule
   including Legend, courses, Community Grand Prix title and bundled music.
   You can change any individual option afterward.
 - Presets preserve MAX, Bower, other packs and personal settings. Vanilla
@@ -89,8 +89,8 @@ their original individual behavior.
 
 **CGP vehicles** enables all three groups together and disables BS vehicles.
 It provides **12 distinct selectable cars**, including the
-original four. The four original-car rebalances are separate, default-off
-options. A new CGP car's artwork, handling, boost and exhaust travel together.
+original four. One separate, default-off **CGP original-car rebalances** option changes all
+four original cars together. A new CGP car's artwork, handling, boost and exhaust travel together.
 
 Grand Prix uses the selected car's enabled CGP group for its three main rivals:
 

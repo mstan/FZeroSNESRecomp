@@ -154,15 +154,16 @@ static void config_tests(void) {
     CHECK(FzeroVideoLoad(&a,"test-video.ini") && !a.gameplay.enabled && !a.gameplay.vehicle_packs && !a.gameplay.stock_rebalance);
   /* Migrate saved partial car packs to the complete roster, including when
    * skipping the launcher; an explicit BS vehicle choice still wins. */
-  for(unsigned bs=0;bs<2;++bs) for(unsigned mask=0;mask<8;++mask) {
+  for(unsigned bs=0;bs<2;++bs) for(unsigned mask=0;mask<8;++mask) for(unsigned rebalance=0;rebalance<16;++rebalance) {
     f=fopen("test-video.ini","w");CHECK(f);
-    fprintf(f,"BSVehicles=%u\nCGPCars=%u\nCGPStockRebalance=5\n",bs,mask);
+    fprintf(f,"BSVehicles=%u\nCGPCars=%u\nCGPStockRebalance=%u\n",bs,mask,rebalance);
     fclose(f);
     CHECK(FzeroVideoLoad(&a,"test-video.ini"));
     CHECK(a.gameplay.vehicle_packs==(!bs && mask?7u:0u));
-    CHECK(a.gameplay.stock_rebalance==(bs?0u:5u));
+    CHECK(a.gameplay.stock_rebalance==(!bs && rebalance?15u:0u));
     CHECK(FzeroVideoSave(&a,"test-video.ini") && FzeroVideoLoad(&b,"test-video.ini"));
     CHECK(b.gameplay.vehicle_packs==a.gameplay.vehicle_packs);
+    CHECK(b.gameplay.stock_rebalance==a.gameplay.stock_rebalance);
   }
   remove("test-video.ini");
   CHECK(FzeroVideoLoad(&b, "test-video.ini"));

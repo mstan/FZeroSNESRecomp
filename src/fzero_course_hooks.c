@@ -92,6 +92,17 @@ static void course_hook(CpuState *cpu, uint32_t pc) {
   if (!c)
     return;
   switch (pc) {
+  case 0x0088d3:
+    /* Both native engines just uploaded their stock OBJ atlas. Restore only
+     * the imported intro's reviewed letter tiles, never the donor HUD/cars.
+     * The next course's normal atlas upload restores the original letters. */
+    for (unsigned i = 0; i < c->intro_glyph_count; ++i)
+      for (unsigned half = 0; half < 2; ++half) {
+        unsigned word = 0x5000 + (c->intro_glyphs[i].code + half * 16) * 16;
+        vram(word, c->intro_glyphs[i].pixels + half * 16, 16);
+        memset(g_ppu->vram + word + 8, 0, 16);
+      }
+    break;
   case 0x00f7e6:
     if (c->has_music) {
       /* Retail derives this from the venue; Deluxe reads its native course
@@ -254,7 +265,7 @@ void FzeroTracksInstallHooks(void) {
     return;
   const uint32_t sites[] = {0x009f08, 0x009f1b, 0x009f28, 0x009f4c, 0x00a0b0, 0x00a10d, 0x00a11d,
                             0x00a127, 0x00a4ab, 0x00a4d1, 0x00a51f, 0x008895, 0x00abd3, 0x00d609,
-                            0x00a30d, 0x008e36, 0x009c9a, 0x00eb90, 0x00da04,
+                            0x00a30d, 0x008e36, 0x009c9a, 0x00eb90, 0x00da04, 0x0088d3,
                             0x00cba5, 0x009a6b, 0x00b4a9, 0x00c1cf, 0x00f7e6};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], course_hook);

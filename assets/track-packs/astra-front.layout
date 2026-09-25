@@ -3,6 +3,8 @@
 # and gameplay patches are omitted. Source order: 55,58,57,59,60 / 61,56,63,62,64.
 format=fzero-course-1
 count=65
+intro_glyph=a7|0f8da2|0f8db2
+intro_glyph=8f|0f896e|0f8c00
 pools=1087c5
 settings=108888
 palettes=1088d3

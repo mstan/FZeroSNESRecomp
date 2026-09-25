@@ -16,7 +16,7 @@ int main(void) {
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
     packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
-  CHECK(p->package_count(NULL) == 7 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 4 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -24,7 +24,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 7 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 4 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -64,16 +64,20 @@ int main(void) {
   const char *old_car_packs[]={"cgp-cars-p1","cgp-cars-p2","cgp-cars-p3"};
   for(unsigned i=0;i<3;++i)
     CHECK(!p->feature_enable(NULL,old_car_packs[i],"vehicles",1));
-  unsigned cgp_entries=0;
+  unsigned cgp_entries=0, rebalance_entries=0;
   int cgp_car_index=-1;
   for(int i=0;i<p->feature_count(NULL);++i) {
     CHECK(p->feature_get(NULL,i,&f));
+    if(!strcmp(f.group,"Vehicle Rebalances")) {
+      CHECK(!strcmp(f.package_id,"cgp-stock-rebalance") && !f.option_count && !f.enabled);
+      ++rebalance_entries;
+    }
     if(!strcmp(f.group,"Vehicle Packs") && strcmp(f.package_id,"bs-cars")) {
       CHECK(!strcmp(f.package_id,"cgp-cars") && !strcmp(f.name,"CGP vehicles"));
       ++cgp_entries;cgp_car_index=i;
     }
   }
-  CHECK(cgp_entries==1);
+  CHECK(cgp_entries==1 && rebalance_entries==1);
   for(unsigned enabled=0;enabled<2;++enabled) {
     CHECK(p->feature_enable(NULL,"cgp-cars","vehicles",enabled));
     CHECK(s.gameplay.vehicle_packs==(enabled?7u:0u) && !s.bs_deluxe);
@@ -87,16 +91,23 @@ int main(void) {
   CHECK(!s.bs_deluxe && s.gameplay.vehicle_packs==7);
   /* The unified roster does not select or clear the original-car rebalances. */
   CHECK(!s.gameplay.stock_rebalance);
-  CHECK(p->feature_enable(NULL,"cgp-blue-falcon","vehicles",1));
+  CHECK(p->feature_enable(NULL,"cgp-stock-rebalance","vehicles",1));
   CHECK(p->feature_enable(NULL,"cgp-cars","vehicles",0));
-  CHECK(!s.gameplay.vehicle_packs && s.gameplay.stock_rebalance==1);
+  CHECK(!s.gameplay.vehicle_packs && s.gameplay.stock_rebalance==15);
   CHECK(p->feature_enable(NULL,"cgp-cars","vehicles",1));
-  CHECK(s.gameplay.vehicle_packs==7 && s.gameplay.stock_rebalance==1);
-  CHECK(p->feature_enable(NULL,"cgp-blue-falcon","vehicles",1));
-  CHECK(s.gameplay.stock_rebalance==1 && !s.bs_deluxe);
+  CHECK(s.gameplay.vehicle_packs==7 && s.gameplay.stock_rebalance==15);
+  CHECK(p->feature_enable(NULL,"cgp-stock-rebalance","vehicles",1));
+  CHECK(s.gameplay.stock_rebalance==15 && !s.bs_deluxe);
   CHECK(p->feature_enable(NULL,"bs-cars","vehicles",1));
   CHECK(s.bs_deluxe && !s.gameplay.vehicle_packs && !s.gameplay.stock_rebalance);
   CHECK(p->feature_enable(NULL,"bs-cars","vehicles",0));
+  for(unsigned enabled=0; enabled<2; ++enabled) {
+    CHECK(p->feature_enable(NULL,"cgp-stock-rebalance","vehicles",enabled));
+    CHECK(s.gameplay.stock_rebalance==(enabled?15u:0u) && !s.gameplay.vehicle_packs);
+    CHECK(p->commit(NULL,NULL) && FzeroVideoLoad(&loaded,"test-mods.ini"));
+    CHECK(loaded.gameplay.stock_rebalance==s.gameplay.stock_rebalance);
+  }
+  CHECK(p->feature_enable(NULL,"cgp-stock-rebalance","vehicles",0));
   const CpPack *cgp=cp_catalog_find(catalog,"cgp");
   CHECK(p->feature_enable(NULL,"bs-tracks","tracks",1) && s.bs_tracks);
   CHECK(!s.bs_deluxe);
@@ -159,7 +170,7 @@ int main(void) {
   CHECK(!s.bs_deluxe && s.enhanced && !s.fps_enabled);
   /* One global title feature; no per-pack dropdowns or file pickers. */
   RecompLauncherCModFeature title;
-  CHECK(p->feature_get(NULL, 6+FZERO_RULE_COUNT, &title));
+  CHECK(p->feature_get(NULL, 3+FZERO_RULE_COUNT, &title));
   CHECK(!strcmp(title.package_id,"fzero-title") && !strcmp(title.group,"Presentation"));
   CHECK(title.option_count==1 && !title.enabled);
   CHECK(p->feature_resource_count(NULL,"fzero-title","title-screen")==0);

@@ -176,8 +176,12 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
    * conflict resolves to the explicitly preserved stock BS vehicle mode. */
   s->gameplay.enabled &= FZERO_RULE_SELECTABLE_MASK;
   if(s->bs_deluxe)s->gameplay.vehicle_packs=s->gameplay.stock_rebalance=0;
-  /* Former P1/P2/P3 selections now opt into the complete CGP roster. */
-  else if(s->gameplay.vehicle_packs)s->gameplay.vehicle_packs=7;
+  /* Former partial car packs/rebalances opt into their complete groups,
+   * including when the player skips the launcher. The two mods stay separate. */
+  else {
+    if(s->gameplay.vehicle_packs)s->gameplay.vehicle_packs=7;
+    if(s->gameplay.stock_rebalance)s->gameplay.stock_rebalance=15;
+  }
   return valid;
 }
 
@@ -189,7 +193,7 @@ bool FzeroVideoSave(const FzeroVideoSettings *s, const char *path) {
   bool ok = fprintf(f, "[FZeroVideo]\nEnhancedRenderer=%d\nAspect=%s\nPresentationEnabled=%d\nPresentationFPS=%u\nBSVehicles=%d\nBSTracks=%d\nCGPRules=%u\nCGPTuning=%u\nCGPBoost=%u\nCGPExhaust=%u\nCGPCars=%u\nCGPStockRebalance=%u\nHDMode7=%d\nHDMode7Scale=%u\nDiagnostics=%d\n",
                     s->enhanced, FzeroAspectName(s->aspect), s->fps_enabled, s->fps, s->bs_deluxe, s->bs_tracks, s->gameplay.enabled,
                     s->gameplay.tuning, s->gameplay.boost, s->gameplay.exhaust,
-                    s->gameplay.vehicle_packs ? 7u : 0u,s->gameplay.stock_rebalance,
+                    s->gameplay.vehicle_packs ? 7u : 0u,s->gameplay.stock_rebalance ? 15u : 0u,
                     s->hd_mode7, FzeroValidHdScale(s->hd_scale) ? s->hd_scale : 2u, s->diagnostics) > 0;
   if (fclose(f)) ok = false;
   if (ok) {

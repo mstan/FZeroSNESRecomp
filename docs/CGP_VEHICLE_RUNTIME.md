@@ -249,7 +249,7 @@ The native confirmation panel now resolves its specification artwork and colors
 from the selected stable identity, independently of its current display row.
 Every CGP car uses its matching authored engine, power, speed, weight and
 acceleration graph. Original identities keep the native retail card until their
-individual rebalance is enabled. The original Satellaview layout, shared labels,
+original-car rebalance mod is enabled. The original Satellaview layout, shared labels,
 Yes/No controls and animations remain intact. This changes presentation only.
 
 `tools/vehicle_cards.py` reads the native tilemap stream consumed by `$03:9892`
@@ -296,3 +296,11 @@ layout. This reproduces in the shipped preview.5 desktop executable, independent
 of the card correction. Evidence: `info-cards/{bs-isolation,previous-boost-check}`.
 Per-car boost/exhaust isolation, broader full-race parity and record-namespace
 work remain open; this is not a passing claim for the whole presentation suite.
+
+## Unified original-car opt-in (2026-09-25)
+
+The Mods UI exposes one default-off `cgp-stock-rebalance` feature for all four
+original identities. It is independent of the added CGP vehicles and course packs.
+Existing nonzero `CGPStockRebalance` masks migrate to 15 on settings load, including
+skip-launcher boots; zero remains off. Explicit stock BS vehicles take priority
+and clear CGP cars/rebalances. The per-identity runtime bitmask remains internal.

@@ -1,7 +1,7 @@
 {
   "source_sha256": "76e03d7ef6d1c5e63da554f00e48843f589ec1407a4aaf80ed46af5df4f988c0",
-  "packed_sha256": "9a99fabbc403c2d1607f032d6d7ae0a06cf2b9a7303f8016999a1ffdf5b3b094",
-  "patch_sha256": "8f0df89619b55af5f2a14a18928a4f62baccadf5ffa4fe776ba7a2401f9f3d1f",
+  "packed_sha256": "cc49efbc6a338acc45bcd0ea36f5e1d0ef9665d46a3c922b2f82de5aefb2c40b",
+  "patch_sha256": "6627215d7a75024832527e43abb379231e0b17e7e7f6434c6747b916795605e9",
   "cup_names": [
     "ASTRA",
     "FRONT"
@@ -138,10 +138,36 @@
       }
     ]
   },
+  "intro_glyphs": [
+    {
+      "letter": "R",
+      "code": "8f",
+      "top": "0f896e",
+      "bottom": "0f8c00"
+    },
+    {
+      "letter": "Z",
+      "code": "a7",
+      "top": "0f8da2",
+      "bottom": "0f8db2"
+    }
+  ],
   "retained_spans": [
     [
       30688,
       30705
+    ],
+    [
+      493934,
+      493950
+    ],
+    [
+      494592,
+      494608
+    ],
+    [
+      495010,
+      495042
     ],
     [
       524877,
@@ -292,7 +318,7 @@
       2913774
     ]
   ],
-  "retained_bytes": 365094,
+  "retained_bytes": 365158,
   "resource_validation": [
     "course 55: setting=c1 blocks=5152 grid=13932 last=67 finish=0 pit=0 hash=15a21c343efade48aba4975a7ea57a0ca764a39f6a11ec5cc3983fc8623108a1",
     "course 56: setting=c4 blocks=4448 grid=14922 last=99 finish=0 pit=0 hash=39ca1f8f20e19569c20c3a841942226cfea48265887eccd76f243741b2554fd5",

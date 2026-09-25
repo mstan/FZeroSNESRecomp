@@ -39,7 +39,7 @@ static unsigned resource(unsigned size) {
 static void requirements(void) {
   const char *path = "course-requirements-test.layout";
   const char *cases[] = {
-      "require=all|grip-magnets\nrequire=1|up-magnets\nrequire=1|rainbow-road\nmusic=108000\nspc=1|mute-city\n",
+      "require=all|grip-magnets\nrequire=1|up-magnets\nrequire=1|rainbow-road\nmusic=108000\nspc=1|mute-city\nintro_glyph=a7|0f8da2|0f8db2\n",
       "require=all|unknown\n", "require=2|up-magnets\n",
       "require=128|up-magnets\n", "require=-1|up-magnets\n",
       "require=+1|up-magnets\n", "require=|up-magnets\n",
@@ -48,7 +48,10 @@ static void requirements(void) {
       "music=0\n", "music=108000\nmusic=108001\n",
       "spc=2|mute-city\n", "spc=-1|mute-city\n", "spc=|mute-city\n",
       "spc=128|mute-city\n", "spc=0|unknown\n", "spc=0|mute-city|big-blue\n",
-      "spc=0|mute-city\nspc=0|big-blue\n"};
+      "spc=0|mute-city\nspc=0|big-blue\n",
+      "intro_glyph=a7|7e8000|0f8db2\n", "intro_glyph=a7|0f8da2\n",
+      "intro_glyph=81|0f8da2|0f8db2\n", "intro_glyph=a7|0f8da2|0f8db2|junk\n",
+      "intro_glyph=a7|0f8da2|0f8db2\nintro_glyph=a7|0f8da2|0f8db2\n"};
   const char *fields[] = {"pools", "settings", "palettes", "maps", "graphics", "paths",
                          "names", "sky_graphics", "sky_back", "sky_front", "minimaps",
                          "map_positions", "terrain", "gradients", "opponents", "shortcuts"};
@@ -68,6 +71,8 @@ static void requirements(void) {
       CHECK(!layout.course_required[0]);
       CHECK(layout.course_required[1] == (FZERO_COURSE_UP_MAGNETS | FZERO_COURSE_RAINBOW));
       CHECK(layout.music == 0x108000 && !layout.spc_override[0] && layout.spc_override[1] == 1);
+      CHECK(layout.intro_glyph_count == 1 && layout.intro_glyphs[0].code == 0xa7);
+      CHECK(layout.intro_glyphs[0].top == 0x0f8da2 && layout.intro_glyphs[0].bottom == 0x0f8db2);
     } else {
       CHECK(!memcmp(&layout, &before, sizeof(layout)));
       if (i == 1) CHECK(strstr(error, "Unsupported required"));
@@ -127,6 +132,28 @@ int main(void) {
   CHECK(c->path[0] == 100 && c->path[2] == 108 && c->path[0x202] == 192);
   CHECK(c->has_pit && c->pit_checkpoint == 0); /* Checkpoint zero is a valid pit. */
   *previous = *c;
+  /* Presentation overrides must preserve records and only load used letters. */
+  unsigned nt = off(l.names), name_data = off(rom[nt] | rom[nt+1] << 8 | rom[nt+2] << 16);
+  memset(rom + name_data, 1, 6);
+  rom[name_data + 6] = 0xa7;
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  *previous = *c;
+  unsigned pixels = allocate(32);
+  for (unsigned j=0; j<32; ++j) rom[pixels+j] = (uint8_t)(j+1);
+  l.intro_glyph_count = 1;
+  l.intro_glyphs[0].code = 0xa7;
+  l.intro_glyphs[0].top = addr(pixels);
+  l.intro_glyphs[0].bottom = addr(pixels + 16);
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(c->intro_glyph_count == 1 && c->intro_glyphs[0].code == 0xa7);
+  CHECK(!memcmp(c->intro_glyphs[0].pixels, rom+pixels, 32));
+  CHECK(!memcmp(c->hash, previous->hash, 32));
+  l.intro_glyphs[0].code = 0xa6;
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(!c->intro_glyph_count && !memcmp(c->hash, previous->hash, 32));
+  l.intro_glyphs[0].bottom = 0x7e8000;
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  l.intro_glyph_count = 0;
   unsigned cycles = allocate(2), entries = allocate(8);
   l.palette_cycles = addr(cycles);
   word(cycles, addr(entries) & 65535);

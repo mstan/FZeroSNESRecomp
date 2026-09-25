@@ -35,9 +35,10 @@ additional ships plus the original four, for twelve distinct identities.
 Previously enabled individual groups migrate to this complete roster.
 Each new ship has its own
 artwork, handling, energy boost and exhaust. Left/right changes car pages;
-up/down changes the selected ship. **Vehicle Rebalances** separately offers
+up/down changes the selected ship. **CGP original-car rebalances** is one separate, default-off opt-in for
 the author's versions of Blue Falcon, Golden Fox, Wild Goose and Fire Stingray.
-Those options modify the existing identities and default off. Information
+It changes all four existing identities together. Any previously enabled
+partial rebalance migrates to all four; a disabled rebalance stays disabled. Information
 cards follow the same choice: authored CGP values, acceleration graphs and
 colors for CGP cars/rebalances; original cards for unmodified original cars.
 

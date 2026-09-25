@@ -68,3 +68,24 @@ Private evidence: `captures/astra-01` (courses),
 `captures/astra-records-02` (records). The reusable smoke harness is
 `tests/validate_imported_pack.py`; all ROMs, saves and decoded captures stay
 outside version control.
+
+## Intro font repair (2026-09-25)
+
+The initial early-race checks missed the course intro: U Zero rendered its Z
+as a stock Japanese glyph. Astra patches `$00D146` to look up top/bottom OBJ
+tiles through `$108095` / `$108150`, while preserving the old name character
+codes. Its `$0F8000` atlas has a different tile order. Decoding the name alone
+therefore did not reproduce its artwork.
+
+`tools/audit_intro_font.py` compares every used letter with stock. Only R and Z
+differ: R maps to donor tiles `$69/$96` and Z to `$B4/$B5`. The layout imports
+their two 16-byte 2bpp halves. Both engines upload only letters used by the
+current course, after the ordinary font atlas loads at `$0088D3`; the next
+course's native load restores the original tiles. No donor font code or car/HUD
+atlas is imported. These presentation resources are outside the course hash.
+
+`tests/validate_intro_glyphs.py` checks the actual intro OAM and VRAM for all ten
+courses on both engines, including ordinary letters and unused-override
+controls. The corrected U Zero I intro was visually inspected on both engines.
+Evidence: `captures/astra-intro-validation-02` and `captures/astra-intro-fixed`.
+All ten normalized gameplay/record hashes are unchanged from the initial import.

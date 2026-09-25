@@ -215,6 +215,24 @@ Layouts without either field retain native behavior. Music metadata is separate
 from course record hashes: correcting a song must not strand existing times.
 See `docs/CGP_SNES_MUSIC.md` for the current complete mapping and validation.
 
+## Intro lettering gate
+
+Validate the displayed course intro, not only the decoded course name. Compare
+its character lookup and font atlas with the stock engine; custom font remaps
+can preserve the name bytes while changing which tiles draw each letter. Check
+both retail and expanded engines, including ordinary-letter controls.
+
+An optional repeated `intro_glyph=<code>|<top>|<bottom>` imports two native 2bpp
+8x8 tiles as one 8x16 intro letter. All values are hexadecimal; top/bottom are
+LoROM CPU addresses of exactly 16 raw bytes each. Only native letter-code slots
+64?6f, 8a?8f and a0?a9 are accepted. The runtime expands these to 4bpp and uploads
+only letters used in the active name, after the native atlas upload. Review
+compression, blank tiles, flipping and source lookup semantics before declaring
+a resource; never transplant the donor's entire font/HUD/car atlas. Letter
+artwork is presentation data and must not change course/record keys. See
+`tools/audit_intro_font.py` and `tests/validate_intro_glyphs.py` for the reviewed
+FZEdit remapper used by Astra.
+
 ## Records gate for every added course
 
 Always include new cups in records validation. Finish a cup through the native

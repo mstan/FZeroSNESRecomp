@@ -27,6 +27,12 @@ BS exclusion and independent original-car rebalances remain intact. Internal
 P1/P2/P3 resources, selection columns and Grand Prix cohorts are unchanged.
 The partial-pack checks below describe historical adapter coverage.
 
+2026-09-25 follow-up (`beads-8wg.5.63`): **CGP original-car rebalances** is
+also one default-off opt-in for all four originals. It remains independent of
+CGP vehicles. Nonzero saved partial masks migrate to all four; zero stays off,
+and stock BS vehicles retain conflict priority. Mods/settings tests cover the
+single feature, persistence, presets and every legacy mask combination.
+
 Planning issue: `beads-8wg.5.34`. The 12 work items below belong directly under
 `beads-8wg.5` (Game: F-Zero), under `beads-8wg` (System: SNES), in the central
 database at `F:\Software\beads\issues`. Beads owns status; this file is the

@@ -25,6 +25,11 @@ def pack_resources(stock, donor, layout, slots):
         address = int.from_bytes(entry(key, slot), 'little')
         return keep(address, length)
 
+    for glyph in layout.get('intro_glyph', []):
+        _, top, bottom = (int(part, 16) for part in glyph.split('|'))
+        keep(top, 16)
+        keep(bottom, 16)
+
     for slot in slots:
         if not 0 <= slot < int(layout['count'][0]):
             raise ValueError('Selected resource slot is out of range')

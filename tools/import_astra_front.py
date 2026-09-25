@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from audit_track_metadata import audit_metadata, span
+from audit_intro_font import audit_fzedit_intro_font
 from inspect_bs_deluxe import STOCK_SHA256, apply_ips
 from make_ips import make_ips
 from pack_course_resources import pack_resources
@@ -71,10 +72,16 @@ def main():
     if labels != ['ASTRA', 'FRONT']:
         raise ValueError(f'Authored cup labels changed: {labels}')
     slots = [t[3] for t in TRACKS]
+    intro_glyphs = audit_fzedit_intro_font(stock, source, layout, slots)
     before = qualify(source, layout_path, a.inspector, slots)
     target, ranges = pack_resources(stock, source, layout, slots)
     if before != qualify(target, layout_path, a.inspector, slots):
         raise ValueError('Selected normalized resources changed while packing')
+    for glyph in intro_glyphs:
+        for part in ('top', 'bottom'):
+            address = int(glyph[part], 16)
+            if span(source, address, 16) != span(target, address, 16):
+                raise ValueError('Intro letter artwork changed while packing')
     after = audit_metadata(target, layout, parse_fields(manifest(target).decode()))
     if original['tracks'] != after['tracks']:
         raise ValueError('Course metadata changed while packing')
@@ -82,7 +89,7 @@ def main():
     if apply_ips(stock, patch) != target:
         raise ValueError('IPS round trip mismatch')
     report = dict(source_sha256=SOURCE_SHA256, packed_sha256=digest(target), patch_sha256=digest(patch),
-                  cup_names=labels, metadata=original, retained_spans=ranges,
+                  cup_names=labels, metadata=original, intro_glyphs=intro_glyphs, retained_spans=ranges,
                   retained_bytes=sum(end-start for start,end in ranges),
                   resource_validation=before.splitlines())
     outputs = {'astra-front.ini': manifest(target), 'astra-front.ips': patch,

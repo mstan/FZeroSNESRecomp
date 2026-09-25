@@ -25,7 +25,7 @@ It does not, by itself, make the surface damaging in CGP. The separate
 their grip/pull without that damage. Ordinary native downpull damage remains
 unchanged outside courses declaring CGP's magnet mechanics.
 
-CGP up magnets additionally depend on the author's tile IDs (`$B6`, `$CC–$CF`)
+CGP up magnets additionally depend on the author's tile IDs (`$B6`, `$CCâ€“$CF`)
 and airborne/tilt logic. Those IDs are not treated as up magnets in unrelated
 packs. The retained magnet switches cannot force CGP tile semantics onto
 stock, original BS, MAX or Bower. New packs must explicitly declare compatible
@@ -39,7 +39,7 @@ mechanics in their layout. See the [technical audit](docs/CGP_COURSE_CAPABILITIE
 | CGP music | With MSU-1 off or a recording absent, the course uses its SNES mapping. The one explicit donor override is Mute City III CGP: Mute City replaces the donor's Big Blue selection, interpreting the author's original-league fallback guidance. All mappings are [listed here](docs/CGP_SNES_MUSIC.md). |
 | MSU-1 | Optional. The music bundle uses the cleared PC-port archive; the smaller download still supports custom music. Unmapped packs fall back to their SNES music. See [soundtrack notes](assets/music/README.md). |
 | CGP vehicles | One mod enables all three authored groups together. Each car retains its own artwork and parameters. In GP, its other three group members are its rivals; Practice permits any enabled rival. |
-| Original-car rebalances | Separate options change the four original identities on any course. Adding CGP courses alone does not enable them. |
+| Original-car rebalances | One default-off opt-in changes all four original identities together on any course. Adding CGP courses alone does not enable them. |
 | Stock BS vehicles | Preserve their native behavior; this mode excludes CGP vehicles and original-car rebalances. Track choice is independent. |
 | Legend and general gameplay fixes | Opt-in globally; the CGP preset enables them. Legend's CPU changes apply after vehicle tuning. They can affect races outside CGP. |
 | Title screen override | One Presentation mod offers Original, Community Grand Prix and MAX League independently of enabled track packs. Astra uses the same title artwork as CGP; Bower and BS use Original. F-Zero 55 remains retained but hidden. The CGP preset selects its title; Vanilla and Satellaview restore Original. |
@@ -64,3 +64,7 @@ course names and omitted courses in partial packs. Cup labels still require
 review against the donor menu or author's documentation. An unknown loader
 needs a reviewed adapter, and a structural pass alone does not establish
 full-race playability.
+
+Imported intro lettering must be checked against the donor's actual font lookup,
+not just decoded name bytes. Astra remaps its font; its authored R and Z graphics
+are imported as scoped letter resources. Course and record IDs are unchanged.
