@@ -2,9 +2,10 @@
 #include "fzero_course.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 int main(int argc, char **argv) {
-  if (argc != 3 && argc != 4) {
-    fprintf(stderr, "usage: inspect_courses donor.sfc pack.layout [private-output-prefix]\n");
+  if (argc < 3 || argc > 5) {
+    fprintf(stderr, "usage: inspect_courses donor.sfc pack.layout [private-output-prefix|-] [source-index,...]\n");
     return 2;
   }
   FILE *f = fopen(argv[1], "rb");
@@ -32,12 +33,25 @@ int main(int argc, char **argv) {
   FzeroCourse *c = malloc(sizeof(*c));
   if (!c)
     return 2;
+  bool selected[128] = {false};
+  if (argc == 5) {
+    const char *s = argv[4];
+    do {
+      char *end;
+      unsigned long i = strtoul(s, &end, 10);
+      if (*s < '0' || *s > '9' || end == s || (*end && *end != ',') ||
+          i >= l.count || selected[i] || (*end == ',' && !end[1])) return 2;
+      selected[i] = true;
+      s = *end ? end + 1 : end;
+    } while (*s);
+  }
   for (unsigned i = 0; i < l.count; ++i) {
+    if (argc == 5 && !selected[i]) continue;
     if (!FzeroCourseExtract(r, (size_t)n, &l, i, c, error, sizeof(error))) {
       printf("%u: %s\n", i, error);
       return 1;
     }
-    if (argc == 4) {
+    if (argc >= 4 && strcmp(argv[3], "-")) {
       char path[1024];
       if (snprintf(path, sizeof(path), "%s-%u.bin", argv[3], i) >= (int)sizeof(path))
         return 2;

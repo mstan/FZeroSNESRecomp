@@ -1,6 +1,6 @@
 # Add more courses to F-Zero
 
-Community Grand Prix, Bower League and MAX League are included. Enable or disable them in **Mods**; every
+Community Grand Prix, Bower League, MAX League and Astra Front are included. Enable or disable them in **Mods**; every
 enabled pack adds its cups automatically. Bundled packs have
 an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
@@ -18,6 +18,11 @@ Bower adds five more course versions in one cup, bringing the default to
 it brings the total to **16 cups / 80 versions**. Saved enable choices are kept.
 CGP's six new leagues use their authored names: **Baron, Scepter, Crown,
 Zenith, Falcon and True**. Their existing course order and record IDs are unchanged.
+Astra Front defaults off and adds **two cups / ten courses**: Astra and Front.
+With all four packs enabled, there are **18 cups / 90 selectable course
+versions**. Astra retains its authored order and SNES music and uses the
+shared CGP course mechanics; it does not enable CGP vehicles or global rules.
+See [the Astra import audit](../docs/ASTRA_FRONT_IMPORT.md).
 
 **BS Satellaview vehicles** adds the four extra cars independently of tracks.
 **BS Satellaview tracks** adds the ten original BS courses. That track option

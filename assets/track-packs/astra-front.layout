@@ -1,0 +1,26 @@
+# Owner-supplied Astra Front image: 65 internal slots, ten published courses.
+# The bundled resource-only donor retains slots 55-64; other expanded assets
+# and gameplay patches are omitted. Source order: 55,58,57,59,60 / 61,56,63,62,64.
+format=fzero-course-1
+count=65
+pools=1087c5
+settings=108888
+palettes=1088d3
+maps=108996
+graphics=108c20
+paths=108ce3
+names=108da6
+sky_graphics=109496
+sky_back=109310
+sky_front=1093d3
+minimaps=1085b9
+map_positions=10867c
+terrain=10972e
+gradients=1096ed
+opponents=1098f5
+shortcuts=1097f1
+palette_cycles=109559
+music=1098b4
+# Owner confirms the same mechanics as CGP. Required only on this pack's courses.
+require=all|grip-magnets
+require=all|up-magnets

@@ -215,6 +215,27 @@ Layouts without either field retain native behavior. Music metadata is separate
 from course record hashes: correcting a song must not strand existing times.
 See `docs/CGP_SNES_MUSIC.md` for the current complete mapping and validation.
 
+## Records gate for every added course
+
+Always include new cups in records validation. Finish a cup through the native
+completion path, inspect its overview and every course detail, page away/back,
+switch vehicles when an expanded roster is enabled, and reload the battery
+save. Confirm that another vehicle has separate times and that merely browsing
+does not write records. Check stock records alongside added cups. Stable
+pack/cup/course IDs and normalized course data own record identity; menu order,
+display labels, music and title artwork must not own it. Disabling/re-enabling
+or reordering unrelated packs must not strand existing times.
+
+`tests/validate_imported_pack.py --build build --stock path/to/fzero.sfc
+--pack <id> --out captures/<new-directory>` provides course-start, music and
+completed-cup records fixtures on both engines. Document fixture limitations
+and supplement with visual checks; scripted finishes are not driven laps.
+
+For a ROM-only submission, do not ship the ROM. Identify the actual published
+cups first, omit unused resource slots, and derive a resource-only patch against
+the stock input. Compare normalized C-extractor results before/after packing.
+The reviewed Astra profile in `tools/import_astra_front.py` is an example.
+
 ## Gameplay source changes
 
 The course manifest remains data-only. Do not turn it into an arbitrary ROM

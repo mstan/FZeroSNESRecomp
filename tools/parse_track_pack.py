@@ -70,11 +70,14 @@ def write_new(path, content):
         file.write(content)
 
 
-def qualify(target, layout, inspector):
+def qualify(target, layout, inspector, slots=None):
     with tempfile.TemporaryDirectory(prefix="fzero-course-") as temp:
         image = Path(temp) / "donor.sfc"
         image.write_bytes(target)
-        result = subprocess.run([str(inspector.resolve()), str(image), str(layout.resolve())],
+        command = [str(inspector.resolve()), str(image), str(layout.resolve())]
+        if slots is not None:
+            command += ["-", ",".join(str(i) for i in sorted(set(slots)))]
+        result = subprocess.run(command,
                                 capture_output=True, text=True, check=False)
         if result.returncode:
             raise ValueError(f"Course extraction failed: {result.stdout} {result.stderr}")
@@ -131,7 +134,7 @@ def main():
     if any(int(line.rsplit("|", 1)[1]) >= count for line in declared):
         raise ValueError("Track source index is outside the reviewed layout")
     metadata = audit_metadata(target, fields(layout), parse_fields(manifest.decode()), a.source_cup)
-    report = qualify(target, layout, a.inspector)
+    report = qualify(target, layout, a.inspector, [int(line.rsplit("|", 1)[1]) for line in declared])
     # Preflight every destination before creating anything. No patch or ROM is exported.
     outputs = {a.out / f"{pack_id}.ini": manifest,
                a.out / f"{pack_id}.layout": layout.read_bytes(),

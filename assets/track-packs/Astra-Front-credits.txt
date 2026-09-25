@@ -1,0 +1,17 @@
+F-Zero Astra Front
+
+Hack by MF9_05 / Worthy. Original F-Zero by Nintendo.
+Author's project page:
+https://romhackplaza.org/romhacks/f-zero-astra-front-snes/
+That page credits Silverreploid for MSU music; no Astra music recordings are
+included in this course pack.
+
+Imported from the owner-supplied ROM, with ten published courses in the
+Astra and Front cups. The supplied revision is identified by SHA-256:
+76e03d7ef6d1c5e63da554f00e48843f589ec1407a4aaf80ed46af5df4f988c0
+
+The included IPS is a course-resource derivative, not the full ROM or a
+replacement executable. The player supplies a verified original USA ROM.
+The port uses the author's original names, ordering and SNES music selections,
+plus shared CGP-compatible course mechanics. Global vehicle/rule choices
+remain independent. See docs/ASTRA_FRONT_IMPORT.md for scope and validation.

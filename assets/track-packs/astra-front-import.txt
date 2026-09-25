@@ -1,0 +1,308 @@
+{
+  "source_sha256": "76e03d7ef6d1c5e63da554f00e48843f589ec1407a4aaf80ed46af5df4f988c0",
+  "packed_sha256": "9a99fabbc403c2d1607f032d6d7ae0a06cf2b9a7303f8016999a1ffdf5b3b094",
+  "patch_sha256": "8f0df89619b55af5f2a14a18928a4f62baccadf5ffa4fe776ba7a2401f9f3d1f",
+  "cup_names": [
+    "ASTRA",
+    "FRONT"
+  ],
+  "metadata": {
+    "donor_sha256": "76e03d7ef6d1c5e63da554f00e48843f589ec1407a4aaf80ed46af5df4f988c0",
+    "music_table": "1098b4",
+    "order_table": "1088c9",
+    "source_cup": null,
+    "source_order": [
+      55,
+      58,
+      57,
+      59,
+      60,
+      61,
+      56,
+      63,
+      62,
+      64
+    ],
+    "omitted_slots": [],
+    "cup_names": "manual-review-required",
+    "cups": [
+      {
+        "id": "astra",
+        "name": "Astra"
+      },
+      {
+        "id": "front",
+        "name": "Front"
+      }
+    ],
+    "tracks": [
+      {
+        "id": "u-zero-1",
+        "name": "U Zero I",
+        "donor_name": "U ZERO I",
+        "cup": "astra",
+        "slot": 55,
+        "donor_music": "silence",
+        "snes_music": "silence",
+        "override": false
+      },
+      {
+        "id": "candany",
+        "name": "Candany",
+        "donor_name": "CANDANY",
+        "cup": "astra",
+        "slot": 58,
+        "donor_music": "white-land-1",
+        "snes_music": "white-land-1",
+        "override": false
+      },
+      {
+        "id": "u-zero-2",
+        "name": "U Zero II",
+        "donor_name": "U ZERO II",
+        "cup": "astra",
+        "slot": 57,
+        "donor_music": "silence",
+        "snes_music": "silence",
+        "override": false
+      },
+      {
+        "id": "u-zero-3",
+        "name": "U Zero III",
+        "donor_name": "U ZERO III",
+        "cup": "astra",
+        "slot": 59,
+        "donor_music": "silence",
+        "snes_music": "silence",
+        "override": false
+      },
+      {
+        "id": "vulcanom",
+        "name": "Vulcanom",
+        "donor_name": "VULCANOM",
+        "cup": "astra",
+        "slot": 60,
+        "donor_music": "fire-field",
+        "snes_music": "fire-field",
+        "override": false
+      },
+      {
+        "id": "u-zero-4",
+        "name": "U Zero IV",
+        "donor_name": "U ZERO IV",
+        "cup": "front",
+        "slot": 61,
+        "donor_music": "silence",
+        "snes_music": "silence",
+        "override": false
+      },
+      {
+        "id": "brutal-wind-1",
+        "name": "Brutal Wind I",
+        "donor_name": "BRUTAL WIND I",
+        "cup": "front",
+        "slot": 56,
+        "donor_music": "death-wind",
+        "snes_music": "death-wind",
+        "override": false
+      },
+      {
+        "id": "moon",
+        "name": "Moon",
+        "donor_name": "MOON",
+        "cup": "front",
+        "slot": 63,
+        "donor_music": "silence",
+        "snes_music": "silence",
+        "override": false
+      },
+      {
+        "id": "u-zero-5",
+        "name": "U Zero V",
+        "donor_name": "U ZERO V",
+        "cup": "front",
+        "slot": 62,
+        "donor_music": "silence",
+        "snes_music": "silence",
+        "override": false
+      },
+      {
+        "id": "death-city",
+        "name": "Death City",
+        "donor_name": "DEATH CITY",
+        "cup": "front",
+        "slot": 64,
+        "donor_music": "mute-city",
+        "snes_music": "mute-city",
+        "override": false
+      }
+    ]
+  },
+  "retained_spans": [
+    [
+      30688,
+      30705
+    ],
+    [
+      524877,
+      524898
+    ],
+    [
+      525918,
+      525948
+    ],
+    [
+      526168,
+      526208
+    ],
+    [
+      526442,
+      526472
+    ],
+    [
+      526527,
+      526547
+    ],
+    [
+      526712,
+      526742
+    ],
+    [
+      527292,
+      527392
+    ],
+    [
+      527557,
+      527587
+    ],
+    [
+      527752,
+      527782
+    ],
+    [
+      527947,
+      527977
+    ],
+    [
+      529012,
+      529168
+    ],
+    [
+      529333,
+      529363
+    ],
+    [
+      529528,
+      529558
+    ],
+    [
+      529723,
+      529753
+    ],
+    [
+      529863,
+      529885
+    ],
+    [
+      530131,
+      530157
+    ],
+    [
+      530212,
+      530222
+    ],
+    [
+      530387,
+      530417
+    ],
+    [
+      530582,
+      530612
+    ],
+    [
+      530667,
+      530677
+    ],
+    [
+      530842,
+      530872
+    ],
+    [
+      1799792,
+      1991600
+    ],
+    [
+      2048512,
+      2056960
+    ],
+    [
+      2195449,
+      2195455
+    ],
+    [
+      2226899,
+      2236115
+    ],
+    [
+      2292310,
+      2301526
+    ],
+    [
+      2367744,
+      2384640
+    ],
+    [
+      2390711,
+      2417408
+    ],
+    [
+      2454491,
+      2473029
+    ],
+    [
+      2490880,
+      2497024
+    ],
+    [
+      2746112,
+      2751488
+    ],
+    [
+      2760704,
+      2782464
+    ],
+    [
+      2785280,
+      2809856
+    ],
+    [
+      2818048,
+      2826240
+    ],
+    [
+      2854848,
+      2862912
+    ],
+    [
+      2868288,
+      2870528
+    ],
+    [
+      2906639,
+      2913774
+    ]
+  ],
+  "retained_bytes": 365094,
+  "resource_validation": [
+    "course 55: setting=c1 blocks=5152 grid=13932 last=67 finish=0 pit=0 hash=15a21c343efade48aba4975a7ea57a0ca764a39f6a11ec5cc3983fc8623108a1",
+    "course 56: setting=c4 blocks=4448 grid=14922 last=99 finish=0 pit=0 hash=39ca1f8f20e19569c20c3a841942226cfea48265887eccd76f243741b2554fd5",
+    "course 57: setting=c1 blocks=5088 grid=14292 last=71 finish=0 pit=0 hash=a9caee470c44016416f89fabb32b4443137e5845d5f02c0593c1acdb9d12930e",
+    "course 58: setting=c8 blocks=3744 grid=13176 last=103 finish=0 pit=0 hash=7adb7afd48380644997cdccbf922a0f0d061e6352ca3cdf97a4ca34cb3b1a9c2",
+    "course 59: setting=c1 blocks=5024 grid=14274 last=92 finish=0 pit=0 hash=3124314eff5ffc3dc04fc22593bc0e1bcd64c32dfe9600975db53582785a98cb",
+    "course 60: setting=c6 blocks=4416 grid=15732 last=138 finish=0 pit=136 hash=70a14e56a27564f11177b3d19e1cf6c4d045dde9cb7f1ee10c1700b71b4a6418",
+    "course 61: setting=c1 blocks=4992 grid=14040 last=104 finish=0 pit=0 hash=ab2543d5e231e4d634118c420f4b33cc930ebe5a44c187c4c9cfb6cf528173e8",
+    "course 62: setting=c1 blocks=4992 grid=14130 last=112 finish=0 pit=0 hash=c65a3a3164bfe5f71f36f20d74e35fc4f97a868a1b4e21173747fb51cba411bd",
+    "course 63: setting=c1 blocks=3488 grid=11466 last=113 finish=115 pit=90 hash=3cf73c5d0225be9e1d28b3d671f430f4305b3b3036512f2834a4b5206685879f",
+    "course 64: setting=c7 blocks=7264 grid=35136 last=229 finish=0 pit=0 hash=6dc3c9cc79df31d291777a3153d89e9449af97de82685c54d9cc8ff9c09536e0"
+  ]
+}
