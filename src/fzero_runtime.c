@@ -615,7 +615,7 @@ static size_t s_state_guard_len;
 static size_t s_state_guard_cap;
 
 FzeroStateMode FzeroStateModeCurrent(void) {
-  if (FzeroTracksActive()) return kFzeroStateModeTrackPack;
+  if (FzeroTracksStateActive()) return kFzeroStateModeTrackPack;
   if (FzeroMsuActive()) return FzeroDeluxeActive() ? kFzeroStateModeDeluxeMsu : kFzeroStateModeStockMsu;
   return FzeroDeluxeActive() ? kFzeroStateModeDeluxe : kFzeroStateModeStock;
 }
@@ -649,7 +649,7 @@ typedef struct FzeroRuntimeState {
 } FzeroRuntimeState;
 
 static void fzero_state_save_extra(SaveLoadInfo *sli) {
-  if (FzeroTracksActive()) RtlSaveExecutionState(sli);
+  if (FzeroTracksStateActive()) RtlSaveExecutionState(sli);
   FzeroRuntimeState state;
   memset(&state, 0, sizeof(state));
   state.magic = kFzeroStateMagic;
@@ -681,7 +681,7 @@ static void fzero_state_save_extra(SaveLoadInfo *sli) {
          sizeof(state.frame_dma_channels));
   memcpy(state.irq_events, s_irq_events, sizeof(state.irq_events));
   sli->func(sli, &state, sizeof(state));
-  if (FzeroTracksActive()) {
+  if (FzeroTracksStateActive()) {
     uint8_t hash[32]; memcpy(hash, FzeroTracksActiveHash(), 32);
     sli->func(sli, hash, sizeof(hash));
     FzeroTracksSaveState(sli, false);
@@ -691,7 +691,7 @@ static void fzero_state_save_extra(SaveLoadInfo *sli) {
 static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
   FzeroRuntimeState state;
   (void)version;
-  if (FzeroTracksActive() && !RtlLoadExecutionState(sli)) {
+  if (FzeroTracksStateActive() && !RtlLoadExecutionState(sli)) {
     s_loaded_runtime_state = false; s_state_mode_refused = true; return;
   }
   memset(&state, 0, sizeof(state));
@@ -703,7 +703,7 @@ static void fzero_state_load_extra(SaveLoadInfo *sli, uint32_t version) {
   uint8_t content_hash[32] = {0};
   if (state.mode == kFzeroStateModeTrackPack) sli->func(sli, content_hash, sizeof(content_hash));
   bool content_matches = state.mode != kFzeroStateModeTrackPack ||
-      (FzeroTracksActive() && !memcmp(content_hash, FzeroTracksActiveHash(), 32));
+      (FzeroTracksStateActive() && !memcmp(content_hash, FzeroTracksActiveHash(), 32));
 
   /* Cartridge check. The two modes keep their slots in different directories
    * under different prefixes, so a crossing file has been moved there by hand
@@ -758,7 +758,7 @@ static const FzeroStateTrailer kFzeroStateTrailer = {
 
 int FzeroStateFileMode(const char *path, FzeroStateMode *out) {
   FzeroStateTrailer layout = kFzeroStateTrailer;
-  if (FzeroTracksActive()) layout.size += 32 + FzeroTracksSaveStateSize();
+  if (FzeroTracksStateActive()) layout.size += 32 + FzeroTracksSaveStateSize();
   return FzeroStateProbeFile(path, &layout, out);
 }
 
@@ -770,7 +770,7 @@ int FzeroStateFileAcceptable(const char *path) {
    * guest blob before anything noticed. */
   if (!FzeroStateFileMode(path, &mode)) return 0;
   if (!FzeroStateModeCompatible(mode, FzeroStateModeCurrent())) return 0;
-  if (FzeroTracksActive()) {
+  if (FzeroTracksStateActive()) {
     FILE *f = fopen(path, "rb"); uint8_t hash[32];
     if (!f) return 0;
     int ok = !fseek(f, -(long)(32 + FzeroTracksSaveStateSize()), SEEK_END) && fread(hash, 1, 32, f) == 32 &&
@@ -851,7 +851,7 @@ static void fzero_on_state_loaded(uint32_t version) {
   interp_bridge_set_master_deadline(0);
   s_loaded_runtime_state = false;
   FzeroMsuRestoreAudio(g_ram);
-  if (FzeroTracksActive()) RtlApplyExecutionState();
+  if (FzeroTracksStateActive()) RtlApplyExecutionState();
 
   /* The legacy PPU snapshot chunk omits VMAIN. Deluxe records rely on the
    * $80 latch retained from native video setup (e.g. $008439).
@@ -887,7 +887,7 @@ static const RtlGameInfo kFzeroGameInfo = {
 
 const RtlGameInfo *FzeroGameInfo(void) {
   static RtlGameInfo deluxe;
-  if (FzeroTracksActive()) {
+  if (FzeroTracksStateActive()) {
     deluxe = kFzeroGameInfo;
     deluxe.title = FzeroTracksActiveId(); deluxe.save_name_prefix = "fzero-library";
     return &deluxe;

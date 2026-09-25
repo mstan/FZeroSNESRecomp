@@ -16,11 +16,10 @@ bool FzeroTracksBundled(const CpPack *pack);
 bool FzeroTracksHidden(const CpPack *pack);
 bool FzeroTracksEnabled(const CpPack *pack);
 bool FzeroTracksEnable(const CpPack *pack, bool enabled);
-bool FzeroTracksHasTitle(const CpPack *pack);
-bool FzeroTracksTitleEnabled(const CpPack *pack);
-bool FzeroTracksSetTitle(const CpPack *pack, bool enabled);
-const char *FzeroTracksTitleStyle(const CpPack *pack);
-bool FzeroTracksSetTitleStyle(const CpPack *pack, const char *style);
+bool FzeroTracksTitleEnabled(void);
+void FzeroTracksEnableTitle(bool enabled);
+const char *FzeroTracksTitleStyle(void);
+bool FzeroTracksSetTitleStyle(const char *style);
 bool FzeroTracksSetPatch(const CpPack *pack, const char *path);
 bool FzeroTracksSave(void);
 /* Diagnostics are catalog-wide: bad files never disappear silently. */
@@ -30,6 +29,8 @@ const char *FzeroTracksDiagnostic(unsigned index);
 /* Game adapter (not part of the generic catalog). */
 bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *deluxe_path);
 bool FzeroTracksActive(void);
+/* Snapshot identity also includes independent title artwork. */
+bool FzeroTracksStateActive(void);
 const uint8_t *FzeroTracksActiveHash(void);
 const char *FzeroTracksActiveId(void);
 bool FzeroTracksSelectSaveRoot(void);

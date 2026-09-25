@@ -1,0 +1,5 @@
+# Reviewed artwork: stable ID|display name|visibility. Patch is <ID>.ips.
+# Original is built in. Astra reuses CGP; Bower and BS use Original.
+cgp|Community Grand Prix|visible
+max-league|MAX League|visible
+fzero-55|F-Zero 55|hidden

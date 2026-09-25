@@ -32,11 +32,14 @@ For example, applying Vanilla while MAX is enabled leaves MAX enabled.
 | CGP courses, including revised original and BS versions | Off | Off | On |
 | CGP P1/P2/P3 vehicle groups | Off | Off | All on; 12 total identities |
 | CGP rules, including Legend | Off | Off | All on |
-| Community Grand Prix title | Off | Off | On |
+| Shared title screen override | Original / off | Original / off | Community Grand Prix / on |
 | MSU music | Off | Off | Bundled CGP or configured custom source; otherwise SNES audio |
 
 The console ending-credits patch is retired. The F-Zero 55 title backend and
 artwork are retained, but its launcher choice is hidden for a future pack.
+Title selection is now one Presentation mod, independent of track-pack
+enablement. Original, Community Grand Prix and MAX League are available;
+Astra shares the CGP artwork. A later manual choice makes the recipe Custom.
 
 Legend adds its difficulty choice; the player still chooses a race difficulty.
 Required course mechanics continue to accompany their courses independently.

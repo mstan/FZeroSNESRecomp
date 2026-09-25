@@ -42,7 +42,7 @@ mechanics in their layout. See the [technical audit](docs/CGP_COURSE_CAPABILITIE
 | Original-car rebalances | Separate options change the four original identities on any course. Adding CGP courses alone does not enable them. |
 | Stock BS vehicles | Preserve their native behavior; this mode excludes CGP vehicles and original-car rebalances. Track choice is independent. |
 | Legend and general gameplay fixes | Opt-in globally; the CGP preset enables them. Legend's CPU changes apply after vehicle tuning. They can affect races outside CGP. |
-| Title screen | CGP offers Original or Community Grand Prix. F-Zero 55 remains retained but hidden for possible future use. |
+| Title screen override | One Presentation mod offers Original, Community Grand Prix and MAX League independently of enabled track packs. Astra uses the same title artwork as CGP; Bower and BS use Original. F-Zero 55 remains retained but hidden. The CGP preset selects its title; Vanilla and Satellaview restore Original. |
 | Ending credits ASM | Retained as attributed source only; the PC port does not install it. |
 | Engine and menus | Course imports use the shared engine, renderer, HUD/culling fixes and expanded native-style menus. They do not replace the game with the donor ROM or import every donor code patch. |
 

@@ -5,7 +5,54 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Community Grand Prix retains the original title's sprite layout and DMA descriptors at
+static FzeroTitleScreen screens[32];
+static unsigned screen_count;
+
+const FzeroTitleScreen *FzeroTitleFind(const char *id) {
+    if (id) for (unsigned i = 0; i < screen_count; ++i)
+        if (!strcmp(id, screens[i].id)) return &screens[i];
+    return NULL;
+}
+const FzeroTitleScreen *FzeroTitleChoice(unsigned index) {
+    for (unsigned i = 0; i < screen_count; ++i)
+        if (!screens[i].hidden && !index--) return &screens[i];
+    return NULL;
+}
+unsigned FzeroTitleChoiceCount(void) {
+    unsigned count = 0;
+    for (unsigned i = 0; i < screen_count; ++i) count += !screens[i].hidden;
+    return count;
+}
+void FzeroTitleCatalogInit(void) {
+    memset(screens, 0, sizeof(screens));
+    strcpy(screens[0].id, "original"); strcpy(screens[0].name, "Original");
+    screen_count = 1;
+    FILE *file = fopen("assets/track-packs/presentation/screens.txt", "rb");
+    if (!file) return;
+    char line[256];
+    while (fgets(line, sizeof(line), file)) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (!*line || *line == '#') continue;
+        char *name = strchr(line, '|');
+        char *visibility = name ? strchr(name + 1, '|') : NULL;
+        if (!visibility) goto invalid;
+        *name++ = 0; *visibility++ = 0;
+        if (!*line || strlen(line) >= CP_ID || !*name || strlen(name) >= CP_NAME ||
+            strspn(line, "abcdefghijklmnopqrstuvwxyz0123456789-") != strlen(line) ||
+            (strcmp(visibility, "visible") && strcmp(visibility, "hidden")) ||
+            FzeroTitleFind(line) || screen_count == 32) goto invalid;
+        FzeroTitleScreen *s = &screens[screen_count++];
+        strcpy(s->id, line); strcpy(s->name, name);
+        s->hidden = !strcmp(visibility, "hidden");
+        snprintf(s->patch, sizeof(s->patch), "assets/track-packs/presentation/%s.ips", line);
+        continue;
+    invalid:
+        fprintf(stderr, "[title-screen] Invalid artwork registry entry\n");
+    }
+    fclose(file);
+}
+
+/* Reviewed artwork retains the original title's sprite layout and DMA descriptors at
  * $03:9965. Its title tiles live at $0C:EC00-FFFF and palette at $0F:C2E0-C35F.
  * Apply the bundled artwork-only IPS to a disposable copy of the stock input,
  * then retain only those resources. No donor code or MSU data can be installed.

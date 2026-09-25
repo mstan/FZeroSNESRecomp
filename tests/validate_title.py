@@ -19,7 +19,7 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     build, stock, out = args.build.resolve(), args.stock.resolve(), args.out.resolve()
-    out.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=False)
     original = stock.read_bytes()
     clean = {k: v for k, v in os.environ.items()
              if not k.startswith(('FZERO_', 'SNESRECOMP_'))}
@@ -34,7 +34,7 @@ def main():
         shutil.copytree(ROOT/'assets/track-packs', folder/'assets/track-packs', dirs_exist_ok=True)
         packs = folder/'packs'
         packs.mkdir(exist_ok=True)
-        (packs/'cgp.title').write_text(f'{title}\n')
+        (packs/'title-screen.choice').write_text(f'{title}|cgp\n')
         (packs/'cgp.disabled').write_text('1\n' if screen == 'pack-off' else '0\n')
         route = '' if screen in ('title', 'pack-off', 'missing-art') else ROUTE
         # Exercise an added car in both the menu and an imported race.
@@ -43,7 +43,7 @@ def main():
         frames = 1600 if screen == 'race' else 570 if screen == 'car-select' else 300
         if screen == 'missing-art':
             (folder/'assets/track-packs/presentation/cgp.ips').unlink()
-        enabled = bool(title) and screen not in ('pack-off', 'missing-art')
+        enabled = bool(title) and screen != 'missing-art'
         env = dict(clean, FZERO_BS_CARS=str(cars), FZERO_BS_TRACKS='0', FZERO_RULES='',
                    FZERO_DELUXE_DATA='embedded', FZERO_TRACK_PACKS=str(packs),
                    SNESRECOMP_INPUT_SCRIPT=route, SNESRECOMP_SAVE_ROOT='s',
@@ -76,15 +76,16 @@ def main():
     with ThreadPoolExecutor(max_workers=3) as pool:
         list(pool.map(run, cases))
     for cars in (0, 1):
-        assert results[cars, 'title', 0][0] != results[cars, 'title', 1][0], 'Title did not change'
-        for screen in ('pack-off', 'car-select', 'race', 'missing-art'):
+        for screen in ('title', 'pack-off'):
+            assert results[cars, screen, 0][0] != results[cars, screen, 1][0], 'Title did not change'
+        for screen in ('car-select', 'race', 'missing-art'):
             assert results[cars, screen, 0][0] == results[cars, screen, 1][0], (cars, screen, 'graphics leaked')
         # Unmodified CPU code and data keep the race state byte-identical too.
         assert results[cars, 'race', 0][1] == results[cars, 'race', 1][1], (cars, 'gameplay changed')
     assert stock.read_bytes() == original
     report = {'-'.join(map(str, k)): hashlib.sha256(v[0]).hexdigest() for k, v in sorted(results.items())}
     (out/'validation.json').write_text(json.dumps(report, indent=2)+'\n')
-    print('Title only changes when opted in; car-select, race and disabled-pack views match: PASS')
+    print('Title works independently of packs; car-select, race and missing-art views match: PASS')
 
 
 if __name__ == '__main__':

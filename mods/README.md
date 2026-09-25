@@ -68,11 +68,14 @@ rebalances. Enabling one mode disables the other. This does not affect the
 selected courses. Old independent tuning/boost/exhaust profiles are retired;
 old selections do not silently enable new ships or rebalances.
 
-CGP's **Title screen** dropdown defaults to **Original**. Select **Community Grand Prix**
-to use its title artwork while CGP is enabled. F-Zero 55 is retained but hidden.
-Disabling CGP
-restores the original title and remembers your choice. This changes only the
-title artwork; cars, handling, cups and course records are unaffected.
+**Title screen override**, under Presentation, is one independent mod with a
+dropdown: **Original**, **Community Grand Prix**, or **MAX League**. Choose any
+screen regardless of which track packs are enabled. Astra's title is identical
+to CGP's; Bower and BS retain the original. F-Zero 55 is retained but hidden.
+The override defaults off. Unticking it restores Original and remembers the
+chosen screen. The CGP preset enables its title; Vanilla and Satellaview restore
+Original. This changes title artwork only; cars, handling, cups and course
+records are unaffected. Existing CGP title settings migrate automatically.
 
 For additional packs, put extracted `.ips` or `.bps` files in
 **`mods/track-packs` beside the game**, along with their manifest and layout

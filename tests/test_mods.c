@@ -6,6 +6,7 @@
 #define CHECK(e) do { if (!(e)) { fprintf(stderr, "%d: %s\n", __LINE__, #e); exit(1); } } while (0)
 int main(void) {
   remove("test-mod-tracks/cgp.title");
+  remove("test-mod-tracks/title-screen.choice");
   CHECK(FzeroTracksInit("test-mod-tracks", true));
   FzeroVideoSettings s, loaded; FzeroVideoStock(&s); /* start from nothing enabled to test each toggle */
   const RecompLauncherCModProvider *p = FzeroModsProvider(&s, "test-mods.ini", true);
@@ -15,7 +16,7 @@ int main(void) {
   const CpCatalog *catalog = FzeroTracksCatalog();
   for (unsigned i = 0; i < catalog->count; ++i)
     packs += !strcmp(catalog->packs[i]->adapter, "fzero-course-v1") && !FzeroTracksHidden(catalog->packs[i]);
-  CHECK(p->package_count(NULL) == 6 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 7 + FZERO_RULE_COUNT + (int)packs && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -23,13 +24,12 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 6 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 7 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
     CHECK(strcmp(pack.package_id, "track-library") && !strcmp(pack.id, "tracks"));
-    bool has_title = !strcmp(pack.package_id, "cgp");
-    CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == (has_title ? 1 : 0));
+    CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == 0);
     RecompLauncherCModResource resource;
     if (FzeroTracksBundled(cp_catalog_find(catalog,pack.package_id))) {
       CHECK(p->feature_resource_count(NULL,pack.package_id,pack.id) == 0);
@@ -39,19 +39,7 @@ int main(void) {
       CHECK(p->feature_resource_count(NULL,pack.package_id,pack.id) == 1);
       CHECK(p->feature_resource_get(NULL,pack.package_id,pack.id,0,&resource));
     }
-    CHECK(p->feature_option_get(NULL, pack.package_id, pack.id, 0, &option) == has_title);
-    if (has_title) {
-      CHECK(!strcmp(option.value, "original") && !strcmp(option.default_value, "original"));
-      CHECK(option.type == RECOMP_MOD_OPTION_CHOICE && option.choice_count == 2);
-      RecompLauncherCModChoice choice;
-      CHECK(p->feature_choice_get(NULL, pack.package_id, pack.id, option.id, 1, &choice));
-      CHECK(!strcmp(choice.value, "cgp"));
-      CHECK(!p->feature_choice_get(NULL, pack.package_id, pack.id, option.id, 2, &choice));
-      CHECK(!p->feature_set_option(NULL, pack.package_id, pack.id, option.id, "fzero-55"));
-      CHECK(p->feature_set_option(NULL, pack.package_id, pack.id, option.id, choice.value));
-      CHECK(!p->feature_set_option(NULL, pack.package_id, pack.id, option.id, "unknown"));
-      CHECK(!p->feature_option_get(NULL, pack.package_id, pack.id, 1, &option));
-    }
+    CHECK(!p->feature_option_get(NULL, pack.package_id, pack.id, 0, &option));
     CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 0));
     CHECK(p->feature_get(NULL, i, &pack) && !pack.enabled && !strcmp(pack.status, "Disabled"));
     CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 1));
@@ -169,22 +157,42 @@ int main(void) {
   CHECK(!s.hd_mode7 && s.hd_scale == 10 && s.enhanced);
   CHECK(p->feature_enable(NULL, deluxe.package_id, deluxe.id, 0));
   CHECK(!s.bs_deluxe && s.enhanced && !s.fps_enabled);
-  if (cgp) {
-    CHECK(FzeroTracksTitleEnabled(cgp));
-    CHECK(p->feature_enable(NULL, "cgp", "tracks", 0));
-    CHECK(p->commit(NULL, NULL));
-    CHECK(FzeroTracksInit("test-mod-tracks", true));
-    cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
-    CHECK(!FzeroTracksEnabled(cgp) && FzeroTracksTitleEnabled(cgp));
-    CHECK(p->feature_option_get(NULL, "cgp", "tracks", 0, &option));
-    CHECK(!strcmp(option.value, "cgp") && !strcmp(option.default_value, "original"));
-    CHECK(p->feature_enable(NULL, "cgp", "tracks", 1));
-    CHECK(FzeroTracksTitleEnabled(cgp));
-    CHECK(p->feature_set_option(NULL, "cgp", "tracks", "title-screen", "original"));
-    CHECK(p->commit(NULL, NULL));
-    CHECK(FzeroTracksInit("test-mod-tracks", true));
-    CHECK(!FzeroTracksTitleEnabled(cp_catalog_find(FzeroTracksCatalog(), "cgp")));
+  /* One global title feature; no per-pack dropdowns or file pickers. */
+  RecompLauncherCModFeature title;
+  CHECK(p->feature_get(NULL, 6+FZERO_RULE_COUNT, &title));
+  CHECK(!strcmp(title.package_id,"fzero-title") && !strcmp(title.group,"Presentation"));
+  CHECK(title.option_count==1 && !title.enabled);
+  CHECK(p->feature_resource_count(NULL,"fzero-title","title-screen")==0);
+  CHECK(p->feature_option_get(NULL,"fzero-title","title-screen",0,&option));
+  CHECK(!strcmp(option.value,"original") && !strcmp(option.default_value,"original"));
+  CHECK(option.choice_count==3);
+  const char *screens[]={"original","cgp","max-league"};
+  for (int i=0;i<3;++i) {
+    RecompLauncherCModChoice choice;
+    CHECK(p->feature_choice_get(NULL,"fzero-title","title-screen","screen",i,&choice));
+    CHECK(!strcmp(choice.value,screens[i]));
+    CHECK(p->feature_set_option(NULL,"fzero-title","title-screen","screen",screens[i]));
   }
+  CHECK(!p->feature_set_option(NULL,"fzero-title","title-screen","screen","fzero-55"));
+  CHECK(!p->feature_set_option(NULL,"fzero-title","title-screen","screen","unknown"));
+  CHECK(p->feature_enable(NULL,"fzero-title","title-screen",1));
+  CHECK(p->feature_enable(NULL,"cgp","tracks",0));
+  CHECK(p->commit(NULL,NULL) && FzeroTracksInit("test-mod-tracks",true));
+  CHECK(FzeroTracksTitleEnabled() && !strcmp(FzeroTracksTitleStyle(),"max-league"));
+  CHECK(!FzeroTracksEnabled(cp_catalog_find(FzeroTracksCatalog(),"cgp")));
+  CHECK(p->feature_enable(NULL,"fzero-title","title-screen",0));
+  CHECK(p->commit(NULL,NULL) && FzeroTracksInit("test-mod-tracks",true));
+  CHECK(!FzeroTracksTitleEnabled() && !strcmp(FzeroTracksTitleStyle(),"max-league"));
+  /* Upgrade an enabled legacy CGP title once, then honor the global setting. */
+  CHECK(p->feature_enable(NULL,"cgp","tracks",1) && p->commit(NULL,NULL));
+  CHECK(!remove("test-mod-tracks/title-screen.choice"));
+  FILE *legacy=fopen("test-mod-tracks/cgp.title","wb"); CHECK(legacy);
+  CHECK(fputs("1\n",legacy)>=0 && !fclose(legacy));
+  CHECK(FzeroTracksInit("test-mod-tracks",true));
+  CHECK(FzeroTracksTitleEnabled() && !strcmp(FzeroTracksTitleStyle(),"cgp"));
+  CHECK(p->feature_enable(NULL,"fzero-title","title-screen",0) && p->commit(NULL,NULL));
+  CHECK(FzeroTracksInit("test-mod-tracks",true) && !FzeroTracksTitleEnabled());
+  CHECK(!remove("test-mod-tracks/cgp.title"));
   /* Presets touch only the CGP/BS family. Every MAX/Bower combination and
    * unrelated launcher/display setting must survive all three recipes. */
   const CpPack *bower=cp_catalog_find(FzeroTracksCatalog(),"bower-league");
@@ -213,7 +221,7 @@ int main(void) {
       CHECK(s.gameplay.enabled==(pick==2?FZERO_RULE_SELECTABLE_MASK:0u));
       CHECK(io.msu1_enabled==(pick==2));
       CHECK(FzeroTracksEnabled(cgp)==(pick==2));
-      CHECK(FzeroTracksTitleEnabled(cgp)==(pick==2));
+      CHECK(FzeroTracksTitleEnabled()==(pick==2));
       CHECK(p->commit(NULL,NULL) && FzeroVideoLoad(&loaded,"test-mods.ini"));
       CHECK(!memcmp(&loaded.gameplay,&s.gameplay,sizeof(s.gameplay)));
       CHECK(!p->preset_apply(NULL,"invalid",&io));

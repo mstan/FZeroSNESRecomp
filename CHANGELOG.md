@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add Astra Front as an optional pack: ten courses in the authored Astra and
+  Front cups, with donor music and scoped CGP-compatible terrain behavior.
+  Exclude unused donor courses and validate each new cup's records.
+- Consolidate title artwork into one independent Presentation mod with
+  Original, Community Grand Prix and MAX League choices. Migrate CGP title
+  settings, keep F-Zero 55 hidden, and preserve course/vehicle records.
 - Load each imported course's SNES music in GP and Practice, including when
   its MSU recording is missing. Map all 55 CGP courses plus MAX and Bower from
   their donor music tables; restore Mute City III's Mute City theme.

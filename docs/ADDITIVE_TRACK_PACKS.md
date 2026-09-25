@@ -1,10 +1,12 @@
 # Additive course library prototype
 
-The local `fzero-55` build bundles CGP, Bower League and MAX League. CGP and
+The local `f-zero-forever` build bundles CGP, Bower League, MAX League and Astra Front. CGP and
 Bower default on: **15 cups / 75 selectable course versions**, with BS
 vehicles independently enabled. MAX is visible and defaults off; enabling
 it gives **16 cups / 80 versions**. Saved per-pack choices override shipped
 defaults. MAX's explicit `0` hidden marker replaces its old parked setting.
+Astra Front defaults off and adds two cups / ten courses. With all four packs
+enabled there are 18 cups / 90 course versions. See [its audit](ASTRA_FRONT_IMPORT.md).
 
 The game imports course resources into the canonical F-Zero/BS Deluxe engine.
 It adds cups to a scrolling **in-game Grand Prix league menu**. The launcher
@@ -178,20 +180,30 @@ hazard interaction. The MSU soundtrack remains outside this prototype.
 
 ## Current limits
 
-CGP also offers a default-original **Title screen** choice. The optional
-F-Zero 55 title uses the artwork from the earlier FZero55 v2 patch; CGP's own
-P1/P2/P3 logo instead says Community GP. `tools/extract_title_patch.py` clips
+One **Title screen override** mod offers Original, Community Grand Prix and
+MAX League, independently of course enablement. Astra reuses CGP's title;
+Bower and BS use the original. F-Zero 55 remains hidden.
+`tools/extract_title_patch.py` clips
 the source IPS to the original title tiles and palette without needing a ROM.
 The derivative and provenance are under `assets/track-packs/presentation`.
 `fzero_title.c` extracts only those presentation resources from a disposable
 patched stock image, and the shared native title loader installs them at
 `$03:80F5`, after its DMA, palette and OAM setup. No donor instructions run.
-The option is stored as `mods/track-packs/cgp.title` and applies only after CGP
-successfully imports. Disabled packs remember the selection. Missing artwork
+The option is stored as `mods/track-packs/title-screen.choice` (`0|id` or
+`1|id`). Legacy `cgp.title` settings migrate once when this file is absent;
+an old disabled CGP pack keeps the override disabled while remembering its
+style. `screens.txt` lists reviewed artwork without tying it to course packs.
+Missing artwork
 reports a diagnostic and falls back to the original title. The title resource
 hash participates in snapshot compatibility, but not gameplay signatures or
 course record identities. Adding another title layout requires a reviewed
 resource adapter; arbitrary title-engine patches are not executed.
+Title-only sessions use the existing snapshot content guard, while course
+menus, records and SRAM stay on their original paths. Validation includes
+stock/BS title rendering, resume and incompatible-artwork rejection, disabled
+and missing-artwork fallbacks, unchanged race/menu pixels and gameplay RAM,
+and stock battery records surviving title changes. See
+`tests/validate_title_screens.py` and `tests/validate_title.py`.
 
 `tests/validate_title.py` checks both native engines with the option on/off,
 disabled CGP, missing artwork, car selection and imported races. All 20 cases

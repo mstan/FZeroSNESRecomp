@@ -128,7 +128,7 @@ shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK
 shutil.copy2(ROOT / "docs/BOWER_AND_CGP_LEAGUES.md", stage / "docs/BOWER_AND_CGP_LEAGUES.md")
 shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
 shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
-for filename in ("CGP_COURSE_CAPABILITIES.md", "CGP_LANDING_AUDIT.md", "CGP_SNES_MUSIC.md"):
+for filename in ("CGP_COURSE_CAPABILITIES.md", "CGP_LANDING_AUDIT.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md"):
     shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"

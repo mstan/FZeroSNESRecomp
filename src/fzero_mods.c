@@ -1,6 +1,7 @@
 #include "fzero_mods.h"
 #include "fzero_tracks_mods.h"
 #include "fzero_tracks.h"
+#include "fzero_title.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,7 +24,12 @@ static const char *const descriptions[] = {
   "Record hardware, active video settings and frame timings in the diagnostics folder beside the game (beside the AppImage on Linux). Off by default. Enable, play through a slowdown, then attach the newest performance JSONL file to your report. Logs stay on your machine; no ROM or save data is included.",
   "Add the ten original BS courses in two leagues. Enabling this turns off Community Grand Prix, which includes corrected versions of these courses. BS vehicles have their own switch."
 };
-enum { VEHICLE_START=6+FZERO_RULE_COUNT-5, TRACK_START=VEHICLE_START+5 };
+enum { VEHICLE_START=6+FZERO_RULE_COUNT-5, TITLE_INDEX=VEHICLE_START+5,
+       TRACK_START=TITLE_INDEX+1, TITLE_KIND=200 };
+static const char title_description[] =
+  "Choose imported title artwork independently of enabled track packs. "
+  "Original keeps the stock screen. Community Grand Prix is also the title used by Astra Front. "
+  "This does not change courses, cars, music or records.";
 static unsigned visible_rule(unsigned index) {
   unsigned rule = index - 3;
   return rule >= FZERO_RULE_MSU ? rule + 1 : rule;
@@ -43,6 +49,7 @@ static bool vehicle_enabled(unsigned i) {
 }
 static int count(void *ctx) { (void)ctx; return TRACK_START + FzeroTrackModsProvider()->feature_count(ctx); }
 static int identity(const char *package, const char *feature) {
+  if (package && feature && !strcmp(package,"fzero-title") && !strcmp(feature,"title-screen")) return TITLE_KIND;
   if (package && feature) for (int i = 0; i < 6; ++i)
     if (!strcmp(package, packages[i]) && !strcmp(feature, features[i])) return i + 1;
   if (package && feature && !strcmp(feature,"rules"))
@@ -53,6 +60,11 @@ static int identity(const char *package, const char *feature) {
 }
 static int package_get(void *ctx, int index, RecompLauncherCModPackage *out) {
   if (index >= TRACK_START) return FzeroTrackModsProvider()->package_get(ctx, index-TRACK_START, out);
+  if (index == TITLE_INDEX && out) {
+    memset(out,0,sizeof(*out)); COPY(out->id,"fzero-title"); COPY(out->name,"Title screen override");
+    COPY(out->version,"1"); COPY(out->author,"Original hack authors; see presentation credits");
+    COPY(out->description,title_description); out->enabled=FzeroTracksTitleEnabled(); return 1;
+  }
   if (index>=VEHICLE_START && out) {
     unsigned i=(unsigned)(index-VEHICLE_START);memset(out,0,sizeof(*out));
     COPY(out->id,vehicle_ids[i]);COPY(out->name,vehicle_names[i]);COPY(out->version,"1");
@@ -76,6 +88,14 @@ static int package_get(void *ctx, int index, RecompLauncherCModPackage *out) {
 }
 static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
   if (index >= TRACK_START) return FzeroTrackModsProvider()->feature_get(ctx, index-TRACK_START, out);
+  if (index == TITLE_INDEX && out) {
+    memset(out,0,sizeof(*out)); COPY(out->id,"title-screen"); COPY(out->package_id,"fzero-title");
+    COPY(out->name,"Title screen override"); COPY(out->package_name,out->name); COPY(out->package_version,"1");
+    COPY(out->group,"Presentation"); COPY(out->author,"Original hack authors; see presentation credits");
+    COPY(out->description,title_description); out->enabled=FzeroTracksTitleEnabled(); out->option_count=1;
+    const FzeroTitleScreen *title=FzeroTitleFind(FzeroTracksTitleStyle());
+    COPY(out->status,out->enabled && title ? title->name : "Original"); return 1;
+  }
   if (index>=VEHICLE_START && out) {
     unsigned i=(unsigned)(index-VEHICLE_START);memset(out,0,sizeof(*out));
     COPY(out->id,"vehicles");COPY(out->package_id,vehicle_ids[i]);COPY(out->package_name,vehicle_names[i]);
@@ -117,6 +137,13 @@ static int option_get(void *ctx, const char *package, const char *feature, int i
   (void)ctx;
   int kind = identity(package, feature);
   if (!kind || kind == 3 || kind == 5 || kind == 6 || index != 0 || !out) return 0;
+  if (kind == TITLE_KIND) {
+    memset(out,0,sizeof(*out)); COPY(out->id,"screen"); COPY(out->label,"Title screen");
+    COPY(out->description,"Works with any enabled courses. Disable the override to restore Original.");
+    out->type=RECOMP_MOD_OPTION_CHOICE; out->step=1;
+    out->choice_count=(int)FzeroTitleChoiceCount(); COPY(out->default_value,"original");
+    COPY(out->value,FzeroTracksTitleStyle()); return 1;
+  }
   if (kind>=7) return 0;
   memset(out, 0, sizeof(*out)); out->type = RECOMP_MOD_OPTION_CHOICE; out->step = 1;
   if (kind == 1) {
@@ -147,6 +174,10 @@ static int choice_get(void *ctx, const char *package, const char *feature,
   if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_choice_get ? FzeroTrackModsProvider()->feature_choice_get(ctx, package, feature, option, index, out) : 0;
   (void)ctx;
   if (!identity(package, feature) || !option || !out || index < 0) return 0;
+  if (identity(package,feature) == TITLE_KIND && !strcmp(option,"screen")) {
+    const FzeroTitleScreen *title=FzeroTitleChoice((unsigned)index); if (!title) return 0;
+    memset(out,0,sizeof(*out)); COPY(out->value,title->id); COPY(out->label,title->name); return 1;
+  }
   const char *value = NULL;
   if (identity(package,feature)>=7) return 0;
   if (identity(package, feature) == 1 && !strcmp(option, "aspect") && index < 4) value = aspects[index];
@@ -164,7 +195,9 @@ static int enable(void *ctx, const char *package, const char *feature, int enabl
   }
   (void)ctx;
   if (!identity(package, feature)) return 0;
-  if (identity(package,feature)>=100) {
+  if (identity(package,feature)==TITLE_KIND) {
+    FzeroTracksEnableTitle(enabled!=0);
+  } else if (identity(package,feature)>=100) {
     unsigned i=(unsigned)(identity(package,feature)-100);
     unsigned *bits=i==0?&video->gameplay.vehicle_packs:&video->gameplay.stock_rebalance;
     unsigned bit=i==0?7u:1u<<(i-1);
@@ -193,6 +226,10 @@ static int set_option(void *ctx, const char *package, const char *feature,
   if (!identity(package, feature)) return FzeroTrackModsProvider()->feature_set_option ? FzeroTrackModsProvider()->feature_set_option(ctx, package, feature, option, value) : 0;
   (void)ctx;
   if (!identity(package, feature) || !option || !value) return 0;
+  if (identity(package,feature)==TITLE_KIND) {
+    const FzeroTitleScreen *title=FzeroTitleFind(value);
+    return !strcmp(option,"screen") && title && !title->hidden && FzeroTracksSetTitleStyle(value);
+  }
   if (identity(package,feature)>=7) return 0;
   if (identity(package, feature) == 1 && !strcmp(option, "aspect")) {
     for (unsigned i = 0; i < 4; ++i) if (!strcmp(value, aspects[i]))
@@ -239,11 +276,12 @@ static const char *preset_current(void *ctx, const RecompLauncherCSettings *s) {
   bool cgp_music = has_bundled_music ?
       s->msu1_enabled && !strcmp(s->msu1_pack,"cgp") :
       s->msu1_enabled == (s->msu1_dir[0] != 0) && !s->msu1_pack[0];
-  if (FzeroTracksEnabled(cgp) && !strcmp(FzeroTracksTitleStyle(cgp), "cgp") &&
+  if (FzeroTracksEnabled(cgp) && FzeroTracksTitleEnabled() && !strcmp(FzeroTracksTitleStyle(), "cgp") &&
       !video->bs_deluxe && !video->bs_tracks && video->gameplay.vehicle_packs == 7 &&
       video->gameplay.stock_rebalance == 15 && rules == all && cgp_music) return "cgp";
   if (!FzeroTracksEnabled(cgp) && !rules && !video->gameplay.vehicle_packs &&
-      !video->gameplay.stock_rebalance && !s->msu1_enabled) {
+      !video->gameplay.stock_rebalance && !s->msu1_enabled &&
+      (!FzeroTracksTitleEnabled() || !strcmp(FzeroTracksTitleStyle(), "original"))) {
     if (video->bs_deluxe && video->bs_tracks) return "satellaview";
     if (!video->bs_deluxe && !video->bs_tracks) return "vanilla";
   }
@@ -256,13 +294,14 @@ static int preset_apply(void *ctx, const char *id, RecompLauncherCSettings *s) {
   for (index=0; index<3; ++index) if (!strcmp(id,presets[index].id)) break;
   if (index == 3) return 0;
   const CpPack *cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
-  if (index == 2 && (!cgp || FzeroTracksHidden(cgp) || !FzeroTracksHasTitle(cgp))) {
+  if (index == 2 && (!cgp || FzeroTracksHidden(cgp) || !FzeroTitleFind("cgp"))) {
     COPY(error_text,"Community Grand Prix track pack is unavailable"); return 0;
   }
   if (cgp && !FzeroTracksEnable(cgp,index == 2)) {
     COPY(error_text,"Unable to change the CGP track pack"); return 0;
   }
-  if (cgp) FzeroTracksSetTitle(cgp,index == 2);
+  FzeroTracksSetTitleStyle(index == 2 ? "cgp" : "original");
+  FzeroTracksEnableTitle(index == 2);
   video->bs_deluxe = video->bs_tracks = index == 1;
   video->gameplay.vehicle_packs = index == 2 ? 7 : 0;
   video->gameplay.stock_rebalance = index == 2 ? 15 : 0;

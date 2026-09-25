@@ -323,10 +323,12 @@ file(GLOB FZERO_VEHICLE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.ini"
     "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.ips"
     "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.md")
+file(GLOB FZERO_TITLE_REGISTRY CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/*.ips"
+    "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/*.txt")
 set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
     ${FZERO_COURSE_REGISTRY} ${FZERO_VEHICLE_REGISTRY} "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md"
-    "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/fzero-55.ips"
-    "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/README.txt")
+    ${FZERO_TITLE_REGISTRY})
 add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/track-packs"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

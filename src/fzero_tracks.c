@@ -1,4 +1,5 @@
 #include "fzero_tracks.h"
+#include "fzero_title.h"
 #include "sha256.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,8 +19,8 @@ static char patches[CP_PACKS][CP_PATH];
 static bool disabled[CP_PACKS];
 static bool bundled[CP_PACKS];
 static bool hidden[CP_PACKS];
-/* 0=stock, 1=CGP, 2=F-Zero 55 (retained, hidden in the launcher). */
-static uint8_t custom_title[CP_PACKS];
+static char title_style[CP_ID];
+static bool title_enabled;
 static char diagnostics[CP_PACKS][256];
 static unsigned diagnostic_count;
 static char ambiguous[CP_PACKS][CP_ID];
@@ -58,31 +59,12 @@ bool FzeroTracksEnable(const CpPack *p, bool enabled) {
     int i = index_of(p); if (i < 0 || builtin(p) || hidden[i]) return false;
     disabled[i] = !enabled; return true;
 }
-bool FzeroTracksHasTitle(const CpPack *p) {
-    return p && !strcmp(p->id, "cgp") && !strcmp(p->adapter, "fzero-course-v1");
-}
-bool FzeroTracksTitleEnabled(const CpPack *p) {
-    int i = index_of(p);
-    return i >= 0 && FzeroTracksHasTitle(p) && custom_title[i];
-}
-bool FzeroTracksSetTitle(const CpPack *p, bool enabled) {
-    int i = index_of(p);
-    if (i < 0 || !FzeroTracksHasTitle(p)) return false;
-    custom_title[i] = enabled;
-    return true;
-}
-const char *FzeroTracksTitleStyle(const CpPack *p) {
-    int i = index_of(p);
-    return i < 0 || !custom_title[i] ? "original" : custom_title[i] == 2 ? "fzero-55" : "cgp";
-}
-bool FzeroTracksSetTitleStyle(const CpPack *p, const char *style) {
-    int i = index_of(p);
-    if (i < 0 || !FzeroTracksHasTitle(p) || !style) return false;
-    unsigned value = !strcmp(style,"original") ? 0 : !strcmp(style,"cgp") ? 1 :
-                     !strcmp(style,"fzero-55") ? 2 : 3;
-    if (value > 2) return false;
-    custom_title[i] = (uint8_t)value;
-    return true;
+bool FzeroTracksTitleEnabled(void) { return title_enabled; }
+void FzeroTracksEnableTitle(bool enabled) { title_enabled = enabled; }
+const char *FzeroTracksTitleStyle(void) { return title_style; }
+bool FzeroTracksSetTitleStyle(const char *style) {
+    if (!FzeroTitleFind(style)) return false;
+    strcpy(title_style, style); return true;
 }
 static bool path_for(char *out, size_t cap, const char *id, const char *suffix) {
     return snprintf(out, cap, "%s/%s%s", root_path, id, suffix) < (int)cap;
@@ -198,7 +180,8 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
     memset(disabled, 0, sizeof(disabled));
     memset(bundled, 0, sizeof(bundled));
     memset(hidden, 0, sizeof(hidden));
-    memset(custom_title, 0, sizeof(custom_title));
+    FzeroTitleCatalogInit();
+    strcpy(title_style, "original"); title_enabled = false;
     error_text[0] = 0; diagnostic_count = ambiguous_count = 0; has_deluxe = deluxe_available;
     if (!root || !*root || strlen(root) >= sizeof(root_path)-CP_ID-16) return fail("Track library path is too long");
     strcpy(root_path, root);
@@ -234,13 +217,29 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
         path_for(path, sizeof(path), catalog.packs[i]->id, ".disabled");
         if (read_line(path, flag, sizeof(flag))) disabled[i] = !strcmp(flag, "1");
-        path_for(path, sizeof(path), catalog.packs[i]->id, ".title");
-        if (FzeroTracksHasTitle(catalog.packs[i]) && read_line(path, flag, sizeof(flag)))
-            custom_title[i] = !strcmp(flag, "2") ? 2 : !strcmp(flag, "1");
         snprintf(path,sizeof(path),"assets/track-packs/%s.hidden",catalog.packs[i]->id);
         if (read_line(path,flag,sizeof(flag)) && !strcmp(flag,"1")) {
             hidden[i] = true;
             disabled[i] = true;
+        }
+    }
+    /* One global setting replaces pack-scoped title toggles. Only migrate
+     * legacy choices if a new setting has never been saved. */
+    char choice[CP_ID + 8];
+    path_for(path, sizeof(path), "title-screen", ".choice");
+    FILE *choice_file = fopen(path, "rb");
+    if (choice_file) {
+        fclose(choice_file);
+        if (read_line(path, choice, sizeof(choice)) &&
+            (choice[0] == '0' || choice[0] == '1') && choice[1] == '|' &&
+            FzeroTracksSetTitleStyle(choice + 2)) title_enabled = choice[0] == '1';
+        else FzeroTracksReport("Invalid title-screen choice; using Original");
+    } else {
+        path_for(path, sizeof(path), "cgp", ".title");
+        if (read_line(path, choice, sizeof(choice)) &&
+            (!strcmp(choice, "1") || !strcmp(choice, "2"))) {
+            FzeroTracksSetTitleStyle(!strcmp(choice, "2") ? "fzero-55" : "cgp");
+            title_enabled = FzeroTracksEnabled(cp_catalog_find(&catalog, "cgp"));
         }
     }
     return catalog.count >= 2;
@@ -293,10 +292,10 @@ bool FzeroTracksSave(void) {
     for (unsigned i = 0; i < catalog.count; ++i) if (!builtin(catalog.packs[i])) {
         if ((!bundled[i] && !write_line(catalog.packs[i]->id, ".path", patches[i])) ||
             !write_line(catalog.packs[i]->id, ".disabled", disabled[i] ? "1" : "0")) return false;
-        if (FzeroTracksHasTitle(catalog.packs[i]) &&
-            !write_line(catalog.packs[i]->id, ".title", custom_title[i] == 2 ? "2" : custom_title[i] ? "1" : "0")) return false;
     }
-    return true;
+    char choice[CP_ID + 8];
+    snprintf(choice, sizeof(choice), "%u|%s", title_enabled ? 1u : 0u, title_style);
+    return write_line("title-screen", ".choice", choice);
 }
 
 enum { MAX_PATCH_FILES=256 };

@@ -29,6 +29,9 @@ static const FzeroCourse *course;
 bool FzeroTracksActive(void) {
   return imported_count != 0 || FzeroGameplayActive();
 }
+bool FzeroTracksStateActive(void) {
+  return FzeroTracksActive() || FzeroTitleHash();
+}
 const uint8_t *FzeroTracksActiveHash(void) {
   return identity;
 }
@@ -177,6 +180,13 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
   FzeroTracksDiscover(*rom, *size);
   const CpCatalog *cat = FzeroTracksCatalog();
   char error[256], path[CP_PATH];
+  const FzeroTitleScreen *title = FzeroTitleFind(FzeroTracksTitleStyle());
+  if (FzeroTracksTitleEnabled() && title && *title->patch &&
+      !FzeroTitlePrepare(*rom, *size, title->patch, error, sizeof(error))) {
+    char message[256];
+    snprintf(message, sizeof(message), "Title screen: %.160s; using Original", error);
+    FzeroTracksReport(message);
+  }
   for (unsigned i = 0; i < cat->count; ++i) {
     const CpPack *p = cat->packs[i];
     if (strcmp(p->adapter, "fzero-course-v1") ||
@@ -211,14 +221,6 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
     for (unsigned t = 0; ok && t < p->track_count; ++t)
       ok = FzeroCourseExtract(donor, donor_size, &layout, p->tracks[t].slot, &courses[t], error,
                               sizeof(error));
-    if (ok && FzeroTracksTitleEnabled(p) &&
-        !FzeroTitlePrepare(*rom, *size,
-          !strcmp(FzeroTracksTitleStyle(p), "fzero-55") ? "assets/track-packs/presentation/fzero-55.ips" :
-          "assets/track-packs/presentation/cgp.ips", error, sizeof(error))) {
-      char message[256];
-      snprintf(message, sizeof(message), "CGP title: %.160s; using the original title", error);
-      FzeroTracksReport(message);
-    }
     free(donor);
     if (!ok) {
       free(courses);
@@ -236,7 +238,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
   if (!FzeroDeluxePrepare(rom, size, FzeroBsCars() || FzeroBsTracks() || FzeroVehiclesActive(), deluxe_path))
     return false;
   if (!FzeroVehiclesPrepare(rom,size,error,sizeof(error))) { FzeroTracksReport(error); return false; }
-  if (FzeroTracksActive()) {
+  if (FzeroTracksStateActive()) {
     /* The canonical native interrupt module remains selected. Resource
      * callbacks run at the same loader sites for every imported pack. */
     interp_bridge_set_scheduler_aot_policy(0);
@@ -286,8 +288,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
       memcpy(hashes + length, FzeroTitleHash(), 32);
       length += 32;
       fprintf(stderr, "[track-library] %s title artwork enabled\n",
-          !strcmp(FzeroTracksTitleStyle(cp_catalog_find(FzeroTracksCatalog(), "cgp")), "fzero-55") ?
-          "F-Zero 55" : "Community Grand Prix");
+          title->name);
     }
     sha256_compute(hashes, length, identity);
   }

@@ -236,6 +236,19 @@ cups first, omit unused resource slots, and derive a resource-only patch against
 the stock input. Compare normalized C-extractor results before/after packing.
 The reviewed Astra profile in `tools/import_astra_front.py` is an example.
 
+## Title artwork for every imported hack
+
+Compare the donor's title resources with stock and already ingested screens.
+Keep one independent Title screen override mod; never add per-pack title
+toggles. Identical artwork reuses an existing choice. For distinct artwork,
+verify the native sprite layout and DMA descriptors before extracting only
+the tile/palette changes with `tools/extract_title_patch.py`. Register the
+reviewed patch in `assets/track-packs/presentation/screens.txt`, preserve its
+attribution in that directory's README, and visually check both engines.
+Different title layouts need explicit adapter work. Title changes must not
+alter records, course selection or gameplay. Keep F-Zero 55 hidden until the
+owner requests its return.
+
 ## Gameplay source changes
 
 The course manifest remains data-only. Do not turn it into an arbitrary ROM

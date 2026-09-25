@@ -248,10 +248,10 @@ static void title_hook(CpuState *cpu, uint32_t pc) {
   FzeroTitleLoad(g_ppu->vram, g_ram + 0x600);
 }
 void FzeroTracksInstallHooks(void) {
-  if (!FzeroTracksActive())
-    return;
   if (FzeroTitleHash())
     interp_bridge_set_pre_opcode_hook(0x0380f5, title_hook);
+  if (!FzeroTracksActive())
+    return;
   const uint32_t sites[] = {0x009f08, 0x009f1b, 0x009f28, 0x009f4c, 0x00a0b0, 0x00a10d, 0x00a11d,
                             0x00a127, 0x00a4ab, 0x00a4d1, 0x00a51f, 0x008895, 0x00abd3, 0x00d609,
                             0x00a30d, 0x008e36, 0x009c9a, 0x00eb90, 0x00da04,
