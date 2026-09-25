@@ -12,6 +12,8 @@
 *.rom
 
 # Recompiler output and other ROM-derived generated data.
+# Owner-supplied annotated disassembly: private local reference only.
+/references/diz-export/
 src/gen/
 assets/*
 !assets/README.md
