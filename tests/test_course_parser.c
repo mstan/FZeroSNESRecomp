@@ -39,12 +39,16 @@ static unsigned resource(unsigned size) {
 static void requirements(void) {
   const char *path = "course-requirements-test.layout";
   const char *cases[] = {
-      "require=all|grip-magnets\nrequire=1|up-magnets\nrequire=1|rainbow-road\n",
+      "require=all|grip-magnets\nrequire=1|up-magnets\nrequire=1|rainbow-road\nmusic=108000\nspc=1|mute-city\n",
       "require=all|unknown\n", "require=2|up-magnets\n",
       "require=128|up-magnets\n", "require=-1|up-magnets\n",
       "require=+1|up-magnets\n", "require=|up-magnets\n",
       "require=all|up-magnets\nrequire=all|up-magnets\n",
-      "require=1|up-magnets\nrequire=1|up-magnets\n"};
+      "require=1|up-magnets\nrequire=1|up-magnets\n",
+      "music=0\n", "music=108000\nmusic=108001\n",
+      "spc=2|mute-city\n", "spc=-1|mute-city\n", "spc=|mute-city\n",
+      "spc=128|mute-city\n", "spc=0|unknown\n", "spc=0|mute-city|big-blue\n",
+      "spc=0|mute-city\nspc=0|big-blue\n"};
   const char *fields[] = {"pools", "settings", "palettes", "maps", "graphics", "paths",
                          "names", "sky_graphics", "sky_back", "sky_front", "minimaps",
                          "map_positions", "terrain", "gradients", "opponents", "shortcuts"};
@@ -63,6 +67,7 @@ static void requirements(void) {
       CHECK(layout.required == FZERO_COURSE_GRIP_MAGNETS);
       CHECK(!layout.course_required[0]);
       CHECK(layout.course_required[1] == (FZERO_COURSE_UP_MAGNETS | FZERO_COURSE_RAINBOW));
+      CHECK(layout.music == 0x108000 && !layout.spc_override[0] && layout.spc_override[1] == 1);
     } else {
       CHECK(!memcmp(&layout, &before, sizeof(layout)));
       if (i == 1) CHECK(strstr(error, "Unsupported required"));
@@ -149,6 +154,35 @@ int main(void) {
   l.required = l.course_required[0] = 0;
   CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
   CHECK(!memcmp(c->hash, previous->hash, 32));
+  /* Audio must be bounded, can explicitly select song zero, and must never
+   * strand existing course records by changing their gameplay key. */
+  CHECK(!c->has_music);
+  unsigned music = allocate(1);
+  l.music = addr(music);
+  for (unsigned song = 0; song < 10; ++song) {
+    rom[music] = (uint8_t)(song * 9);
+    CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+    CHECK(c->has_music && c->music == song * 9);
+    CHECK(!memcmp(c->hash, previous->hash, 32));
+  }
+  rom[music] = 82;
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  rom[music] = 1;
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  l.music = 0x7e8000;
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  l.music = addr(music);
+  rom[music] = 9;
+  l.spc_override[0] = 1;
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(c->has_music && !c->music && !memcmp(c->hash, previous->hash, 32));
+  l.music = 0; /* Explicit mapping also works without a donor music table. */
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(c->has_music && !c->music);
+  l.spc_override[0] = 11;
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  l.spc_override[0] = 0;
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
   *previous = *c;
   word(entries, 0x10); /* Shared HUD/car palette is forbidden. */
   CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));

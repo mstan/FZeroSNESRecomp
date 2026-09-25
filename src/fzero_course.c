@@ -44,9 +44,10 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
   const char *keys[] = {"count",     "pools",    "settings",      "palettes",     "maps",
                         "graphics",  "paths",    "names",         "sky_graphics", "sky_back",
                         "sky_front", "minimaps", "map_positions", "terrain",      "gradients",
-                        "opponents", "shortcuts", "palette_cycles"};
-  uint32_t vals[18] = {0}, seen = 0;
+                        "opponents", "shortcuts", "palette_cycles", "music"};
+  uint32_t vals[19] = {0}, seen = 0;
   uint8_t required = 0, course_required[128] = {0};
+  uint8_t spc_override[128] = {0};
   unsigned last_required = 0;
   bool format = false, ok = true;
   char line[160];
@@ -66,6 +67,23 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
       break;
     }
     *v++ = 0;
+    if (!strcmp(line, "spc")) {
+      static const char *const songs[] = {
+          "mute-city", "big-blue", "sand-ocean", "silence", "port-town",
+          "red-canyon", "white-land-1", "white-land-2", "fire-field", "death-wind"};
+      char *song = strchr(v, '|'), *end;
+      if (!song) { ok = false; break; }
+      *song++ = 0;
+      unsigned long slot = strtoul(v, &end, 10);
+      unsigned id;
+      for (id = 0; id < 10 && strcmp(song, songs[id]); ++id) {}
+      if (*v < '0' || *v > '9' || *end || slot >= 128 || id == 10 || spc_override[slot]) {
+        ok = false; break;
+      }
+      spc_override[slot] = (uint8_t)(id + 1);
+      if (slot + 1 > last_required) last_required = (unsigned)slot + 1;
+      continue;
+    }
     if (!strcmp(line, "require")) {
       char *feature = strchr(v, '|');
       if (!feature) { ok = false; break; }
@@ -96,9 +114,9 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
       continue;
     }
     unsigned i;
-    for (i = 0; i < 18 && strcmp(line, keys[i]); ++i) {
+    for (i = 0; i < 19 && strcmp(line, keys[i]); ++i) {
     }
-    if (i == 18 || (seen & (1u << i)) || !*v) {
+    if (i == 19 || (seen & (1u << i)) || !*v) {
       ok = false;
       break;
     }
@@ -115,13 +133,16 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
     ok = false;
   fclose(f);
   if (!ok || !format || (seen & 0x1ffff) != 0x1ffff ||
-      ((seen & (1u << 17)) && !vals[17]) || last_required > vals[0])
+      ((seen & (1u << 17)) && !vals[17]) ||
+      ((seen & (1u << 18)) && !vals[18]) || last_required > vals[0])
     return fail(error, cap, "Invalid course extraction manifest");
   FzeroCourseLayout l = {vals[0],  vals[1],  vals[2],  vals[3],  vals[4],  vals[5],
                          vals[6],  vals[7],  vals[8],  vals[9],  vals[10], vals[11],
-                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17], 0, {0}};
+                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17], 0, {0}, 0, {0}};
   l.required = required;
   memcpy(l.course_required, course_required, sizeof(course_required));
+  l.music = vals[18];
+  memcpy(l.spc_override, spc_override, sizeof(spc_override));
   *out = l;
   return true;
 }
@@ -333,6 +354,17 @@ bool FzeroCourseExtract(const uint8_t *r, size_t n, const FzeroCourseLayout *l, 
   }
   if (ok)
     ok = palette_cycles(r, n, l, i, c);
+  if (ok && l->music) {
+    const uint8_t *song = table(r, n, l->music, i, 1);
+    /* Ten canonical SPC sequences, each selected by a nine-byte upload list.
+     * Never interpret an arbitrary donor pointer or executable as audio. */
+    ok = song && *song <= 81 && *song % 9 == 0;
+    if (ok) { c->has_music = 1; c->music = *song; }
+  }
+  if (ok && l->spc_override[i]) {
+    ok = l->spc_override[i] <= 10;
+    if (ok) { c->has_music = 1; c->music = (uint8_t)((l->spc_override[i] - 1) * 9); }
+  }
   if (ok) {
     c->required = l->required | l->course_required[i];
     if (c->required & ~FZERO_COURSE_FEATURES) {

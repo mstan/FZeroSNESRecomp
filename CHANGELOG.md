@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Load each imported course's SNES music in GP and Practice, including when
+  its MSU recording is missing. Map all 55 CGP courses plus MAX and Bower from
+  their donor music tables; restore Mute City III's Mute City theme.
+- Keep music corrections separate from existing course and vehicle record keys.
 - Browse all enabled cups and vehicle-specific records in the native records
   overview/detail layout, including existing times after restart.
 - Keep browsing read-only, with cup pages, car selection and GP/Practice

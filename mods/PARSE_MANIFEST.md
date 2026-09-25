@@ -172,6 +172,25 @@ the actual donor. Hacks with additional hazards, physics, vehicles or custom
 scripted events need explicit support. A successful structural parse cannot
 prove those semantic features are compatible.
 
+### Native music for imported courses
+
+An optional `music=<CPU LoROM address>` table supplies one byte per resource
+slot: the canonical SPC song index multiplied by nine (valid values 0, 9,
+through 81). It selects the native upload list at `$02CB00`; it does not import
+donor executable code or custom SPC instruments/sequences. Find the donor's
+selection in `$00F7E0` before declaring this table; do not infer music from sky
+art, cup order, or the setting/venue nibble. Both retail and Deluxe consume the
+extracted value through the shared course loader, including missing-PCM fallback.
+
+An optional repeated `spc=<decimal resource slot>|<theme>` overrides one entry
+or supplies a mapping when no table is declared. Supported themes are
+`mute-city`, `big-blue`, `sand-ocean`, `silence`, `port-town`, `red-canyon`,
+`white-land-1`, `white-land-2`, `fire-field`, and `death-wind`. Unknown themes,
+duplicate overrides, out-of-range slots and malformed donor values are errors.
+Layouts without either field retain native behavior. Music metadata is separate
+from course record hashes: correcting a song must not strand existing times.
+See `docs/CGP_SNES_MUSIC.md` for the current complete mapping and validation.
+
 ## Gameplay source changes
 
 The course manifest remains data-only. Do not turn it into an arbitrary ROM

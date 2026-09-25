@@ -649,6 +649,14 @@ int main(int argc, char **argv) {
                             frame_width) &&
                   write_wram_dump(getenv("SNESRECOMP_WRAM_DUMP"));
   const char *sram_dump = getenv("FZERO_TEST_SRAM_DUMP");
+  /* Inspect the actual SPC upload, independently of course metadata/logs. */
+  const char *apu_dump = getenv("FZERO_TEST_APURAM_DUMP");
+  if (apu_dump && *apu_dump) {
+    FILE *f = fopen(apu_dump, "wb");
+    if (!f) return 10;
+    bool ok = fwrite(g_snes->apu->ram, 1, 0x10000, f) == 0x10000;
+    if (fclose(f) || !ok) return 10;
+  }
   if (sram_dump && *sram_dump) {
     FILE *f = fopen(sram_dump, "wb");
     if (!f) return 10;

@@ -76,6 +76,9 @@ The shared UI stores a selected ID; each game resolves it to its own assets.
   CGP music; unrelated packs without a mapping use their SNES music.
 - Missing PCM files use the adapter's original SPC fallback. CGP playback
   needs no separately selected ASM mod.
+- Imported courses load their own native SPC theme before racing, rather than
+  the base engine's course metadata. This also covers MSU disabled and missing
+  recordings. The full CGP mapping is in [CGP_SNES_MUSIC.md](CGP_SNES_MUSIC.md).
 - A custom pack containing the supported, digest-pinned Conn/Cubear v11
   `f-zero_msu1.ips` uses that adapter and its standard numbering. Without
   that patch a custom pack uses CGP numbering. Other patch versions are not

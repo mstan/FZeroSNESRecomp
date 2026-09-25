@@ -19,6 +19,8 @@ typedef struct FzeroCourseLayout {
   uint32_t terrain, gradients, opponents, shortcuts;
   uint32_t palette_cycles; /* Optional same-bank pointer16 table. */
   uint8_t required, course_required[128];
+  uint32_t music; /* Optional byte table: native SPC upload-list offset (song * 9). */
+  uint8_t spc_override[128]; /* Zero = absent; otherwise canonical song index + 1. */
 } FzeroCourseLayout;
 typedef struct FzeroCourse {
   uint8_t pool[0x2400], blocks[0x2200], grid[0x9000];
@@ -35,6 +37,8 @@ typedef struct FzeroCourse {
   /* Extensions follow the legacy hash region, preserving existing pack keys. */
   uint8_t has_palette_cycles, palette_cycle_count, palette_cycles[14];
   uint8_t required;
+  /* Presentation only: deliberately excluded from the course/record hash. */
+  uint8_t has_music, music;
 } FzeroCourse;
 bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error, size_t cap);
 bool FzeroCourseExtract(const uint8_t *rom, size_t size, const FzeroCourseLayout *layout,
