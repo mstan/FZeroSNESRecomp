@@ -7,9 +7,13 @@
 #include "fzero_deluxe.h"
 #include "fzero_gameplay.h"
 #include "fzero_course_runtime.h"
+#include "fzero_runtime.h"
+#include "fzero_gameplay_patches.inc"
+#include "snes/cart.h"
 #include "sha256.h"
 #include "snes/interp_bridge.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK(e)                                                               \
@@ -26,6 +30,8 @@ static bool probe_rule(FzeroRule rule) {
   unsigned feature = rule == FZERO_RULE_DMAG ? FZERO_COURSE_GRIP_MAGNETS
                      : rule == FZERO_RULE_UP_MAGNET ? FZERO_COURSE_UP_MAGNETS
                      : rule == FZERO_RULE_RAINBOW ? FZERO_COURSE_RAINBOW : 0;
+  if (rule == FZERO_RULE_DMAG || rule == FZERO_RULE_UP_MAGNET)
+    return course && (course->required & feature);
   return FzeroRuleEnabled(rule) || (course && (course->required & feature));
 }
 static void stop(CpuState *cpu, uint32_t pc) {
@@ -71,10 +77,90 @@ static bool fragment(CpuState *c, unsigned start, unsigned end,
   interp_bridge_set_pre_opcode_hook(0, NULL);
   return true;
 }
+/* Production never installs global terrain patches. For oracle comparison,
+ * apply the independently assembled author's bytes only around this fragment,
+ * then restore every overwritten byte (including overlapping vehicle tuning). */
+static bool author_fragment(CpuState *c, unsigned patch, unsigned start, unsigned end) {
+  const RulePatch *p = &rule_patches[FzeroDeluxeActive()][patch];
+  size_t count = 0;
+  for (unsigned i = 0; i < p->count; ++i) {
+    CHECK(p->writes[i].offset + p->writes[i].size <= (unsigned)g_snes->cart->romSize);
+    count += p->writes[i].size;
+  }
+  uint8_t *saved = malloc(count);
+  CHECK(saved);
+  size_t pos = 0;
+  for (unsigned i = 0; i < p->count; ++i) {
+    const RuleWrite *w = &p->writes[i];
+    memcpy(saved + pos, g_snes->cart->rom + w->offset, w->size);
+    memcpy(g_snes->cart->rom + w->offset, w->data, w->size);
+    pos += w->size;
+  }
+  reference_fragment = true;
+  bool ok = fragment(c, start, end, 0, false);
+  reference_fragment = false;
+  pos = 0;
+  for (unsigned i = 0; i < p->count; ++i) {
+    const RuleWrite *w = &p->writes[i];
+    memcpy(g_snes->cart->rom + w->offset, saved + pos, w->size);
+    pos += w->size;
+  }
+  free(saved);
+  return ok;
+}
+static bool magnet_damage_probe(void) {
+  bool cgp = probe_rule(FZERO_RULE_DMAG);
+  unsigned cases = 0;
+  for (unsigned actor = 0; actor <= 2; actor += 2)
+    for (unsigned airborne = 0; airborne < 2; ++airborne)
+      for (unsigned flags = 0; flags <= 12; flags += 4) {
+        CpuState c = state(0x30);
+        c.X = (uint16_t)actor;
+        g_ram[0xc3] = g_ram[0xc8] = g_ram[0x52] = 0;
+        g_ram[0xd50 + actor] = (uint8_t)flags;
+        g_ram[0xd51 + actor] = airborne ? 128 : 0;
+        word(0xcc0 + actor, 0);
+        word(0xc9, 0x800);
+        word(0xb20 + actor, 0x800);
+        g_ram[0xd90 + actor] = 0;
+        CHECK(fragment(&c, 0x0098a4, 0, 0, false));
+        bool damage = !airborne && (flags & (cgp ? 4 : 12));
+        CHECK(actor ? ((read_word(0xb20 + actor) < 0x800) == damage)
+                    : ((read_word(0xc9) < 0x800) == damage));
+        ++cases;
+      }
+  /* Exercise real decoded terrain, not just hand-written surface flags. Only
+   * isolate pure magnet surfaces here; pits, walls and barriers have separate
+   * damage semantics and are covered by the landing/recovery probes. */
+  const FzeroCourse *course = FzeroTracksCurrentCourse();
+  unsigned authored = 0;
+  if (course)
+    for (unsigned tile = 0; tile < 256; ++tile) {
+      if (!(course->terrain[0x100 + tile] & 12) || course->terrain[0x300 + tile]) continue;
+      CpuState c = state(0x30);
+      g_ram[0xcd0] = (uint8_t)tile;
+      CHECK(fragment(&c, 0x008e36, 0x008e28, 0, false));
+      unsigned surface = g_ram[0xd50];
+      CHECK(surface == course->terrain[0x100 + tile]);
+      g_ram[0xc3] = g_ram[0xc8] = g_ram[0x52] = g_ram[0xd51] = 0;
+      word(0xc9, 0x800);
+      word(0xb20, 0x800);
+      c = state(0x30);
+      CHECK(fragment(&c, 0x0098a4, 0, 0, false));
+      CHECK((read_word(0xc9) < 0x800) == ((surface & (cgp ? 4 : 12)) != 0));
+      if (tile == 0xa6)
+        fprintf(stderr, "rules-probe: tile=A6 surface=%02x energy=%04x PASS\n", surface, read_word(0xc9));
+      ++authored;
+    }
+  fprintf(stderr, "rules-probe: magnet damage=%u authored-tiles=%u semantics=%s PASS\n",
+          cases, authored, cgp ? "course-declared" : "native");
+  return true;
+}
 bool FzeroRulesProbe(void) {
   static const DispatchEntry empty[1] = {{0}};
   cpu_select_program(empty, 0, NULL, 0);
   interp_bridge_set_pre_opcode_hook(0, NULL);
+  CHECK(magnet_damage_probe());
   if (FzeroTracksCurrentCourse()) {
     /* Exercise actual landing/recovery instruction boundaries for every tile
      * and both jump-state variants. Valid custom tiles above D0 must survive;
@@ -260,9 +346,7 @@ bool FzeroRulesProbe(void) {
           CpuState actual = state(0x30), original = state(0x30);
           actual.A = original.A = (uint16_t)flags;
           CHECK(fragment(&actual, masks[site], masks[site]+2, 0, false));
-          reference_fragment = true;
-          CHECK(fragment(&original, masks[site], masks[site]+2, 0, false));
-          reference_fragment = false;
+          CHECK(author_fragment(&original, 16, masks[site], masks[site]+2));
           CHECK(actual.A == original.A && actual._flag_Z == original._flag_Z &&
                 actual._flag_N == original._flag_N);
         }
@@ -315,9 +399,7 @@ bool FzeroRulesProbe(void) {
                  * the global patch over unrelated native courses. */
                 CpuState original = state(0x10);
                 original.X = (uint16_t)actor;
-                reference_fragment = true;
-                CHECK(fragment(&original, 0x009c6b, 0x009c71, 0, false));
-                reference_fragment = false;
+                CHECK(author_fragment(&original, 22, 0x009c6b, 0x009c71));
                 if (original.A != c.A || original._flag_C != c._flag_C) {
                   fprintf(stderr, "magnet mismatch actor=%u tilt=%u tile=%x height=%x velocity=%x host=%x/%u asm=%x/%u\n",
                           actor,tilt,tiles[t],heights[h],velocities[v],c.A,c._flag_C,original.A,original._flag_C);
@@ -328,6 +410,25 @@ bool FzeroRulesProbe(void) {
             }
     fprintf(stderr, "rules-probe: up-magnet cases=%u%s PASS\n", cases,
             FzeroRuleEnabled(FZERO_RULE_UP_MAGNET) ? " ASM parity" : " course-required");
+  } else {
+    /* CGP-specific tile IDs must still pull downward on unrelated courses,
+     * even when both magnet switches were enabled by the CGP preset. */
+    static const unsigned tiles[] = {0xb5, 0xb6, 0xcc, 0xcd, 0xcf, 0xd0};
+    static const unsigned velocities[] = {0, 0x200, 0xff00, 0x8000};
+    unsigned cases = 0;
+    for (unsigned actor = 0; actor <= 2; actor += 2)
+      for (unsigned t = 0; t < sizeof(tiles)/sizeof(*tiles); ++t)
+        for (unsigned v = 0; v < sizeof(velocities)/sizeof(*velocities); ++v) {
+          CpuState c = state(0x10); /* Native caller clears carry. */
+          c.X = (uint16_t)actor;
+          word(0xcd0 + actor, tiles[t]);
+          word(0xbb0 + actor, velocities[v]);
+          CHECK(fragment(&c, 0x009c6b, 0x009c71, 0, false));
+          CHECK(c.A == ((velocities[v] - 0x61) & 65535));
+          CHECK(!!c._flag_C == (velocities[v] >= 0x61));
+          ++cases;
+        }
+    fprintf(stderr, "rules-probe: native downpull cases=%u PASS\n", cases);
   }
   if (probe_rule(FZERO_RULE_RAINBOW)) {
     for (unsigned rainbow = 0; rainbow < 2; ++rainbow) {

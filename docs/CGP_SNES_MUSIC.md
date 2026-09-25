@@ -91,6 +91,35 @@ song; restarting the race loads the corrected theme.
 
 ## Verification
 
+### MAX and Bower donor mappings
+
+These are the source patches' selections, which need not match the name or
+scenery of a course:
+
+| Pack | Course | SNES theme |
+| --- | --- | --- |
+| MAX | Sand City | Mute City |
+| MAX | Port Canyon | Port Town |
+| MAX | Metal Forest | Red Canyon |
+| MAX | Death Storm | Death Wind |
+| MAX | White Fire | Fire Field |
+| Bower | Mute City V | Mute City |
+| Bower | Sand Storm III | Port Town |
+| Bower | Silence III | Silence |
+| Bower | Red Canyon III | Red Canyon |
+| Bower | Sand Ocean II | Sand Ocean |
+
+September 25 follow-up: all ten passed a fresh real-SPC check after the magnet
+scope fix (`captures/import-music-02`). The new importer audit also verifies
+all 65 declared courses' intro names, donor order and original song entries,
+including both supported MAX patch variants. CGP's six added cup names were
+rechecked against the donor menu strings. A one-course Bower subset passes
+without adding the other courses. Evidence: `captures/import-audit-02`.
+The metadata tool emits an `.audit.json`; cup labels are explicitly marked
+for manual review rather than represented as automatically verified.
+
+### Runtime and parser checks
+
 `tests/validate_spc_music.py` boots real races and inspects SPC RAM `$07FE`,
 the destination of the original uploader's song-selection byte. Expectations
 are independent of the runtime mapping and extraction manifest. It covers all

@@ -35,8 +35,14 @@ python tools/parse_track_pack.py --stock path/to/fzero.sfc `
 
 The tool uses `build/FZeroInspectCourses.exe` (override `--inspector` on other
 platforms). It creates a temporary private patched image, parses it with the
-same C extractor as the game, deletes the temporary image and writes only
-`.ini` and `.layout`. It refuses to overwrite different existing metadata.
+same C extractor as the game, deletes the temporary image and writes
+`.ini`, `.layout` and a ROM-free `.audit.json`. It refuses to overwrite different existing metadata.
+For the reviewed FZEdit loader family, it decodes the music/order table addresses
+from donor instructions, checks original intro names, validates race order and
+records each donor song versus any explicit override. A layout must supply the
+matching music table. Unknown instruction layouts or text encodings stop for
+review; they are not guessed. Cup-name verification remains a manual step and
+is explicitly marked as such in the audit report.
 The game itself needs neither that tool nor an installed Python interpreter.
 
 ## New revision or unknown format
@@ -57,17 +63,26 @@ The game itself needs neither that tool nor an installed Python interpreter.
 4. Choose stable lowercase pack/cup/course IDs. Do not reuse another pack's ID
    to replace it. Within a cup, manifest track order is race order. Source
    indices select courses from the donor, not slots in the canonical game.
+   Preserve authored course and cup names; read the actual donor menu or its
+   accompanying documentation. Decode its original music selector independently
+   of venue graphics. Record names, cup membership, race order and songs in the
+   audit. Document any intentional deviation in [MODS.md](../MODS.md).
 5. Run structural extraction. For a new one-cup descriptor, for example:
 
    ```powershell
    python tools/parse_track_pack.py --stock path/to/fzero.sfc `
      --patch path/to/custom.bps --layout reviewed.layout `
      --id custom-author-pack --name "Custom Cup" --author "Course Author" `
-     --course "first|First Course|0" --course "second|Second Course|3" `
+     --source-cup 0 --course "first|First Course|0" --course "second|Second Course|3" `
      --out mods/track-packs
    ```
 
    This creates metadata after structural parsing; it does not certify playability.
+   `--source-cup` identifies the zero-based donor cup for a selected subset,
+   including single-course packs. The audit preserves that cup's relative race
+   order and lists omitted slots. Course names in this example are placeholders;
+   use the donor's real names. Rearranged compilations or different order loaders
+   need explicit review rather than bypassing a failing audit.
    Multiple cups can be expressed by extending the manifest with unique `cup`
    entries and assigning each track to one of them. Current GP cups contain
    one to five entries. Pack limits are 32 cups and 128 course entries.
@@ -76,6 +91,13 @@ The game itself needs neither that tool nor an installed Python interpreter.
    AI paths, pits, jumps, magnetic/rough/void terrain, hazards, minimap, palette,
    sky and course-name intro. Check the full cup's results and transition to
    the next course, including a one-course cup and the final course.
+   Check the song actually uploaded to the SPC with MSU disabled and with a
+   missing PCM. Test declared mechanics with their switches both off and on,
+   then race a stock and unrelated imported course with the same settings.
+   For CGP-style magnets, test DOWNPULL alone versus DOWNPULL+MAGNET: only the
+   latter damages. Other packs keep native magnet semantics unless their
+   reviewed layout declares these capabilities. Record such differences in
+   `MODS.md` and the owning Beads issue, with evidence and remaining limitations.
 7. Check original Knight/Queen/King and both BS leagues with the pack present;
    all enabled cars must remain selectable. Check 4:3, widescreen and HD,
    especially HUD grouping and opponents near both side edges. Confirm the
@@ -91,7 +113,9 @@ The game itself needs neither that tool nor an installed Python interpreter.
   ROMs, decoded resource binaries or generated code. MAX Classic and the current
   CGP and Bower IPS files are explicitly bundled under `assets/track-packs` with attribution;
   preserve verified manifest identities and record approved revisions. Do not
-   include the archives' MSU/PCM soundtrack or redundant donor variants.
+   include arbitrary soundtrack files or redundant donor variants. The separately
+   approved CGP PC-port soundtrack has its own import and clearance workflow in
+   [the music documentation](../assets/music/README.md).
 
 ## Metadata format
 

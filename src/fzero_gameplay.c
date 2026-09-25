@@ -98,6 +98,10 @@ static unsigned feature_for_rule(FzeroRule rule) {
 }
 static bool effective_rule(FzeroRule rule) {
   const FzeroCourse *course = FzeroTracksCurrentCourse();
+  /* These change the meaning of authored terrain/tile IDs. A preset switch
+   * must never reinterpret another pack's or a native course's magnets. */
+  if (rule == FZERO_RULE_DMAG || rule == FZERO_RULE_UP_MAGNET)
+    return course && (course->required & feature_for_rule(rule));
   return FzeroRuleEnabled(rule) ||
          (course && (course->required & feature_for_rule(rule)));
 }
@@ -204,6 +208,11 @@ bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
     apply(grown, 6 + settings.exhaust);
   for (unsigned rule = FZERO_RULE_ANIMATION; rule < FZERO_RULE_COUNT; ++rule) {
     if (!FzeroRuleEnabled((FzeroRule)rule))
+      continue;
+    /* Complete native adapters below supply these at course boundaries.
+     * Installing their donor ASM globally would bypass scoping when a hook
+     * declines to run on an unrelated course. */
+    if (rule == FZERO_RULE_DMAG || rule == FZERO_RULE_UP_MAGNET)
       continue;
     unsigned patch = rule + 6 + (rule > FZERO_RULE_RAINBOW);
     apply(grown, patch);

@@ -12,6 +12,8 @@ import re
 import shutil
 import subprocess
 
+from validate_native_menus import player_route
+
 ROOT = Path(__file__).resolve().parents[1]
 ROUTE = '320-326:8,440-446:8,560-566:8,730-736:8,790-796:8,1160-1599:1'
 
@@ -40,7 +42,10 @@ def main():
         packs = folder/'packs'
         packs.mkdir(exist_ok=True)
         shutil.copytree(ROOT/'assets/track-packs', folder/'assets/track-packs', dirs_exist_ok=True)
+        shutil.copytree(ROOT/'assets/vehicle-packs', folder/'assets/vehicle-packs', dirs_exist_ok=True)
         (packs/'cgp.disabled').write_text('0\n' if cgp else '1\n')
+        if cup and cup.startswith('max-league/'):
+            (packs/'max-league.disabled').write_text('0\n')
         cup = cup or ('bs-deluxe' if cars or tracks else 'retail')+'/knight'
         env = dict(clean, FZERO_TRACK_PACKS=str(packs), FZERO_DELUXE_DATA='embedded',
                    FZERO_BS_CARS=str(cars), FZERO_BS_TRACKS=str(tracks),
@@ -72,7 +77,7 @@ def main():
             assert 'resimulation identical' in log and 'soft reset, SRAM retained' in log
         assert 'rules-probe: PASS' in log, name
         if cgp and not tracks:
-            assert 'extracted cgp: 40 courses' in log
+            assert 'extracted cgp: 55 courses' in log
         else:
             assert 'extracted cgp:' not in log
         results[name] = {'cars': cars, 'original_bs': tracks, 'cgp': cgp, 'rules': rule,
@@ -80,7 +85,22 @@ def main():
         print(name, 'PASS', flush=True)
 
     cases = []
+    for course, cup, ordinal in (('native', 'bs-deluxe/knight', 0),
+                                 ('bower', 'bower-league/bower', 3),
+                                 ('max', 'max-league/max', 2), ('cgp', 'cgp/cgp-2', 3)):
+        cases.append(dict(name=f'magnet-preset-{course}', cgp=True, cup=cup, rule='all',
+                          route=player_route(0, 7)+',600-606:8,730-736:8,900-906:8,960-966:8',
+                          FZERO_CGP_CARS='7', FZERO_CGP_REBALANCE='15',
+                          FZERO_TEST_LEGACY_PROFILES='0', FZERO_TEST_COURSE=str(ordinal)))
     for cars in (0, 1):
+        for course, cup, ordinal in (
+                ('native', ('bs-deluxe' if cars else 'retail')+'/knight', 0),
+                ('bower', 'bower-league/bower', 3),
+                ('max', 'max-league/max', 2),
+                ('cgp', 'cgp/cgp-2', 3)):
+            for mode, rule in (('required', ''), ('enabled', 'cgp-dmag,cgp-up-magnet')):
+                cases.append(dict(name=f'magnet-{course}-{mode}-cars{cars}', cars=cars,
+                                  cgp=True, cup=cup, rule=rule, FZERO_TEST_COURSE=str(ordinal)))
         cases.append(dict(name=f'msu-fallback-cars{cars}', cars=cars, rule='cgp-msu',
                           cgp=True, cup='cgp/cgp-1',
                           SNESRECOMP_MSU1=str(out/'missing-music'/'soundtrack')))

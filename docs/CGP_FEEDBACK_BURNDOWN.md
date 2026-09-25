@@ -274,7 +274,14 @@ The owner subsequently approved the full implementation burndown on 2026-09-23.
   courses; optional-ASM runs match accumulator/carry results. Native-course
   frames/WRAM are unchanged by capability declarations in both engines;
   required-Rainbow save/load resimulation and reset pass. Full hazard routes
-  and broader collision/landing transitions remain pending.
+    and broader collision/landing transitions remain pending.
+    September 25: fixed global magnet ASM leaking onto unrelated courses when
+    the CGP preset enabled the switches. Required-only and enabled runs now
+    preserve native stock/MAX/Bower semantics. Red Canyon III's actual `$A6`
+    terrain flags include MAGNET and correctly damage; downpull alone does not.
+    The 18-case retail/Deluxe matrix and four combined-preset cases pass,
+    including player/CPU damage and 720-case CGP lift parity. See `CGP_COURSE_CAPABILITIES.md` and
+    the player-facing `../MODS.md`. Full-route follow-up remains open.
 
 <a id="legend"></a>
 - [ ] **B09 — Correct Legend AI and dependencies** — `beads-8wg.5.43`, P1.

@@ -31,9 +31,10 @@ const FzeroRuleInfo fzero_rules[FZERO_RULE_COUNT] = {
      "Add Legend above Master, with revised CPU speeds, acceleration and "
      "starting lives. Its CPU difficulty tables take precedence over CGP "
      "vehicle tuning."},
-    {"cgp-dmag", "Harmless grip magnets",
-     "Remove down-magnet damage and give grounded vehicles stronger grip, "
-     "steering and strafing while on those tiles."},
+    {"cgp-dmag", "CGP grip magnets",
+     "Courses declaring CGP grip magnets receive their required behavior "
+     "automatically: down-pull adds grip; the MAGNET tile property controls "
+     "damage. Other courses keep their original magnet behavior."},
     {"cgp-laps", "Require finish-line checkpoints",
      "Prevent gaining or undoing a lap by crossing the finish line from a "
      "distant checkpoint."},
@@ -46,8 +47,8 @@ const FzeroRuleInfo fzero_rules[FZERO_RULE_COUNT] = {
      "Slightly reduce lateral and direct collision thresholds for closer "
      "racing."},
     {"cgp-up-magnet", "Reverse magnets",
-     "Allow designated CGP magnet tiles to push vehicles upward; tilt changes "
-     "the lift."},
+     "Courses declaring CGP up magnets receive their required lift behavior "
+     "automatically. Other courses keep their original magnet behavior."},
     {"cgp-fog", "Smooth fog",
      "Soften the first three fog lines where the track meets the horizon."},
     {"cgp-msu", "CGP MSU music adapter",

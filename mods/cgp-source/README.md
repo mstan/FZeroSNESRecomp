@@ -6,8 +6,9 @@ original attribution, including Fennor Virastar and the CGP contributors;
 the MSU source credits Conn, Khilendel and Catador. No additional license is
 inferred from receiving the source.
 
-All gameplay options are **off by default** in Mods. They work independently
-of the course pack. P1, P2 and P3 are coherent vehicle sets, enabled together through one
+All gameplay options are **off by default** in Mods. General options work independently
+of the course pack; required terrain mechanics follow the declaring course.
+The CGP preset enables the available options, including Legend. P1, P2 and P3 are coherent vehicle sets, enabled together through one
 CGP vehicles mod plus four separate retail-identity rebalances.
 Artwork-only IPS deltas live in `assets/vehicle-packs`; no ROM is bundled.
 The CGP soundtrack and source clearance are documented in `assets/music/README.md`.
@@ -24,7 +25,7 @@ The CGP soundtrack and source clearance are documented in `assets/music/README.m
 | Stronger CPU lateral spin | `Lateral_Hit_Harder_CPU_Spin.asm` |
 | Lateral collision direction fix | `Lateral_Hit_Redirect_Rotation.asm` |
 | Legend difficulty | `Legend_Difficulty.asm` |
-| Harmless grip magnets | `No_DMag_Damage.asm` |
+| CGP grip magnets | `No_DMag_Damage.asm` |
 | Require finish-line checkpoints | `No_Lap_Finish_on_Shortcut.asm` |
 | Rainbow Road course rules | `CGP_Illusion.asm` + `Rainbow_Gravity.asm` |
 | Red bumper fix | `redbumperfix-v2.asm` |
@@ -78,15 +79,19 @@ Adaptations are explicit in the generator and `src/fzero_gameplay.c`:
   retained before those tables are overwritten. Course resources keep their
   own frequency values. Lives are 7/6/5/4/3 from Beginner through Legend.
 - Required magnet and Rainbow capabilities are declared by course layouts and
-  apply without changing global mod switches. Grip magnets take precedence over turning/strafe lookup only on grounded
+  apply without changing global mod switches. CGP magnet semantics stay scoped
+  even when their optional switches are enabled: the runtime uses shared hooks,
+  never global copies of the two magnet patches. Downpull gives grip; the
+  separate MAGNET property controls damage. Grip magnets take precedence over turning/strafe lookup only on grounded
   magnet tiles; elsewhere the active stock/BS/tuning tables are used.
 - Rainbow Road behavior uses the stable `cgp/rainbow-road` course ID, not
   the donor's absolute cup number. Other courses are unaffected by this mod.
 - Optional MSU music maps stable cup/course positions to the author's track
   numbers. Unknown packs and missing audio fall back to SPC. Music still
-  requires the user's own folder under Sound.
-- Credits use the author's text and trigger on CGP VI at any difficulty;
-  other cups retain their usual Expert-or-higher ending requirement.
+  uses the cleared bundle or a custom folder under Audio settings.
+- The credits ASM is source-only and cannot be activated by saved settings.
+
+Player-facing differences are maintained in [MODS.md](../../MODS.md).
 
 The only differing overlapping source writes are tuning with Legend's CPU
 tables and tuning with the grip-magnet turning/strafe hooks. They are composed

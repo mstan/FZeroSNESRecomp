@@ -99,7 +99,7 @@ if bundled_music and music_manifest.get("attribution_review", {}).get("status") 
 patches = ROOT / "patches"
 if patches.is_dir():
     shutil.copytree(patches, stage / "patches")
-for filename in ("README.md", "CHANGELOG.md", "VERSION", "LICENSE"):
+for filename in ("README.md", "MODS.md", "CHANGELOG.md", "VERSION", "LICENSE"):
     shutil.copy2(ROOT / filename, stage / filename)
 (stage / "docs").mkdir()
 shutil.copy2(ROOT / "docs/ADAPTIVE_RENDERER.md", stage / "docs/ADAPTIVE_RENDERER.md")
@@ -122,12 +122,14 @@ for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
 for filename in ("README.md", "PARSE_MANIFEST.md"):
     shutil.copy2(ROOT / "mods" / filename, stage / "mods" / filename)
     text = (ROOT / "mods" / filename).read_text(encoding="utf-8")
-    (stage / "mods/track-packs" / filename).write_text(text.replace("(cgp-source/README.md)", "(../cgp-source/README.md)").replace("(../docs/", "(../../docs/"), encoding="utf-8")
+    (stage / "mods/track-packs" / filename).write_text(text.replace("(cgp-source/README.md)", "(../cgp-source/README.md)").replace("(../docs/", "(../../docs/").replace("(../assets/", "(../../assets/").replace("(../MODS.md)", "(../../MODS.md)"), encoding="utf-8")
 shutil.copytree(ROOT / "mods/cgp-source", stage / "mods/cgp-source")
 shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
 shutil.copy2(ROOT / "docs/BOWER_AND_CGP_LEAGUES.md", stage / "docs/BOWER_AND_CGP_LEAGUES.md")
 shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
 shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
+for filename in ("CGP_COURSE_CAPABILITIES.md", "CGP_LANDING_AUDIT.md", "CGP_SNES_MUSIC.md"):
+    shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
 (stage / "README.txt").write_text(
     f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
     + ("WITH MSU MUSIC: replacement CGP PC-port soundtrack included.\n\n" if bundled_music else

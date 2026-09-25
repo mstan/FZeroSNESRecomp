@@ -6,7 +6,10 @@ an enable checkbox, with no file selection to configure. Start the game,
 choose Grand Prix, then move through the league list with the direction
 buttons. Imported cups appear after the original leagues.
 
-The `fzero-55` build has **14 cups / 70 selectable course versions** with CGP
+See [MODS.md](../MODS.md) for behavior differences between packs, including
+CGP magnets, native music mappings and which options affect other courses.
+
+The `f-zero-forever` build has **14 cups / 70 selectable course versions** with CGP
 enabled: 15 original courses, 15 CGP revisions of those courses, CGP's 10
 corrected BS courses, and 30 new courses. **Knight CGP, Queen CGP and King CGP**
 include the author's course and racing-line edits; the original cups stay intact.
@@ -60,8 +63,9 @@ rebalances. Enabling one mode disables the other. This does not affect the
 selected courses. Old independent tuning/boost/exhaust profiles are retired;
 old selections do not silently enable new ships or rebalances.
 
-CGP's **Title screen** dropdown defaults to **Original**. Select **F-Zero 55**
-to use the 55 logo and its title colors while CGP is enabled. Disabling CGP
+CGP's **Title screen** dropdown defaults to **Original**. Select **Community Grand Prix**
+to use its title artwork while CGP is enabled. F-Zero 55 is retained but hidden.
+Disabling CGP
 restores the original title and remembers your choice. This changes only the
 title artwork; cars, handling, cups and course records are unaffected.
 
@@ -94,8 +98,9 @@ course packs. Required up/grip magnet and Rainbow Road behavior now accompanies
 the declaring courses automatically; optional switches are not prerequisites
 for those courses. Course packs do not select car tuning or difficulty.
 See [the source/options table](cgp-source/README.md).
-The optional CGP MSU adapter requires your own music folder. No MSU/PCM audio
-files are installed or enabled by these packs.
+MSU-1 is optional. The music bundle includes the cleared CGP PC-port soundtrack;
+the smaller bundle supports a custom music folder. Course pack checkboxes alone
+do not enable music. See [soundtrack notes](../assets/music/README.md).
 
 MAX, CGP and Bower need no separate download. To import additional or equivalent
 patches from ZIP archives without extracting the soundtrack, use the optional
@@ -134,7 +139,8 @@ This prototype supports Grand Prix cups containing **one to five courses**.
 A contributor can supply a single-course pack, several cups, or a selected
 subset of a donor's courses. Each independently supplied patch needs its own
 manifest. Practice supports every enabled cup and course, including any enabled
-rival car; a combined records browser is not implemented yet. Save states require the same installed course catalog and
+rival car. The records browser includes added cups and vehicle-specific records.
+Save states require the same installed course catalog and
 base engine and gameplay rules; adding/removing packs preserves records but
 invalidates old library snapshots. Changed gameplay rules use a separate save
 and records namespace. Native original BS Practice courses are unavailable

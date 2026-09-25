@@ -5,12 +5,14 @@ layout and course names; see mods/track-packs/PARSE_MANIFEST.md.
 """
 import argparse
 import hashlib
+import json
 from pathlib import Path
 import re
 import subprocess
 import tempfile
 
 from inspect_bs_deluxe import apply_bps, apply_ips, STOCK_SHA256
+from audit_track_metadata import audit_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -19,13 +21,17 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def fields(path):
+def parse_fields(text):
     result = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         if line and not line.startswith("#"):
             key, value = line.split("=", 1)
             result.setdefault(key, []).append(value)
     return result
+
+
+def fields(path):
+    return parse_fields(path.read_text(encoding="utf-8"))
 
 
 def donor(stock, patch):
@@ -86,6 +92,8 @@ def main():
     p.add_argument("--name")
     p.add_argument("--author")
     p.add_argument("--course", action="append", help="stable-id|display name|source index; repeat in race order")
+    p.add_argument("--source-cup", type=int,
+                   help="zero-based donor cup for a selected subset; preserves its relative race order")
     a = p.parse_args()
     target = donor(a.stock.read_bytes(), a.patch.read_bytes())
     known = recognize(target)
@@ -122,10 +130,12 @@ def main():
     declared = [line for line in manifest.decode().splitlines() if line.startswith("track=")]
     if any(int(line.rsplit("|", 1)[1]) >= count for line in declared):
         raise ValueError("Track source index is outside the reviewed layout")
+    metadata = audit_metadata(target, fields(layout), parse_fields(manifest.decode()), a.source_cup)
     report = qualify(target, layout, a.inspector)
     # Preflight every destination before creating anything. No patch or ROM is exported.
     outputs = {a.out / f"{pack_id}.ini": manifest,
-               a.out / f"{pack_id}.layout": layout.read_bytes()}
+               a.out / f"{pack_id}.layout": layout.read_bytes(),
+               a.out / f"{pack_id}.audit.json": (json.dumps(metadata, indent=2) + "\n").encode()}
     for path, content in outputs.items():
         if path.exists() and path.read_bytes() != content:
             raise ValueError(f"Refusing to replace existing content: {path}")
@@ -133,7 +143,7 @@ def main():
     for path, content in outputs.items():
         write_new(path, content)
     print(report, end="")
-    print(f"Wrote {pack_id} metadata. Structural validation passed; new revisions still need gameplay qualification.")
+    print(f"Wrote {pack_id} metadata and audit evidence. New revisions still need cup-label review and gameplay qualification.")
 
 
 if __name__ == "__main__":
