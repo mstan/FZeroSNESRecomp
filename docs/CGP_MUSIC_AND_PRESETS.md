@@ -16,20 +16,20 @@ preset enables previously selected custom music or keeps SNES music active;
 its remaining options are unchanged. Custom paths survive preset changes.
 
 The unused archive-install button is hidden when a host supplies no installer
-(`beads-0fu.10`). F-Zero uses its existing IPS/BPS track-pack directory workflow.
+(`beads-0fu.10`). F-Zero uses the folder/ZIP JSON workflow in [PACK_FORMAT.md](PACK_FORMAT.md).
 
 ## Player behavior
 
 Mods offers **Vanilla**, **Satellaview** and **Community Grand Prix** presets.
-These are editable recipes for the CGP/BS family of options. They never reset
-MAX, Bower, other track packs, display settings, controls, volume or rewind.
-For example, applying Vanilla while MAX is enabled leaves MAX enabled.
+These are editable recipes. As of 0.3.0, CGP enables the all-or-nothing Track
+Pack Loader; Vanilla and Satellaview disable it. There are no per-pack toggles.
+Display settings, controls, volume and rewind remain untouched.
 
 | Owned options | Vanilla | Satellaview | Community Grand Prix |
 | --- | --- | --- | --- |
 | Original four cars | Original behavior | Original behavior | All four rebalanced |
 | BS vehicles / original BS tracks | Off / off | On / on | Off / off |
-| CGP courses, including revised original and BS versions | Off | Off | On |
+| Track Pack Loader (all installed courses) | Off | Off | On |
 | CGP P1/P2/P3 vehicle groups | Off | Off | All on; 12 total identities |
 | CGP rules, including Legend | Off | Off | All on |
 | Shared title screen override | Original / off | Original / off | Community Grand Prix / on |
@@ -44,7 +44,7 @@ Astra shares the CGP artwork. A later manual choice makes the recipe Custom.
 Legend adds its difficulty choice; the player still chooses a race difficulty.
 Required course mechanics continue to accompany their courses independently.
 No preset is automatically applied when starting the launcher. Existing
-first-run defaults are retained: BS cars, CGP/Bower tracks, music off.
+fresh installations leave Track Pack Loader and music off.
 The label becomes **Custom** when an owned option differs. Unrelated changes
 do not change the label. Settings persist on Play and on closing the launcher.
 

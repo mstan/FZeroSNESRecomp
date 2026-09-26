@@ -1,4 +1,5 @@
 #include "fzero_tracks.h"
+#include "fzero_packs.h"
 #include "fzero_course_runtime.h"
 #include "fzero_deluxe.h"
 #include "fzero_gameplay.h"
@@ -179,7 +180,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
   FzeroTitleReset();
   FzeroTracksDiscover(*rom, *size);
   const CpCatalog *cat = FzeroTracksCatalog();
-  char error[256], path[CP_PATH];
+  char error[256];
   const FzeroTitleScreen *title = FzeroTitleFind(FzeroTracksTitleStyle());
   if (FzeroTracksTitleEnabled() && title && *title->patch &&
       !FzeroTitlePrepare(*rom, *size, title->patch, error, sizeof(error))) {
@@ -189,22 +190,10 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
   }
   for (unsigned i = 0; i < cat->count; ++i) {
     const CpPack *p = cat->packs[i];
-    if (strcmp(p->adapter, "fzero-course-v1") ||
-        !FzeroTracksAvailable(p))
+    if (strcmp(p->adapter, "fzero-course-v1") || !FzeroTracksAvailable(p))
       continue;
-    uint8_t *donor = NULL;
-    size_t donor_size = 0;
-    FzeroCourseLayout layout;
-    snprintf(path, sizeof(path), "%s/%s.layout", FzeroTracksRoot(), p->id);
-    FILE *layout_file = fopen(path, "rb");
-    if (layout_file)
-      fclose(layout_file);
-    else
-      snprintf(path, sizeof(path), "assets/track-packs/%s.layout", p->id);
-    bool ok = cp_pack_apply(p, *rom, *size, FzeroTracksPatch(p), &donor, &donor_size, error,
-                            sizeof(error)) &&
-              FzeroCourseLayoutRead(path, &layout, error, sizeof(error));
-    FzeroCourse *courses = ok ? calloc(p->track_count, sizeof(*courses)) : NULL;
+    bool ok = true;
+    FzeroCourse *courses = calloc(p->track_count, sizeof(*courses));
     if (ok && !courses) {
       snprintf(error, sizeof(error), "Out of memory");
       ok = false;
@@ -219,9 +208,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
       }
     }
     for (unsigned t = 0; ok && t < p->track_count; ++t)
-      ok = FzeroCourseExtract(donor, donor_size, &layout, p->tracks[t].slot, &courses[t], error,
-                              sizeof(error));
-    free(donor);
+      ok = FzeroPacksLoadCourse(p->id, t, &courses[t], error, sizeof(error));
     if (!ok) {
       free(courses);
       char message[256];
@@ -230,7 +217,7 @@ bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *de
       continue;
     }
     imported[imported_count++] = (ImportedCourses){p, courses};
-    fprintf(stderr, "[track-library] extracted %s: %u courses; donor code discarded\n", p->id,
+    fprintf(stderr, "[track-library] loaded %s: %u standalone courses\n", p->id,
             p->track_count);
   }
   (void)deluxe;

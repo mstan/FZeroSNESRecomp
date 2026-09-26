@@ -1,5 +1,8 @@
 #include "fzero_msu.h"
 #include "fzero_gameplay.h"
+#include "fzero_music_sources.h"
+#include "fzero_tracks.h"
+#include "fzero_packs.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "sha256.h"
@@ -15,6 +18,36 @@
 static bool active;
 static char legacy_pack[1024], source_rom[1024];
 static char error[256];
+static FzeroMusicSources music_sources;
+static char selected_source[96], resolved_directory[1024];
+static bool selected_supported = true, selected_race, directory_loaded, directory_valid;
+
+void FzeroMsuSelectTrackSource(const char *source, bool race) {
+  selected_supported = source != NULL;
+  selected_race = race;
+  snprintf(selected_source, sizeof(selected_source), "%s", source ? source : "");
+}
+static bool resolve_track(void *context, const char *base, uint16_t track, char *path, size_t cap) {
+  (void)context;
+  const char *leaf = base;
+  for (const char *p = base; *p; ++p) if (*p == '/' || *p == '\\') leaf = p + 1;
+  size_t length = (size_t)(leaf - base);
+  if (length >= sizeof(resolved_directory)) return false;
+  if (!directory_loaded || strlen(resolved_directory) != length || strncmp(resolved_directory, base, length)) {
+    memcpy(resolved_directory, base, length); resolved_directory[length] = 0;
+    directory_loaded = true;
+    memset(&music_sources, 0, sizeof(music_sources));
+    directory_valid = FzeroTracksReadMusicSources(&music_sources);
+    if (!directory_valid)
+      fprintf(stderr, "[fzero-msu1] Invalid soundtrack metadata; using SNES audio.\n");
+  }
+  if (!directory_valid || !selected_supported) return false;
+  if (FzeroMusicResolve(&music_sources, base, selected_source, selected_race, track, path, cap)) {
+    FILE *file = fopen(path, "rb");
+    if (file) { fclose(file); return true; }
+  }
+  return FzeroPacksResolveMusic(selected_source, track, path, cap);
+}
 /* Conn/Cubear v11, from the patch-only archive linked by its authors at
  * https://www.zeldix.net/t2768-bs-f-zero-deluxe-msu-1 . No patch is bundled. */
 static const uint8_t patch_hash[32] = {
@@ -27,17 +60,7 @@ static const DispatchEntry patched_program[1] = {{0}};
 bool FzeroMsuActive(void) { return active; }
 const char *FzeroMsuError(void) { return error; }
 
-bool FzeroMsuHasBundledCgp(void) {
-  /* Packaging verifies all hashes. At startup, only probe the title stream
-   * so the same executable also works in the compact, audio-free download. */
-  FILE *file = fopen("assets/music/cgp/cgp-4.pcm", "rb");
-  if (!file) return false;
-  uint8_t header[8];
-  bool available = fread(header, 1, sizeof(header), file) == sizeof(header) &&
-                   !memcmp(header, "MSU1", 4) && fgetc(file) != EOF;
-  fclose(file);
-  return available;
-}
+bool FzeroMsuHasInstalledMusic(void) { return FzeroPacksHasMusic(); }
 
 static void set_pack(const char *value) {
 #ifdef _WIN32
@@ -79,6 +102,9 @@ bool FzeroMsuHasLegacyPatch(const char *pack) {
 }
 bool FzeroMsuConfigure(const char *pack, bool cgp, const char *rom_path) {
   active=false; legacy_pack[0]=0; error[0]=0;
+  FzeroMsuSelectTrackSource("", false);
+  directory_loaded = false;
+  msu1_set_track_resolver(cgp ? resolve_track : NULL, NULL);
   char requested[1024];
   if (pack && strlen(pack)>=sizeof(requested)) { snprintf(error,sizeof(error),"Music path is too long");set_pack("");return false; }
   snprintf(requested,sizeof(requested),"%s",pack?pack:"");

@@ -24,6 +24,8 @@ typedef struct FzeroCourseLayout {
   /* Optional native intro letters: two donor 2bpp tiles per 8x16 glyph. */
   unsigned intro_glyph_count;
   struct { uint8_t code; uint32_t top, bottom; } intro_glyphs[28];
+  char msu_source[96]; /* Stable soundtrack ID, resolved through soundtrack metadata. */
+  uint8_t msu_tracks[128]; /* Optional source-slot -> authored PCM number. */
 } FzeroCourseLayout;
 typedef struct FzeroCourse {
   uint8_t pool[0x2400], blocks[0x2200], grid[0x9000];
@@ -44,6 +46,8 @@ typedef struct FzeroCourse {
   uint8_t has_music, music;
   uint8_t intro_glyph_count;
   struct { uint8_t code, pixels[32]; } intro_glyphs[28];
+  char msu_source[96];
+  uint8_t msu_track; /* Presentation only; excluded from course/record hashes. */
 } FzeroCourse;
 bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error, size_t cap);
 bool FzeroCourseExtract(const uint8_t *rom, size_t size, const FzeroCourseLayout *layout,

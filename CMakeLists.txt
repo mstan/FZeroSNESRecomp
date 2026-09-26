@@ -1,17 +1,29 @@
 cmake_minimum_required(VERSION 3.20)
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" FZERO_VERSION LIMIT_COUNT 1)
-project(FZeroSNESRecomp VERSION ${FZERO_VERSION} LANGUAGES C)
+project(FZeroSNESRecomp VERSION ${FZERO_VERSION} LANGUAGES C CXX)
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
+find_package(LibArchive REQUIRED)
+find_package(LibXml2 REQUIRED)
+find_package(PNG REQUIRED)
+find_library(GIF_LIBRARY NAMES gif REQUIRED)
+find_path(RAPIDJSON_INCLUDE_DIR rapidjson/document.h REQUIRED)
 
 include(CTest)
 set(SNESRECOMP_ROOT "${CMAKE_SOURCE_DIR}/snesrecomp" CACHE PATH "Framework checkout")
-add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_course.c src/fzero_title.c
+add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_course.c src/fzero_course_file.c src/fzero_title.c src/fzero_music_sources.c src/fzero_packs.cpp src/fzero_fzedit.cpp
     "${SNESRECOMP_ROOT}/runner/src/content_pack.c"
     "${SNESRECOMP_ROOT}/runner/src/content_patch.c"
     "${SNESRECOMP_ROOT}/runner/src/sha256.c")
 target_include_directories(fzero_tracks PUBLIC "${CMAKE_SOURCE_DIR}/src" "${SNESRECOMP_ROOT}/runner/src")
+target_include_directories(fzero_tracks SYSTEM PRIVATE "${RAPIDJSON_INCLUDE_DIR}")
+target_link_libraries(fzero_tracks PUBLIC LibArchive::LibArchive LibXml2::LibXml2 PNG::PNG ${GIF_LIBRARY})
 add_executable(FZeroInspectCourses tools/inspect_courses.c)
 target_link_libraries(FZeroInspectCourses PRIVATE fzero_tracks)
+add_executable(FZeroExportCourses tools/export_courses.c)
+target_link_libraries(FZeroExportCourses PRIVATE fzero_tracks)
+add_executable(FZeroInspectPacks tools/inspect_packs.c)
+target_link_libraries(FZeroInspectPacks PRIVATE fzero_tracks)
 if(NOT MSVC)
     target_compile_options(fzero_tracks PRIVATE -Wall -Wextra -Werror)
 endif()
@@ -26,6 +38,9 @@ if(BUILD_TESTING)
     add_executable(fzero_tracks_tests tests/test_tracks.c)
     target_link_libraries(fzero_tracks_tests PRIVATE fzero_tracks)
     add_test(NAME fzero_tracks COMMAND fzero_tracks_tests "${CMAKE_SOURCE_DIR}/assets/track-packs")
+    add_executable(fzero_music_sources_tests tests/test_music_sources.c)
+    target_link_libraries(fzero_music_sources_tests PRIVATE fzero_tracks)
+    add_test(NAME fzero_music_sources COMMAND fzero_music_sources_tests)
     add_executable(fzero_course_parser_tests tests/test_course_parser.c)
     target_link_libraries(fzero_course_parser_tests PRIVATE fzero_tracks)
     add_test(NAME fzero_course_parser COMMAND fzero_course_parser_tests)
@@ -283,7 +298,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp/cgp.msu")
     add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
         COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_cgp_music.py"
             --stage-from "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp"
-            --out "$<TARGET_FILE_DIR:FZeroSNESRecomp>/assets/music/cgp"
+            --out "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs/cgp-audio"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/assets/music/cgp-pack.json"
+            "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs/cgp-audio/pack.json"
         COMMENT "Staging CGP music with contributor exclusions" VERBATIM)
 endif()
 
@@ -311,6 +328,14 @@ if(BUILD_TESTING AND FZERO_DELUXE_GEN_DIR)
 endif()
 
 # Shipped descriptors, patches and credits live separately from user inputs/settings.
+set(FZERO_PACK_SOURCE "" CACHE PATH "Locally extracted, validated standalone release packs")
+if(FZERO_PACK_SOURCE)
+    file(GLOB_RECURSE FZERO_PACK_PAYLOAD CONFIGURE_DEPENDS "${FZERO_PACK_SOURCE}/*")
+    set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS ${FZERO_PACK_PAYLOAD})
+    add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${FZERO_PACK_SOURCE}" "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs"
+        VERBATIM)
+endif()
 file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.ini"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.layout"

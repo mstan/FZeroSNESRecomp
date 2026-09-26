@@ -449,7 +449,7 @@ static void load_launcher_settings(RecompLauncherCSettings *settings) {
   }
   if (FzeroIniReadString(g_config_path,"Sound","Msu1Pack",text,sizeof(text))) {
     trim_ini_value(text);
-    snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"%s",!strcmp(text,"cgp")?"cgp":"");
+    snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"%s",!strcmp(text,"installed")?"installed":"");
   }
 
   if (FzeroIniReadString(g_config_path, "Controller", "GuidP1", text, sizeof(text))) {
@@ -519,13 +519,13 @@ static void save_launcher_settings(const RecompLauncherCSettings *settings) {
 static int resolve_rom(const char *executable, const char *explicit_rom,
                        bool force_launcher, char *path, size_t path_size,
                        RecompLauncherCSettings *settings) {
-  bool bundled_music = FzeroMsuHasBundledCgp();
+  bool bundled_music = FzeroMsuHasInstalledMusic();
   memset(settings, 0, sizeof(*settings));
   settings->window_scale = 3;
   settings->enable_audio = 1;
   settings->audio_freq = 32040;
   settings->volume = 100;
-  snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"%s",bundled_music ? "cgp" : "");
+  snprintf(settings->msu1_pack,sizeof(settings->msu1_pack),"%s",bundled_music ? "installed" : "");
   settings->player_src[0] = 1;
   settings->deadzone[0] = 25;
   settings->rewind_enabled = 1;
@@ -538,7 +538,7 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
   /* Before either exit below: a run with a ROM on the command line skips the
    * launcher entirely, and must still honour what the player saved. */
   load_launcher_settings(settings);
-  if (!bundled_music && !strcmp(settings->msu1_pack,"cgp")) {
+  if (!bundled_music && !strcmp(settings->msu1_pack,"installed")) {
     settings->msu1_pack[0] = 0;
     if (!settings->msu1_dir[0]) settings->msu1_enabled = 0;
   }
@@ -574,12 +574,10 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
       "option overrides this when that mod is enabled.";
   game.has_shader = 1;
   game.msu1_supported = 1;
-  static const RecompLauncherCMsuPack music_packs[] = {{"cgp","Community Grand Prix"}};
+  static const RecompLauncherCMsuPack music_packs[] = {{"installed","Installed pack music"}};
   game.msu1_packs = bundled_music ? music_packs : NULL;
   game.num_msu1_packs = bundled_music ? 1 : 0;
-  game.msu1_note = bundled_music ?
-      "CGP music is included. Custom selects your MSU file. Standard packs use their supplied Conn/Cubear v11 f-zero_msu1.ips; packs without that patch use CGP track numbering. Missing tracks use SNES music." :
-      "Music is not included in this download. Select your own music folder. Standard packs use their supplied Conn/Cubear v11 f-zero_msu1.ips; packs without that patch use CGP track numbering. Missing tracks use SNES music.";
+  game.msu1_note = "Installed packs supply their own course music. Add audio folders or ZIPs to mods/packs, or choose Custom for loose MSU/PCM files. Missing songs use the course's SNES soundtrack.";
   game.mods = FzeroModsProvider(&g_video, kVideoConfig, bundled_music);
   game.rom_cache_path = "rom.cfg";
   /* Draws the Controls page's SaveStateMenu and Rewind rows, and the
@@ -1623,10 +1621,10 @@ int main(int argc, char **argv) {
    * removing the override brings Deluxe back without touching it. */
   const char *msu_override = getenv("SNESRECOMP_MSU1");
   bool bundled_music = (!msu_override || !*msu_override) && launcher_settings.msu1_enabled &&
-                       !strcmp(launcher_settings.msu1_pack,"cgp");
+                       !strcmp(launcher_settings.msu1_pack,"installed");
   const char *msu_pack = msu_override && *msu_override ? msu_override :
       !launcher_settings.msu1_enabled ? "" :
-      !strcmp(launcher_settings.msu1_pack,"cgp") ? "assets/music/cgp/cgp" : launcher_settings.msu1_dir;
+      !strcmp(launcher_settings.msu1_pack,"installed") ? "mods/packs/installed-music" : launcher_settings.msu1_dir;
   bool use_cgp_music = *msu_pack && strcmp(msu_pack,"off") && strcmp(msu_pack,"0") &&
                       (bundled_music || !FzeroMsuHasLegacyPatch(msu_pack));
   g_video.gameplay.enabled &= ~(1u << FZERO_RULE_MSU);

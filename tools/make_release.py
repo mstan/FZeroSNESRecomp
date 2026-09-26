@@ -24,6 +24,7 @@ p.add_argument("--label", default="", help="Optional local build label, such as 
 p.add_argument("--exe", default="FZeroSNESRecomp.exe", help="Desktop executable filename in the build directory")
 p.add_argument("--music", choices=("bundled", "external"), default="bundled",
                help="Include the approved CGP soundtrack, or retain MSU support without audio files")
+p.add_argument("--packs", type=Path, required=True, help="Reviewed exported course packs; never copy arbitrary installed packs")
 p.add_argument("--deluxe-mods", type=Path, default=ROOT / "captures/bs-deluxe/mods",
                help="Imported Deluxe directory; its credits and provenance ship with the build")
 a = p.parse_args()
@@ -82,15 +83,31 @@ stage = ROOT / a.output / name
 stage.mkdir(parents=True, exist_ok=False)
 shutil.copy2(exe, stage / "FZeroSNESRecomp.exe")
 # Build trees can contain privately imported shaders; never redistribute them.
-shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns("shaders", "music"))
+shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns("shaders", "music", "track-packs"))
 shutil.copytree(ROOT / "assets/shaders", stage / "assets/shaders")
+# Release inputs are explicit: do not package the user's installation/cache.
+pack_root = a.packs.resolve()
+inspection = subprocess.check_output([str(build.resolve() / "FZeroInspectPacks.exe"), str(pack_root)], text=True)
+for ident in ("astra-front","bower-league","cgp","max-league"):
+    source=pack_root/ident
+    descriptor=json.loads((source/"pack.json").read_text(encoding="utf-8"))
+    if descriptor["id"]!=ident: raise SystemExit("Pack identity mismatch")
+    extraction = json.loads((source / "extraction.json").read_text())
+    for course, digest in extraction["record_hashes"].items():
+        if f"{ident}/{course} {digest}" not in inspection:
+            raise SystemExit(f"Course parity mismatch: {ident}/{course}")
+    shutil.copytree(source,stage/"mods/packs"/ident,ignore=shutil.ignore_patterns(".cache","*.pcm","*.msu"))
+# Only the hidden future F-Zero 55 artwork remains in the internal registry.
+(stage/"assets/track-packs/presentation").mkdir(parents=True)
+for filename in ("screens.txt","fzero-55.ips"):
+    shutil.copy2(ROOT/"assets/track-packs/presentation"/filename,stage/"assets/track-packs/presentation"/filename)
 # Reviewed CGP soundtrack only; never copy arbitrary user music from a build.
 music = ROOT / "music/cgp"
 if bundled_music:
     music_manifest = verify_music(music)
-    shutil.copytree(music, stage / "assets/music/cgp")
-else:
-    (stage / "assets/music").mkdir(parents=True, exist_ok=True)
+    shutil.copytree(music, stage / "mods/packs/cgp-audio")
+    shutil.copy2(ROOT/"assets/music/cgp-pack.json",stage/"mods/packs/cgp-audio/pack.json")
+(stage / "assets/music").mkdir(parents=True, exist_ok=True)
 shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
 shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
 shutil.copy2(ROOT / "assets/music/CGP_ATTRIBUTION.md", stage / "assets/music/CGP_ATTRIBUTION.md")
@@ -115,7 +132,7 @@ shutil.copy2(ROOT / "assets/README.md", stage / "assets/README.md")
 # Credits and provenance still ship as files. The payload itself does not: a
 # copy beside the executable is only a development override, and a stale one
 # would be tried ahead of the embedded bytes.
-(stage / "mods").mkdir()
+(stage / "mods").mkdir(exist_ok=True)
 for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
     shutil.copy2(deluxe_mods / filename, stage / "mods" / filename)
 (stage / "mods/track-packs").mkdir()
@@ -130,74 +147,20 @@ shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
 shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
 for filename in ("CGP_COURSE_CAPABILITIES.md", "CGP_LANDING_AUDIT.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md"):
     shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
-(stage / "README.txt").write_text(
-    f"FZeroSNESRecomp {release_version} - Windows x64\n\n"
-    + ("WITH MSU MUSIC: replacement CGP PC-port soundtrack included.\n\n" if bundled_music else
-       "WITHOUT MSU MUSIC: no soundtrack files included; MSU playback is supported.\n"
-       "Use Settings > Audio to select your own music folder and enable MSU-1.\n"
-       "The CGP preset uses SNES audio until a custom music folder is selected.\n\n") +
-    "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own\n"
-    "F-Zero (USA) ROM in the launcher. No ROM is included.\n\n"
-    "Read TESTER_NOTES.md for this preview's defaults, known limitations and\n"
-    "useful test cases. Use a new folder and keep your older builds/saves.\n\n"
-    "Settings > Display contains aspect choices and shader presets including\n"
-    "CRT Soft. Shaders start OFF (None). Browse imports a custom .glslp or\n"
-    ".glsl shader; selecting one uses the OpenGL presentation path.\n\n"
-    "In the with-msu download, enable MSU-1 in Settings > Audio and keep\n"
-    "the source on Community Grand Prix. Custom selects your own .msu file.\n"
-    "In the without-msu download, Browse selects your own music folder.\n"
-    "Missing tracks use SNES music. The legacy v11 patch is not bundled.\n"
-    "Save/load and rewind restart the restored song from its beginning.\n\n"
-    "Mods > Preset offers Vanilla, Satellaview and full Community Grand Prix.\n"
-    "CGP includes all cars, rebalances, rules including Legend and the title;\n"
-    "music uses the bundle or your selected custom source when available.\n"
-    "Presets preserve MAX, Bower and other unrelated choices; all individual\n"
-    "options remain editable. See docs/CGP_MUSIC_AND_PRESETS.md.\n\n"
-    "Mods defaults to Widescreen at Fit, which follows the\n"
-    "window between 4:3 and 32:9, Presentation FPS at Auto, and BS vehicles.\n"
-    "Turn any of them off in Mods, or choose a fixed aspect or rate there.\n\n"
-    "HD Mode 7 starts off. Enable it in Mods for sharper tracks at 2x through 10x.\n"
-    "Start at 2x. Above 4x can cause severe slowdown; use at your own risk.\n"
-    "Cars and HUD keep their original pixel artwork.\n"
-    "See docs/HD_MODE7.md for details.\n\n"
-    "Diagnostics starts off. Enable Mods > Diagnostics, reproduce a slowdown,\n"
-    "then attach the newest diagnostics/performance-*.jsonl file to your report.\n"
-    "Logs stay local and include no ROM or save data.\n"
-    "See docs/PERFORMANCE_DIAGNOSTICS.md for details.\n\n"
-    "BS vehicles and original BS tracks have independent switches. The engine keeps\n"
-    "its saves apart under saves/bs-deluxe. It is included with permission\n"
-    "from its authors: GuyPerfect, Porthor, and PowerPanda. The SNES patch is\n"
-    "at patches/bs-deluxe-usa.ips for your own ROM, and\n"
-    "mods/BS-Deluxe-credits.txt lists machines, leagues and alternate controls.\n\n"
-    "Community Grand Prix adds 30 new, 10 corrected BS and 15 revised original\n"
-    "courses. Bower League adds five more; with untouched originals that is\n"
-    "15 cups / 75 course versions. Enable MAX for 16 cups / 80 versions.\n"
-    "CGP and original BS tracks are mutually exclusive; cars are independent.\n"
-    "Required course fixes apply automatically; optional rules stay opt-in.\n"
-    "One CGP vehicles option enables all twelve identities; a separate opt-in\n"
-    "rebalances all four original cars together. Stock BS cars exclude both.\n"
-    "CGP vehicle options and MSU music start off; its preset enables available content.\n"
-    "Enable or disable each track pack directly in Mods. MAX League is visible\n"
-    "and defaults off. Bundled IPS patches and attribution\n"
-    "are under assets/track-packs; the with-msu download adds CGP audio\n"
-    "under assets/music. Both downloads retain custom MSU playback.\n"
-    "Other IPS/BPS course packs go in mods/track-packs; each enabled pack adds\n"
-    "its cups to the in-game Grand Prix menu. See mods/README.md.\n\n"
-    "F7 or Select+R opens the save-state menu: 12 slots with thumbnails,\n"
-    "A loads, X saves, B or Escape backs out. Stock and BS Deluxe keep\n"
-    "separate slots and a state from the other one is refused, not loaded.\n\n"
-    "R or Select+L opens rewind, which is enabled by default. Disable it\n"
-    "or adjust its depth and interval in the launcher's Settings. Left and\n"
-    "Right scrub, A or Enter jumps there, B or Escape leaves.\n"
-    "Both keys are rebindable on the launcher's Controls page.\n\n"
-    "Arrows: steer; Z: accelerate; X: A; Enter: Start.\n"
-    "D: left shoulder; C: right shoulder (F-Zero keyboard defaults).\n"
-    "Ctrl+F6: aspect; Ctrl+F7: enable/cycle FPS; Alt+Enter: fullscreen.\n"
-    "P: pause; Ctrl+R: reset.\n"
-    "Shift+F1..F12 save and F1..F12 load a slot directly. F7 belongs\n"
-    "to the save-state menu unless rebound; F8 is a normal quick slot.\n\n"
-    "See README.md and CHANGELOG.md for more details.\n",
-    encoding="utf-8")
+shutil.copy2(ROOT/"docs/PACK_FORMAT.md",stage/"docs/PACK_FORMAT.md")
+(stage/"README.txt").write_text(
+    f"F-Zero Forever {release_version} - Windows x64\n\n"
+    "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own F-Zero (USA) ROM.\n"
+    "Mods > Track Pack Loader loads every folder/ZIP in mods/packs. Restart after installing packs.\n"
+    "The original 15 courses remain available. Loader and BS Satellaview Tracks exclude each other.\n"
+    "The included CGP, Astra, Bower and MAX packs add 15 cups / 75 course versions.\n"
+    "Vehicle packs, rules and screen override remain separate options. CGP preset enables the full experience.\n\n"
+    + ("CGP audio is included as mods/packs/cgp-audio.\n" if bundled_music else "Audio is not included; you can add music packs separately.\n") +
+    "Enable MSU-1 in Settings > Audio; Installed pack music uses discovered recordings.\n"
+    "Custom selects loose MSU files. Missing songs use their course's native SNES music.\n"
+    "Astra recordings are not included. See docs/PACK_FORMAT.md for the audio-pack manifest.\n\n"
+    "F7: save-state menu. R: rewind. D/C: left/right shoulder. Alt+Enter: fullscreen.\n"
+    "See README.md, MODS.md and docs/PACK_FORMAT.md for authoring and options.\n",encoding="utf-8")
 
 pending, seen = [stage / "FZeroSNESRecomp.exe"], set()
 system = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32"
@@ -221,13 +184,15 @@ while pending:
 
 notices = stage / "licenses"
 notices.mkdir()
+for notice in (ROOT / "licenses").glob("*.txt"):
+    shutil.copy2(notice, notices / notice.name)
 for label, source in {
     "snesrecomp": dependency_roots["snesrecomp"] / "LICENSE",
     "recomp-ui": dependency_roots["recomp-ui"] / "LICENSE",
     "imgui": dependency_roots["recomp-ui"] / "src/third_party/imgui/LICENSE.txt",
 }.items():
     shutil.copy2(source, notices / (label + ".txt"))
-for package in ("gcc-libs", "libiconv", "libwinpthread", "winpthreads", "SDL3", "crt", "headers"):
+for package in ("gcc-libs", "libiconv", "libwinpthread", "winpthreads", "SDL3", "crt", "headers", "libxml2", "libpng", "rapidjson", "zlib", "zstd", "bzip2", "brotli", "openssl", "expat"):
     source = mingw / "share/licenses" / package
     if source.is_dir():
         shutil.copytree(source, notices / package)
@@ -270,7 +235,7 @@ for path in sorted(stage.rglob("*")):
                 or path.name.lower().startswith("crt-geom")):
             raise SystemExit(f"Forbidden payload: {path}")
         if path.suffix.lower() in (".pcm", ".msu") and (
-                not bundled_music or path.parent != stage / "assets/music/cgp"):
+                not bundled_music or path.parent != stage / "mods/packs/cgp-audio"):
             raise SystemExit(f"Unapproved music payload: {path}")
         manifest["files"][path.relative_to(stage).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 (stage / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

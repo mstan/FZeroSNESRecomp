@@ -10,10 +10,13 @@ bool FzeroMsuPrepare(uint8_t **rom, size_t *size, const char *pack, const char *
  * pack with the existing v11 patch uses its standard mapping; otherwise the
  * author-supplied CGP adapter handles the selected audio. */
 bool FzeroMsuHasLegacyPatch(const char *pack);
-bool FzeroMsuHasBundledCgp(void);
+bool FzeroMsuHasInstalledMusic(void);
 bool FzeroMsuConfigure(const char *pack, bool cgp, const char *rom_path);
 bool FzeroMsuApplyConfigured(uint8_t **rom, size_t *size);
 bool FzeroMsuActive(void);
 const char *FzeroMsuError(void);
 bool FzeroMsuSelectSaveRoot(void);
 void FzeroMsuRestoreAudio(const uint8_t *ram);
+/* Course soundtrack namespaces coexist beside the user's selected primary
+ * soundtrack. NULL source explicitly requests SNES fallback; empty = primary. */
+void FzeroMsuSelectTrackSource(const char *source, bool race);

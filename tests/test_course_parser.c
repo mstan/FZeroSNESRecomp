@@ -39,7 +39,7 @@ static unsigned resource(unsigned size) {
 static void requirements(void) {
   const char *path = "course-requirements-test.layout";
   const char *cases[] = {
-      "require=all|grip-magnets\nrequire=1|up-magnets\nrequire=1|rainbow-road\nmusic=108000\nspc=1|mute-city\nintro_glyph=a7|0f8da2|0f8db2\n",
+      "require=all|grip-magnets\nrequire=1|up-magnets\nrequire=1|rainbow-road\nmusic=108000\nspc=1|mute-city\nintro_glyph=a7|0f8da2|0f8db2\nmsu_source=astra-front\nmsu=1|10\n",
       "require=all|unknown\n", "require=2|up-magnets\n",
       "require=128|up-magnets\n", "require=-1|up-magnets\n",
       "require=+1|up-magnets\n", "require=|up-magnets\n",
@@ -51,7 +51,13 @@ static void requirements(void) {
       "spc=0|mute-city\nspc=0|big-blue\n",
       "intro_glyph=a7|7e8000|0f8db2\n", "intro_glyph=a7|0f8da2\n",
       "intro_glyph=81|0f8da2|0f8db2\n", "intro_glyph=a7|0f8da2|0f8db2|junk\n",
-      "intro_glyph=a7|0f8da2|0f8db2\nintro_glyph=a7|0f8da2|0f8db2\n"};
+      "intro_glyph=a7|0f8da2|0f8db2\nintro_glyph=a7|0f8da2|0f8db2\n",
+      "msu=1|10\n", "msu_source=Astra\n", "msu_source=../Astra\nmsu=1|10\n",
+      "msu_source=C:\\Astra\nmsu=1|10\n", "msu_source=Astra.\nmsu=1|10\n",
+      "msu_source=Astra\nmsu=1|0\n", "msu_source=Astra\nmsu=1|256\n",
+      "msu_source=Astra\nmsu=2|10\n", "msu_source=Astra\nmsu=128|10\n",
+      "msu_source=Astra\nmsu=1|-1\n", "msu_source=Astra\nmsu=1|10|x\n",
+      "msu_source=Astra\nmsu=1|10\nmsu=1|11\n"};
   const char *fields[] = {"pools", "settings", "palettes", "maps", "graphics", "paths",
                          "names", "sky_graphics", "sky_back", "sky_front", "minimaps",
                          "map_positions", "terrain", "gradients", "opponents", "shortcuts"};
@@ -73,6 +79,7 @@ static void requirements(void) {
       CHECK(layout.music == 0x108000 && !layout.spc_override[0] && layout.spc_override[1] == 1);
       CHECK(layout.intro_glyph_count == 1 && layout.intro_glyphs[0].code == 0xa7);
       CHECK(layout.intro_glyphs[0].top == 0x0f8da2 && layout.intro_glyphs[0].bottom == 0x0f8db2);
+      CHECK(!strcmp(layout.msu_source, "astra-front") && layout.msu_tracks[1] == 10 && !layout.msu_tracks[0]);
     } else {
       CHECK(!memcmp(&layout, &before, sizeof(layout)));
       if (i == 1) CHECK(strstr(error, "Unsupported required"));
@@ -210,6 +217,15 @@ int main(void) {
   CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
   l.spc_override[0] = 0;
   CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  l.msu_tracks[0] = 10;
+  CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  strcpy(l.msu_source, "astra-front");
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(c->msu_track == 10 && !strcmp(c->msu_source, l.msu_source));
+  CHECK(!memcmp(c->hash, previous->hash, 32));
+  l.msu_tracks[0] = 0;
+  CHECK(FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));
+  CHECK(!c->msu_track && !c->msu_source[0]);
   *previous = *c;
   word(entries, 0x10); /* Shared HUD/car palette is forbidden. */
   CHECK(!FzeroCourseExtract(rom, sizeof(rom), &l, 0, c, error, sizeof(error)));

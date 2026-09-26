@@ -1,3 +1,12 @@
+# Current pack publication
+
+Publish `pack.json` and raw FZEdit files or extracted `.fzc` resources as described
+in [PACK_FORMAT.md](../docs/PACK_FORMAT.md). Runtime discovery no longer loads
+loose IPS/BPS or INI manifests. The workflow below remains the **author-side
+qualification/extraction path** for donor patches when editor source is absent.
+`tools/export_runtime_packs.py` turns the reviewed registry into standalone packs
+and checks all decoded bytes and record hashes through a round trip.
+
 # Qualify a course manifest
 
 This is the contributor workflow for the `fzero-course-v1` adapter. It is also

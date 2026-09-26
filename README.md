@@ -2,19 +2,19 @@
 
 A native PC build of *F-Zero* for SNES.
 
-The `f-zero-forever` branch includes Community Grand Prix: **55 tracks in
-11 cups**, including corrected BS courses, plus **Bower League's five tracks**.
-MAX League and Astra Front are available in Mods and default off. Astra adds
-ten courses in two cups. Enabling all four packs gives **18 cups / 90 course
-versions**, including the untouched originals.
-BS vehicles are independent.
+The `f-zero-forever` branch includes the optional **Track Pack Loader**.
+Its bundled CGP, Astra Front, Bower and MAX packs add **75 course versions in
+15 cups**, alongside the untouched original 15 courses. Drop a compatible
+folder or ZIP into `mods/packs` and restart. All installed packs load together.
+BS Satellaview Tracks excludes the loader; vehicle options remain independent.
 
-See [Mods and source-game differences](MODS.md) for course-specific mechanics,
-music, vehicle interactions and intentional changes from the original patches.
+See [pack authoring and music](docs/PACK_FORMAT.md) for JSON manifests,
+raw FZEdit exports, extracted course resources and separate audio packs.
+[Mods and source-game differences](MODS.md) describes scoped mechanics.
 
-The current local tester release is **0.2.0**. The next release is **0.2.1**
-for fixes, or **0.3.0** if it adds a feature. All bundle variants share that
-version. See [the release policy](docs/RELEASING_FZERO_FOREVER.md).
+The current local tester release is **0.3.0**. Future fixes advance the patch
+version; new features advance the minor version. All bundle variants share
+that version. See [the release policy](docs/RELEASING_FZERO_FOREVER.md).
 
 You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 
@@ -39,7 +39,7 @@ You bring your own legally dumped *F-Zero (USA)* ROM. No ROM is included.
 - Rewind: step back through the last few seconds and drop back in.
 - Gamepad support through SDL.
 - Optional BS F-Zero Deluxe content.
-- Experimental [additive track packs](docs/ADDITIVE_TRACK_PACKS.md) with bundled Community Grand Prix, Bower and MAX leagues and support for additional IPS/BPS packs.
+- Discoverable [track and audio packs](docs/PACK_FORMAT.md), including raw FZEdit course exports. Reviewed ROM/IPS/BPS conversion is an author-side step.
 - Optional bundled CGP soundtrack, custom MSU-1 packs and editable content presets.
 
 ## Download And Play
@@ -82,8 +82,8 @@ Open **Mods** for:
 - **Diagnostics:** optional local performance reports for troubleshooting; off by default. See [how to capture a report](docs/PERFORMANCE_DIAGNOSTICS.md).
   Start at 2x. Above 4x can cause severe slowdown; use at your own risk.
 - **BS Satellaview vehicles:** adds four machines independently of courses.
-- **BS Satellaview tracks:** adds the ten original BS courses; mutually exclusive with CGP, which supplies corrected versions.
-- **CGP vehicles:** one opt-in mod for all three authored car groups (eight additional ships plus the original four). The four original-car rebalances remain separate options.
+- **BS Satellaview tracks:** adds the ten original BS courses; mutually exclusive with Track Pack Loader, whose CGP pack supplies corrected versions.
+- **CGP vehicles:** one opt-in mod for all three authored car groups (eight additional ships plus the original four). The original-car rebalances are one separate opt-in.
 - **CGP rules and fixes:** optional gameplay rules and fixes. See [source coverage](mods/cgp-source/README.md).
 - **Community Grand Prix (prototype):** a bundled course pack with one enable checkbox. Every enabled track pack adds its cups to the in-game leagues. See [installation and manifest instructions](mods/README.md).
 
@@ -111,8 +111,9 @@ already reconciles attribution. Historical exclusions remain enforced.
 See [source clearance and evidence](assets/music/CGP_ATTRIBUTION.md).
 
 **Mods > Preset** offers Vanilla, Satellaview and Community Grand Prix.
-Each applies an editable recipe for that content family. MAX, Bower and other
-unrelated choices remain as selected, as do display, controls and rewind.
+Each applies an editable recipe. CGP enables Track Pack Loader, which loads
+all installed packs; Vanilla and Satellaview disable it. Display, controls
+and rewind remain untouched.
 CGP enables all its courses, twelve cars, original-car rebalances, rules
 including Legend, Community Grand Prix title and bundled music. Individual
 options remain editable. The console ending-credits patch is retired. F-Zero 55
@@ -121,7 +122,7 @@ title artwork is retained but hidden for a future course pack. No preset is appl
 Windows previews come in **with-msu** and **without-msu** ZIPs. Both support
 MSU playback; only with-msu includes the replacement **Community Grand Prix PC-port**
 soundtrack (29 attribution-cleared recordings). In **Settings > Audio**, enable **MSU-1 music** and leave its source
-on **Community Grand Prix**, or select the CGP preset in Mods. Music starts
+on **Installed pack music**, or select the CGP preset in Mods. Music starts
 off on a fresh installation. Missing tracks and unrelated track packs use
 SNES music. Track selection works in both Grand Prix and Practice.
 

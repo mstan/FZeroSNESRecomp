@@ -3,6 +3,18 @@
 # and gameplay patches are omitted. Source order: 55,58,57,59,60 / 61,56,63,62,64.
 format=fzero-course-1
 count=65
+# Native donor MSU selector: 10 + cup*5 + race (not source resource index).
+msu_source=astra-front
+msu=55|10
+msu=58|11
+msu=57|12
+msu=59|13
+msu=60|14
+msu=61|15
+msu=56|16
+msu=63|17
+msu=62|18
+msu=64|19
 intro_glyph=a7|0f8da2|0f8db2
 intro_glyph=8f|0f896e|0f8c00
 pools=1087c5

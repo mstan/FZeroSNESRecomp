@@ -1,3 +1,9 @@
+# Historical ROM/patch import workflow
+
+Runtime installations now use [PACK_FORMAT.md](PACK_FORMAT.md). This document
+records earlier donor qualification and extraction; INI/IPS files are
+author-side inputs, not runtime packs.
+
 # Additive course library prototype
 
 The local `f-zero-forever` build bundles CGP, Bower League, MAX League and Astra Front. CGP and

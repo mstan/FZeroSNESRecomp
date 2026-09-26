@@ -1,13 +1,19 @@
 #pragma once
 #include "content_pack.h"
 #include <stdbool.h>
+#include "fzero_music_sources.h"
 
 /* The catalog is independent of the running cartridge. Registering a pack
  * never patches another pack or replaces a built-in identity. */
 bool FzeroTracksInit(const char *root, bool deluxe_available);
+bool FzeroTrackLoaderEnabled(void);
+void FzeroTrackLoaderEnable(bool enabled);
 const CpCatalog *FzeroTracksCatalog(void);
 const char *FzeroTracksError(void);
 const char *FzeroTracksRoot(void);
+/* Read optional soundtrack descriptors belonging to registered track packs,
+ * including disabled packs so their namespaces cannot impersonate another. */
+bool FzeroTracksReadMusicSources(FzeroMusicSources *sources);
 void FzeroTracksReport(const char *message);
 void FzeroTracksDiscover(const uint8_t *stock, size_t size);
 const char *FzeroTracksPatch(const CpPack *pack);

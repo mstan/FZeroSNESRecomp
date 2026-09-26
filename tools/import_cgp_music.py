@@ -51,6 +51,10 @@ def verify_music(folder):
     if (folder / "cgp.msu").read_bytes() != b"":
         raise ValueError("Unexpected MSU descriptor")
     expected = {f"cgp-{n}.pcm" for n in manifest["tracks"]} | {"cgp.msu"}
+    if (folder / "pack.json").exists():
+        if json.loads((folder / "pack.json").read_text()) != json.loads((ROOT / "assets/music/cgp-pack.json").read_text()):
+            raise ValueError("Unexpected soundtrack pack manifest")
+        expected.add("pack.json")
     if {p.name for p in folder.iterdir()} != expected:
         raise ValueError("Unexpected soundtrack files (including excluded recordings)")
     return manifest

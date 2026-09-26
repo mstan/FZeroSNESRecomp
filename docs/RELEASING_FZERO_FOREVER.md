@@ -29,10 +29,10 @@ Use the plain version without a `fzero-55-preview` label.
 
 ## Current release
 
-The first Forever tester bundle is **0.2.0** (2026-09-25): Astra Front, the
-independent title selector and expanded records browsing are new features.
-Both Windows music variants use 0.2.0. The next fix release is 0.2.1; the next
-feature release is 0.3.0. Tracked by `beads-8wg.5.64`.
+The current local tester bundles are **0.3.0**: discoverable course/audio packs
+and raw FZEdit imports. Both Windows variants share this version. Prior 0.2.0
+bundles remain unchanged. Next fixes are 0.3.1; new features are 0.4.0.
+Tracked by `beads-8wg.5.65`.
 
 ## Preparing a release
 
@@ -48,7 +48,8 @@ feature release is 0.3.0. Tracked by `beads-8wg.5.64`.
 
 3. Build and perform checks appropriate to the actual changes, then commit.
 4. Package both music variants with `tools/make_release.py`, omitting
-   `--label`. Its version checks require the cache, executable and `VERSION`
+   `--label`, and passing `--packs captures/pack-loader-payloads` after running
+   `tools/export_runtime_packs.py --stock <stock.sfc> --out captures/pack-loader-payloads`. Its version checks require the cache, executable and `VERSION`
    to agree. A fix release produces filenames such as
    `FZeroSNESRecomp-0.1.11-windows-x64-with-msu.zip` and
    `FZeroSNESRecomp-0.1.11-windows-x64-without-msu.zip`.

@@ -72,6 +72,17 @@ def main():
     if labels != ['ASTRA', 'FRONT']:
         raise ValueError(f'Authored cup labels changed: {labels}')
     slots = [t[3] for t in TRACKS]
+    # The exact source uses the standard 8-bit FZEdit selector: command 6
+    # chooses 10 + league*5 + race, independently of resource-table indices.
+    if span(source, 0x02c26a, 26) != bytes.fromhex(
+            'a5 46 29 07 c9 06 d0 11 a5 53 a6 58 d0 08 a5 90 '
+            '0a 0a 65 90 65 53 18 69 0a 60'):
+        raise ValueError('Unreviewed Astra MSU selector')
+    msu = {int(slot): int(track) for slot, track in
+           (entry.split('|') for entry in layout.get('msu', []))}
+    if layout.get('msu_source') != ['astra-front'] or msu != {
+            slot: 10 + order for order, slot in enumerate(slots)}:
+        raise ValueError('Astra MSU mapping must follow authored GP order')
     intro_glyphs = audit_fzedit_intro_font(stock, source, layout, slots)
     before = qualify(source, layout_path, a.inspector, slots)
     target, ranges = pack_resources(stock, source, layout, slots)
@@ -89,7 +100,8 @@ def main():
     if apply_ips(stock, patch) != target:
         raise ValueError('IPS round trip mismatch')
     report = dict(source_sha256=SOURCE_SHA256, packed_sha256=digest(target), patch_sha256=digest(patch),
-                  cup_names=labels, metadata=original, intro_glyphs=intro_glyphs, retained_spans=ranges,
+                  cup_names=labels, metadata=original, intro_glyphs=intro_glyphs,
+                  msu_source=layout['msu_source'][0], msu_tracks=msu, retained_spans=ranges,
                   retained_bytes=sum(end-start for start,end in ranges),
                   resource_validation=before.splitlines())
     outputs = {'astra-front.ini': manifest(target), 'astra-front.ips': patch,

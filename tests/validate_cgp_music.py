@@ -20,13 +20,13 @@ from validate_practice_catalog import route as practice_route
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def make_tracks(folder, prefix, numbers):
-    folder.mkdir()
+def make_tracks(folder, prefix, numbers, bias=0):
+    folder.mkdir(exist_ok=True)
     (folder / f"{prefix}.msu").write_bytes(b"")
     for number in numbers:
         (folder / f"{prefix}-{number}.pcm").write_bytes(
             b"MSU1" + struct.pack("<I", 0) +
-            struct.pack("<hh", number * 100, -number * 100) * 4410)
+            struct.pack("<hh", (number+bias) * 100, -(number+bias) * 100) * 4410)
 
 
 def main():
@@ -34,12 +34,14 @@ def main():
     for key in ("build", "stock", "out"):
         parser.add_argument("--" + key, type=Path, required=True)
     parser.add_argument("--legacy-patch", type=Path)
+    parser.add_argument("--packs", type=Path, required=True)
     parser.add_argument("--filter", default="", help="Comma-separated case names")
     args = parser.parse_args()
     build, stock, out = args.build.resolve(), args.stock.resolve(), args.out.resolve()
     out.mkdir(parents=True, exist_ok=False)
     pack, empty, legacy = out / "synthetic", out / "empty", out / "legacy"
     make_tracks(pack, "cgp", list(range(1, 6)) + [7] + list(range(10, 65)))
+    make_tracks(pack, "F-ZERO Astra Front", range(10,19), bias=100)
     empty.mkdir()
     clean = {k: v for k, v in os.environ.items()
              if not k.startswith(("FZERO_", "SNESRECOMP_", "SDL_", "LNG_"))}
@@ -54,8 +56,12 @@ def main():
         dict(name="missing-music", cup="cgp/cgp-1", empty=True, fallback=True),
         dict(name="rewind-cgp", cup="cgp/cgp-1", track=35, rewind=True),
         dict(name="practice-baron", practice=True, track=35),
-        dict(name="practice-scepter", practice=True, track=40, league=10, rewind=True),
+        dict(name="practice-scepter", practice=True, track=40, league=12, rewind=True),
     ]
+    cases += [dict(name="installed-shared",cup="astra-front/astra",track=110,installed=True),
+              dict(name="astra",cup="astra-front/astra",track=110),
+              dict(name="front",cup="astra-front/front",track=115,rewind=True),
+              dict(name="astra-missing",cup="astra-front/front",ordinal=4,fallback=True)]
     if args.legacy_patch:
         make_tracks(legacy, "test", range(1, 32))
         shutil.copy2(args.legacy_patch, legacy / "f-zero_msu1.ips")
@@ -80,16 +86,24 @@ def main():
             # Actual vertical navigation: three retail cups, Bower, three
             # corrected originals, two corrected BS cups, then Baron.
             inputs = practice_route(0, 255) + ",1200-1206:8"
-            inputs += "".join(press(1300 + i * 24, 32) for i in range(case.get("league", 9)))
-            inputs += ",1620-1626:8,1900-1906:8,2300-3099:1"
+            inputs += "".join(press(1300 + i * 24, 32) for i in range(case.get("league", 11)))
+            inputs += ",1720-1726:8,1900-1906:8,2300-3099:1"
             frames = 3100
+        installed_root = None
+        if case.get("installed"):
+            installed_root=folder/'mods/packs'
+            shutil.copytree(args.packs,installed_root)
+            shutil.copytree(pack,installed_root/'audio')
+            (installed_root/'audio/pack.json').write_text(json.dumps(dict(format=1,id="test-audio",name="Test Audio",author="QA",soundtracks=[dict(id="cgp",prefix="cgp",directory=".")]))+'\n')
         source = legacy / "test.msu" if case.get("legacy") else (
             empty / "none" if case.get("empty") else pack / "cgp.msu")
+        if installed_root: source=folder/"installed-music"
         env = dict(clean, FZERO_DELUXE_DATA="embedded", FZERO_BS_CARS=str(int(bs)),
                    FZERO_BS_TRACKS=str(int(bs)), FZERO_CGP_CARS=str(packs),
                    FZERO_CGP_REBALANCE="15" if packs else "0",
                    FZERO_RULES="" if case.get("legacy") else "all,cgp-msu,cgp-credits",
-                   FZERO_TRACK_PACKS="packs", SNESRECOMP_SAVE_ROOT="s",
+                   FZERO_TRACK_PACKS="packs", FZERO_PACKS_DIR=str(installed_root or args.packs.resolve()),
+                   FZERO_PACK_LOADER="0" if bs else "1", FZERO_TEST_COURSE=str(case.get("ordinal",0)), SNESRECOMP_SAVE_ROOT="s",
                    SNESRECOMP_INPUT_SCRIPT=inputs, SNESRECOMP_WAV=str(folder / "audio.wav"),
                    SNESRECOMP_WRAM_DUMP=str(folder / "ram.bin"),
                    SNESRECOMP_MSU1='"' + str(source) + '"')

@@ -11,6 +11,7 @@ typedef struct FzeroTitleScreen {
 /* Reviewed artwork registry, independent of enabled course packs. Original
  * is always first; hidden entries can restore legacy settings but aren't choices. */
 void FzeroTitleCatalogInit(void);
+bool FzeroTitleRegister(const char *id,const char *name,const char *resource,bool hidden);
 const FzeroTitleScreen *FzeroTitleFind(const char *id);
 const FzeroTitleScreen *FzeroTitleChoice(unsigned index);
 unsigned FzeroTitleChoiceCount(void);

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 static unsigned u16(const uint8_t *p) {
   return p[0] | (unsigned)p[1] << 8;
@@ -49,6 +50,7 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
   uint8_t required = 0, course_required[128] = {0};
   uint8_t spc_override[128] = {0};
   FzeroCourseLayout letters = {0};
+  bool msu_declared = false;
   unsigned last_required = 0;
   bool format = false, ok = true;
   char line[160];
@@ -68,6 +70,35 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
       break;
     }
     *v++ = 0;
+    if (!strcmp(line, "msu_source")) {
+      size_t length = strlen(v);
+      if (letters.msu_source[0] || !length || length >= sizeof(letters.msu_source) ||
+          !isalnum((unsigned char)v[0]) || v[length-1] == ' ' || v[length-1] == '.') {
+        ok = false; break;
+      }
+      for (size_t j = 0; j < length; ++j)
+        if (!isalnum((unsigned char)v[j]) && !strchr("_-", v[j])) ok = false;
+      if (!ok) break;
+      memcpy(letters.msu_source, v, length + 1);
+      continue;
+    }
+    if (!strcmp(line, "msu")) {
+      char *track = strchr(v, '|'), *end;
+      if (!track) { ok = false; break; }
+      *track++ = 0;
+      unsigned long slot = strtoul(v, &end, 10);
+      if (*v < '0' || *v > '9' || *end || slot >= 128 || letters.msu_tracks[slot]) {
+        ok = false; break;
+      }
+      unsigned long number = strtoul(track, &end, 10);
+      if (*track < '0' || *track > '9' || *end || !number || number > 255) {
+        ok = false; break;
+      }
+      letters.msu_tracks[slot] = (uint8_t)number;
+      msu_declared = true;
+      if (slot + 1 > last_required) last_required = (unsigned)slot + 1;
+      continue;
+    }
     if (!strcmp(line, "intro_glyph")) {
       unsigned code, top, bottom;
       int end = 0;
@@ -153,19 +184,21 @@ bool FzeroCourseLayoutRead(const char *path, FzeroCourseLayout *out, char *error
   if (ferror(f))
     ok = false;
   fclose(f);
-  if (!ok || !format || (seen & 0x1ffff) != 0x1ffff ||
+  if (!ok || !format || msu_declared != (letters.msu_source[0] != 0) || (seen & 0x1ffff) != 0x1ffff ||
       ((seen & (1u << 17)) && !vals[17]) ||
       ((seen & (1u << 18)) && !vals[18]) || last_required > vals[0])
     return fail(error, cap, "Invalid course extraction manifest");
   FzeroCourseLayout l = {vals[0],  vals[1],  vals[2],  vals[3],  vals[4],  vals[5],
                          vals[6],  vals[7],  vals[8],  vals[9],  vals[10], vals[11],
-                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17], 0, {0}, 0, {0}, 0, {{0}}};
+                         vals[12], vals[13], vals[14], vals[15], vals[16], vals[17], 0, {0}, 0, {0}, 0, {{0}}, {0}, {0}};
   l.required = required;
   memcpy(l.course_required, course_required, sizeof(course_required));
   l.music = vals[18];
   memcpy(l.spc_override, spc_override, sizeof(spc_override));
   l.intro_glyph_count = letters.intro_glyph_count;
   memcpy(l.intro_glyphs, letters.intro_glyphs, sizeof(l.intro_glyphs));
+  memcpy(l.msu_source, letters.msu_source, sizeof(l.msu_source));
+  memcpy(l.msu_tracks, letters.msu_tracks, sizeof(l.msu_tracks));
   *out = l;
   return true;
 }
@@ -389,6 +422,11 @@ bool FzeroCourseExtract(const uint8_t *r, size_t n, const FzeroCourseLayout *l, 
     if (ok) { c->has_music = 1; c->music = (uint8_t)((l->spc_override[i] - 1) * 9); }
   }
   if (ok && l->intro_glyph_count > 28) ok = false;
+  if (ok && l->msu_tracks[i]) {
+    c->msu_track = l->msu_tracks[i];
+    memcpy(c->msu_source, l->msu_source, sizeof(c->msu_source));
+    if (!c->msu_source[0] || !memchr(c->msu_source, 0, sizeof(c->msu_source))) ok = false;
+  }
   for (unsigned j = 0; ok && j < l->intro_glyph_count; ++j) {
     const uint8_t *top = span(r, n, l->intro_glyphs[j].top, 16);
     const uint8_t *bottom = span(r, n, l->intro_glyphs[j].bottom, 16);

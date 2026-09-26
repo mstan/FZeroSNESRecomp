@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "id": "cgp-audio",
+  "name": "Community Grand Prix Music",
+  "author": "Community Grand Prix soundtrack contributors (see CGP_ATTRIBUTION.md)",
+  "soundtracks": [
+    {"id": "cgp", "prefix": "cgp", "directory": ".", "primary": true}
+  ]
+}

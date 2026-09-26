@@ -1,5 +1,17 @@
 ﻿# Changelog
 
+## 0.3.0 - Discoverable course and music packs
+
+- Replace individual track switches with one Track Pack Loader. Load versioned
+  JSON packs from folders or ZIPs; BS Satellaview Tracks remains exclusive.
+- Convert the existing 75 courses into portable resources with identical
+  decoded data and record keys. Preserve scoped mechanics and native music.
+- Import raw FZEdit FZM/AIP/TMX/TSX and image exports without the editor installed.
+- Resolve installed/custom MSU recordings by soundtrack namespace. Astra and
+  CGP can share an audio directory without confusing their track numbers.
+- Discover title artwork and music from pack metadata. Missing songs use SPC.
+- Include authoring instructions and with/without-CGP-audio local bundles.
+
 ## 0.2.0 - Astra Front and expanded records
 
 - Consolidate all four CGP original-car rebalances into one opt-in and migrate

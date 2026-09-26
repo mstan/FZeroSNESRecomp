@@ -1,0 +1,78 @@
+"""Reconstruct standalone course packs from reviewed IPS/BPS inputs.
+
+These are extracted resources, not the author's original editor project.
+No source ROM or executable patch is included in the result.
+"""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import struct
+import shutil
+import tempfile
+from parse_track_pack import donor, fields
+
+ROOT = Path(__file__).resolve().parents[1]
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--stock', required=True, type=Path)
+    parser.add_argument('--out', required=True, type=Path)
+    parser.add_argument('--exporter', type=Path, default=ROOT/'build/FZeroExportCourses.exe')
+    args = parser.parse_args()
+    stock = args.stock.read_bytes()
+    for priority, ident in enumerate(('astra-front','bower-league','cgp','max-league')):
+        base = ROOT/'assets/track-packs'/ident
+        data = fields(base.with_suffix('.ini'))
+        result = donor(stock, base.with_suffix('.ips').read_bytes())
+        assert hashlib.sha256(result).hexdigest() == data['target_sha256'][0]
+        root = args.out/ident
+        (root/'courses').mkdir(parents=True, exist_ok=True)
+        manifest = dict(format=1, id=ident, name=data['name'][0], author=data['author'][0],
+                        order=priority*10, cups=[], courses=[])
+        for row in data['cup']:
+            cid, name, _ = row.split('|')
+            manifest['cups'].append(dict(id=cid, name=name, courses=[]))
+        hashes = {}
+        with tempfile.TemporaryDirectory() as temp:
+            rom = Path(temp)/'donor.sfc'
+            rom.write_bytes(result)
+            for row in data['track']:
+                tid, name, cup, slot = row.split('|')
+                path = root/'courses'/f'{tid}.fzc'
+                run = subprocess.run([str(args.exporter),str(rom),str(base.with_suffix('.layout')),slot,str(path)],
+                                     check=True, text=True, capture_output=True)
+                hashes[tid] = run.stdout.strip()
+                resource=path.read_bytes();sections={};at=9
+                while at<len(resource):
+                    key,size=struct.unpack_from('<HH',resource,at);at+=4
+                    sections[key]=resource[at:at+size];at+=size
+                metadata=sections[17]
+                entry=dict(id=tid,name=name,source=f'courses/{tid}.fzc',
+                           requires=[label for bit,label in [(1,'grip-magnets'),(2,'up-magnets'),(4,'rainbow-road')] if metadata[16]&bit])
+                if metadata[17]: entry['music']=dict(spc=metadata[18]//9)
+                if metadata[19]: entry.setdefault('music',{}).update(soundtrack=sections[16].split(b'\0')[0].decode(),track=metadata[19])
+                manifest['courses'].append(entry)
+                next(c for c in manifest['cups'] if c['id']==cup)['courses'].append(tid)
+        if ident in ('cgp','astra-front'):
+            prefixes = ['cgp','F-Zero CGP P1'] if ident=='cgp' else ['F-ZERO Astra Front']
+            manifest['soundtracks'] = [dict(id=ident,prefix=p,directory='music',primary=ident=='cgp') for p in prefixes]
+            (root/'music').mkdir(exist_ok=True)
+        title = ROOT/'assets/track-packs/presentation'/f'{ident}.ips'
+        if title.exists():
+            from inspect_bs_deluxe import apply_ips
+            image = apply_ips(stock, title.read_bytes())
+            (root/'title.fzt').write_bytes(b'FZTITLE\1\0'+image[0x66c00:0x68000]+image[0x7c2e0:0x7c360])
+            manifest['titles'] = [dict(id=ident,name='Community Grand Prix' if ident=='cgp' else 'MAX League',source='title.fzt')]
+        (root/'pack.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+        credits={'astra-front':'Astra-Front-credits.txt','bower-league':'Bower-League-credits.txt',
+                 'cgp':'CGP-credits.txt','max-league':'MAX-League-credits.txt'}
+        shutil.copy2(ROOT/'assets/track-packs'/credits[ident],root/'CREDITS.txt')
+        audit = dict(source='reviewed patch extraction; not original FZEdit project',
+                     donor_sha256=hashlib.sha256(result).hexdigest(),record_hashes=hashes)
+        (root/'extraction.json').write_text(json.dumps(audit,indent=2)+'\n',encoding='utf-8')
+        print(f'{ident}: {len(hashes)} courses round-tripped exactly')
+
+if __name__=='__main__':
+    main()

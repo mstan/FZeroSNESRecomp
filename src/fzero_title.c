@@ -7,6 +7,10 @@
 
 static FzeroTitleScreen screens[32];
 static unsigned screen_count;
+bool FzeroTitleRegister(const char *id,const char *name,const char *resource,bool hidden) {
+    if(!id||!name||!resource||strlen(id)>=CP_ID||strlen(name)>=CP_NAME||strlen(resource)>=CP_PATH||screen_count>=32||FzeroTitleFind(id))return false;
+    FzeroTitleScreen *s=&screens[screen_count++];strcpy(s->id,id);strcpy(s->name,name);strcpy(s->patch,resource);s->hidden=hidden;return true;
+}
 
 const FzeroTitleScreen *FzeroTitleFind(const char *id) {
     if (id) for (unsigned i = 0; i < screen_count; ++i)
@@ -37,6 +41,9 @@ void FzeroTitleCatalogInit(void) {
         char *visibility = name ? strchr(name + 1, '|') : NULL;
         if (!visibility) goto invalid;
         *name++ = 0; *visibility++ = 0;
+        /* Visible artwork now belongs to installed packs. Keep the hidden
+         * F-Zero 55 option available internally for future use. */
+        if(!strcmp(visibility,"visible"))continue;
         if (!*line || strlen(line) >= CP_ID || !*name || strlen(name) >= CP_NAME ||
             strspn(line, "abcdefghijklmnopqrstuvwxyz0123456789-") != strlen(line) ||
             (strcmp(visibility, "visible") && strcmp(visibility, "hidden")) ||
@@ -77,6 +84,9 @@ bool FzeroTitlePrepare(const uint8_t *stock, size_t size, const char *path,
     if (!ok) {
         snprintf(error, error_size, "Cannot read title artwork patch (64 KiB limit)");
         return false;
+    }
+    if(length==9+sizeof(graphics)&&!memcmp(patch,"FZTITLE\1\0",9)) {
+        memcpy(graphics,patch+9,sizeof(graphics));sha256_compute(graphics,sizeof(graphics),identity);active=true;return true;
     }
     uint8_t *donor = NULL;
     size_t donor_size = 0;

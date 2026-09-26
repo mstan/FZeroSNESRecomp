@@ -29,6 +29,8 @@ def main():
     for key in ('build', 'stock', 'out'):
         p.add_argument('--'+key, type=Path, required=True)
     p.add_argument('--pack', required=True)
+    p.add_argument('--packs-root', type=Path, required=True)
+    p.add_argument('--cup', help='Limit records checks to one cup ID')
     p.add_argument('--source', type=Path, help='Optional original ROM for independent metadata comparison')
     p.add_argument('--courses-only', action='store_true')
     p.add_argument('--records-only', action='store_true')
@@ -38,8 +40,7 @@ def main():
     shutil.copytree(ROOT/'assets/track-packs', out/'assets/track-packs')
     shutil.copytree(ROOT/'assets/vehicle-packs', out/'assets/vehicle-packs')
     (out/'packs').mkdir()
-    for file in (ROOT/'assets/track-packs').glob('*.ini'):
-        (out/f'packs/{file.stem}.disabled').write_text('0\n' if file.stem == a.pack else '1\n')
+    shutil.copytree(a.packs_root/a.pack,out/'mods/packs'/a.pack)
     registry = ROOT/'assets/track-packs'
     manifest, layout = fields(registry/f'{a.pack}.ini'), fields(registry/f'{a.pack}.layout')
     original = stock.read_bytes()
@@ -50,10 +51,12 @@ def main():
         assert source_report['tracks'] == report['tracks'], 'Source/packed metadata differs'
     tracks = report['tracks']
     cups = [c.split('|')[0] for c in manifest['cup']]
+    if a.cup: cups=[c for c in cups if c==a.cup]
+    assert cups, 'No matching cups'
     clean = {k:v for k,v in os.environ.items() if not k.startswith(('FZERO_', 'SNESRECOMP_', 'SDL_', 'LNG_'))}
     base = dict(clean, FZERO_DELUXE_DATA='embedded', FZERO_BS_CARS='0', FZERO_BS_TRACKS='0',
                 FZERO_CGP_REBALANCE='0', FZERO_RULES='', FZERO_TRACK_PACKS='packs',
-                FZERO_TEST_SAVE_SRAM='1')
+                FZERO_TEST_SAVE_SRAM='1', FZERO_PACKS_DIR=str(out/'mods/packs'), FZERO_PACK_LOADER='1')
     results = []
 
     def run(label, env, frames, inputs='', **extra):

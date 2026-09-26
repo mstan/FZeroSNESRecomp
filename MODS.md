@@ -4,7 +4,9 @@ Track packs add courses to the original 15. Their required terrain mechanics
 follow the **course you are racing**. Vehicle rebalances, difficulty and other
 general gameplay options follow your **Mods settings**, including when you
 race a different pack. A preset selects options once; you can edit them afterward.
-Presets leave unrelated choices, such as MAX and Bower, as you set them.
+Presets leave unrelated presentation options as you set them. The Track Pack
+Loader now enables all installed course packs together; add/remove folders or
+ZIPs under `mods/packs`. See [the pack format](docs/PACK_FORMAT.md).
 
 ## Course behavior
 
@@ -14,7 +16,7 @@ Presets leave unrelated choices, such as MAX and Bower, as you set them.
 | CGP courses | Use their authored terrain properties, including required grip/up magnets. These mechanics work even with the optional magnet switches off. |
 | MAX and Bower | Use their own imported course data and native magnet rules. Enabling the CGP preset does not change the meaning of their magnet tiles. |
 | Astra Front | Adds ten courses in Astra and Front. Uses the same author's CGP grip/up-magnet mechanics, scoped to these courses. Unused CGP resources and global car/rule changes in its donor are excluded. See [the import audit](docs/ASTRA_FRONT_IMPORT.md). |
-| Original BS tracks / CGP BS revisions | Alternative providers: enabling one disables the other. CGP supplies its corrected versions. |
+| Original BS tracks / CGP BS revisions | The loader and original BS track provider exclude each other. CGP supplies its corrected versions. |
 | Marine City I / Lightning | CGP trampoline behavior belongs to Marine City I; the railroad landing behavior belongs to Lightning. |
 | Rainbow Road | Its required gravity and illusion collision rules follow this CGP course. |
 

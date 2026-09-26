@@ -46,7 +46,7 @@ void FzeroGameplayConfigure(const FzeroGameplaySettings *s, bool vehicles,
   if (vehicles) settings.vehicle_packs = settings.stock_rebalance = 0;
   cars = vehicles;
   tracks = courses &&
-           !FzeroTracksEnabled(cp_catalog_find(FzeroTracksCatalog(), "cgp"));
+           !FzeroTrackLoaderEnabled();
 }
 void FzeroGameplayHeadless(bool deluxe) {
   FzeroGameplaySettings s = {.tuning = 2, .boost = 2, .exhaust = 2};
@@ -72,7 +72,7 @@ void FzeroGameplayHeadless(bool deluxe) {
   env = getenv("FZERO_BS_TRACKS");
   bool courses = env ? atoi(env) != 0 : deluxe;
   if (courses && env)
-    FzeroTracksEnable(cp_catalog_find(FzeroTracksCatalog(), "cgp"), false);
+    FzeroTrackLoaderEnable(false);
   if (!getenv("FZERO_TEST_LEGACY_PROFILES")) s.enabled &= ~7u;
   FzeroGameplayConfigure(&s, vehicles, courses);
 }
@@ -239,19 +239,8 @@ bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
   return true;
 }
 static bool rainbow(void) {
-  const CpPack *pack = NULL;
-  const CpCup *cup = FzeroTracksRuntimeCup(FzeroTracksMenuIndex(), &pack);
   const FzeroCourse *course = FzeroTracksCurrentCourse();
-  if (!course || !pack || !cup || strcmp(pack->id, "cgp"))
-    return false;
-  unsigned ordinal = g_ram[0x53];
-  const char *test = getenv("FZERO_TEST_COURSE");
-  if (test)
-    ordinal = (unsigned)atoi(test);
-  for (unsigned i = 0; i < pack->track_count; ++i)
-    if (!strcmp(pack->tracks[i].cup, cup->id) && !ordinal--)
-      return !strcmp(pack->tracks[i].id, "rainbow-road");
-  return false;
+  return course && (course->required & FZERO_COURSE_RAINBOW);
 }
 static unsigned music_course(void) {
   const CpPack *pack = NULL;
@@ -259,15 +248,6 @@ static unsigned music_course(void) {
   if (!cup || !pack)
     return 0;
   unsigned order = g_ram[0x53];
-  if (!strcmp(pack->id, "cgp")) {
-    unsigned base = !strcmp(cup->id, "knight-cgp") ? 0
-                    : !strcmp(cup->id, "queen-cgp") ? 5
-                    : !strcmp(cup->id, "king-cgp") ? 10
-                    : !strcmp(cup->id, "bs-1")   ? 15
-                    : !strcmp(cup->id, "bs-2") ? 20
-                                               : 25 + cup->slot * 5;
-    return base + order;
-  }
   if (!strcmp(pack->adapter, "retail") || !strcmp(pack->adapter, "bs-deluxe"))
     return cup->slot * 5 + order;
   /* Unknown packs have no declared CGP soundtrack mapping. Returning an
@@ -275,7 +255,18 @@ static unsigned music_course(void) {
   return 200;
 }
 unsigned FzeroGameplayMusicTrack(unsigned command) {
-  return command == 6 ? 10 + music_course() : command;
+  if (command != 6) {
+    FzeroMsuSelectTrackSource("", false);
+    return command;
+  }
+  const FzeroCourse *course = FzeroTracksCurrentCourse();
+  if (course && course->msu_track) {
+    FzeroMsuSelectTrackSource(course->msu_source, true);
+    return course->msu_track;
+  }
+  unsigned track = music_course();
+  FzeroMsuSelectTrackSource(track == 200 ? NULL : "", true);
+  return 10 + track;
 }
 static void rule_hook(CpuState *cpu, uint32_t pc) {
   pc &= 0x7fffff;
