@@ -20,7 +20,7 @@ Branch: `f-zero-forever`. Next local test build: 0.5.0.
 - [x] `beads-8wg.5.73`: Menu and event music in Mods, six CGP defaults,
   individual file choices, pack selection, persistence and SNES fallback.
   Stage all ten supplied Astra recordings without modifying audio/loops.
-- [ ] Package runtime files, credits and user docs with/without audio;
+- [x] Package runtime files, credits and user docs with/without audio;
   retain the developer directory. Omit source ROMs and disposable caches.
 
 Evidence stays in ignored `captures/`: `huckmine-source-tests-02`,
@@ -43,3 +43,11 @@ vehicle save states are refused; battery records remain supported. Previously
 saved ghosts without full identity cannot be reliably relabeled; record a new
 one. New Dragon Bird/White Cat ghost tests exercise the native Save Ghost
 prompt, checksum validation, reboot and playback artwork.
+
+Release artifacts: `release-stage/0.5.0/` (with/without MSU), built from
+`2daf59695bf4151c7e141a043f6f09d919a37837`. All 13 CTest checks pass.
+Both ZIP CRC checks pass; no ROMs, saves, build source or caches are packaged.
+The music archive contains the reviewed 29 CGP + 10 Astra recordings. The
+no-audio archive contains zero PCM files. An extracted player ZIP successfully
+opens the real launcher, displays prefilled menu cues and generates Huckmine's
+cache from HM.zip. Developer files remain in `build-shared-packs/`.
