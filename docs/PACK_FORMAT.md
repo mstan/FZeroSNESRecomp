@@ -65,7 +65,7 @@ palette, horizon and minimap. Image signatures determine the format: FZEdit
 can save PNG data with a BMP/GIF filename. Cache files are disposable.
 
 A course may also reference a single-course pack ZIP, for example
-`"source": "courses/HM.zip"`. The ZIP uses the same shared `pack.json` and
+`"source": "courses/huckmine.zip"`. The ZIP uses the same shared `pack.json` and
 `courses.json` format and must contain exactly one course. Its source must be
 FZM or FZC; nested ZIP chains are rejected. Its required mechanics are retained
 and combined with the enclosing pack. The enclosing pack supplies the league
@@ -125,11 +125,15 @@ update. New ASM behavior still needs a reviewed adapter. Developer distributions
 retain the original ASM sources for that work.
 
 For reviewed ROM hacks without editor source, `tools/export_runtime_packs.py`
-applies the known patches privately, extracts resources, writes manifests and
-checks every resource and existing record hash through a readback. The result
+applies the known patches privately, extracts resources and uses
+`tools/reconstruct_fzedit_course.py` to recover a single-course editor ZIP for
+each resource. All 75 shipped entries reference ZIPs; `.fzc` files are generated
+only in `mods/packs/.cache/courses/` on launch. The result
 contains no ROM or executable donor code. `extraction.json` identifies the
 source revision and record hashes. It is reconstructed data, not the original
-author's FZEdit project or editing history. Unknown patches still need format
+author's FZEdit project or editing history. Unchanged projects are checked
+byte-for-byte against the previously decoded courses, including presentation
+fields excluded from record hashes. Unknown patches still need format
 and mechanics qualification; their filenames cannot establish compatibility.
 
 The converted examples contain CGP's 55 course versions (15 revised originals,
@@ -152,7 +156,35 @@ little-endian scalar metadata; section 18 stores the count and 28 reserved
 intro glyph slots (one code plus 32 pixel bytes each). The authoritative sizes
 and scalar offsets are in `src/fzero_course_file.c`; no compiler struct layout
 or donor pointers are serialized. Authors normally use FZEdit exports instead
-of constructing this engine-oriented resource by hand.
+of constructing this engine-oriented resource by hand. It remains accepted as
+an explicit source for externally authored packs; our shipped packs use ZIPs.
+
+### Reconstructed editor projects
+
+Recovered projects contain FZM, AIP, TMX, TSX, indexed tilesets, palette,
+horizon preview and minimap files in FZEdit's conventions. Checkpoint files
+use CRLF, as required by FZEdit's own reader. The original author-supplied
+Huckmine project is kept unmodified instead of being reconstructed.
+
+An optional `ReconstructionFile` property in FZM points to a JSON companion
+with `format: "fzero.reconstruction"`, `version: 1` and `groups`. This is data,
+never ASM. Each named group contains `files` (FZM component property to SHA-256),
+`properties` (FZM property to original value), and `fields` (bounded native
+scalars or hex byte arrays). Supported groups cover layout compression,
+shortcuts, AI checkpoints, tile behavior, horizon tiles/maps, intro lettering,
+settings, shading and palette cycles. Unknown groups/fields or wrong bounds
+reject the project.
+
+A group retains its native fields only while all its declared editor inputs
+match. Editing those inputs makes the regular FZEdit compiler authoritative
+for that group. Other groups retain their native details. This preserves
+compression, custom glyphs and original record keys without concealing a
+compiled FZC inside the ZIP. The companion is part of the cache fingerprint;
+missing or malformed companions are diagnosed, never silently ignored.
+
+Keep it beside the editor files when repacking. It does not recover original
+author layers, names of working files or history. It is not required for a
+new project exported directly from FZEdit.
 
 Building the importer requires C++20, RapidJSON, libarchive, libxml2, libpng,
 and giflib in addition to the existing game dependencies. Runtime packages

@@ -188,7 +188,8 @@ shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
     "Required course mechanics load automatically with their pack and have no separate switches.\n"
     "Legend difficulty defaults on; diagnostics and MSU-1 default off. Saved choices are respected.\n\n"
     + ("CGP and Astra audio are included in their mods/packs/<pack>/music folders.\n" if bundled_music else "Audio is not included; you can add it to each pack's music folder.\n") +
-    "Match the course source filename: courses/example.fzc or example.fzm uses music/example.pcm.\n"
+    "Course ZIPs contain editable projects; example.zip contains example.fzm and uses music/example.pcm.\n"
+    "Compiled FZC files are generated in mods/packs/.cache/courses on launch.\n"
     "Enable MSU-1 in Settings > Audio; Installed pack music uses discovered recordings.\n"
     "Custom selects loose MSU files. Missing songs use their course's native SNES music.\n"
     "Mods > Menu and event music shows the supplied CGP menu songs and lets you replace them.\n"

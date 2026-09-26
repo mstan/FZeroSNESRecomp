@@ -22,7 +22,7 @@ def main():
     out = a.out.resolve(); out.mkdir(parents=True, exist_ok=False)
     build = a.build.resolve()
     inputs = out / 'inputs'; inputs.mkdir()
-    archive = inputs / 'HM.zip'
+    archive = inputs / 'huckmine.zip'
     package(a.source, archive, 'huckmine-test', 'Author-supplied test fixture')
     with zipfile.ZipFile(a.source) as original, zipfile.ZipFile(archive) as packed:
         for entry in original.infolist():

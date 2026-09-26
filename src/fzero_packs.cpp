@@ -210,6 +210,10 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
     require(definitions.emplace(cid, &c).second, "Duplicate course ID");
   }
   std::set<std::string> cupids;
+  // All per-course archives in a directory share one scan. Re-scanning every
+  // sibling for every course made source-only packs quadratic at startup.
+  std::map<fs::path, std::shared_ptr<SnesDataPacks>> archiveCatalogs;
+  std::map<std::string, std::string> archiveErrors;
   for (auto &cup : d["cups"].GetArray()) {
     auto cid = string(cup, "id");
     ident(cid);
@@ -240,25 +244,25 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
         require(!courseArchive, "A course ZIP cannot contain another course ZIP");
         // A one-course pack can also supply a course in a larger league.
         // Use the shared ZIP validator/cache, exactly as for installed packs.
-        struct Errors { std::string source, message; } errors{source.string(), {}};
         auto report = [](void *user, const char *file, const char *reason) {
-          auto &errors = *static_cast<Errors *>(user);
-          if (fs::path(file) == fs::path(errors.source)) errors.message = reason;
+          (*static_cast<std::map<std::string, std::string> *>(user))[file] = reason;
         };
         uint8_t base[32];
         cp_hash_parse("bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2", base);
         const char *caps[] = {"fzero-course-v1"};
-        std::unique_ptr<SnesDataPacks, decltype(&snes_data_packs_destroy)> nested(
-            snes_data_packs_scan(source.parent_path().string().c_str(), "f-zero",
-                                "fzero.course-index", base, caps, 1, report, &errors),
-            snes_data_packs_destroy);
+        auto &nested = archiveCatalogs[source.parent_path()];
+        if (!nested)
+          nested = std::shared_ptr<SnesDataPacks>(
+              snes_data_packs_scan(source.parent_path().string().c_str(), "f-zero",
+                                  "fzero.course-index", base, caps, 1, report, &archiveErrors),
+              snes_data_packs_destroy);
         for (size_t i = 0; i < snes_data_packs_count(nested.get()); ++i) {
           const auto *item = snes_data_packs_get(nested.get(), i);
           if (fs::path(item->source) != source) continue;
           const char *directory = snes_data_pack_directory(
-              nested.get(), i, "mods/packs/.cache/sources", report, &errors);
-          require(directory != nullptr, errors.message.empty() ?
-                  "Cannot open course ZIP" : errors.message);
+              nested.get(), i, "mods/packs/.cache/sources", report, &archiveErrors);
+          auto &message = archiveErrors[source.string()];
+          require(directory != nullptr, message.empty() ? "Cannot open course ZIP" : message);
           std::vector<Sound> unusedAudio;
           std::string unusedPrimary;
           auto project = parse(fs::path(reinterpret_cast<const char8_t *>(directory)),
@@ -271,8 +275,8 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
           ok = true;
           break;
         }
-        require(ok, errors.message.empty() ? "Course ZIP has no valid pack manifest" :
-                                            errors.message);
+        auto &message = archiveErrors[source.string()];
+        require(ok, message.empty() ? "Course ZIP has no valid pack manifest" : message);
       } else if (source.extension() == ".fzc")
         ok = FzeroCourseFileRead(source.string().c_str(), &decoded, error,
                                  sizeof(error));

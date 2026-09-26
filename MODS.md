@@ -27,7 +27,8 @@ the supplied default. A pack can provide some events and leave the rest as
 SNES audio. Changing the default soundtrack keeps your individual replacements.
 
 For **course music**, place the recording in that pack's `music` folder and
-match the course filename: `courses/moon.fzc` uses `music/moon.pcm`.
+match the course filename: `courses/moon.zip` uses `music/moon.pcm`
+(the project inside is `moon.fzm`).
 The music bundle includes the ten supplied Astra recordings in
 `mods/packs/astra-front/music`. You can add those same files to the smaller
 download without changing any JSON. Astra's course music does not replace
@@ -44,21 +45,22 @@ for the full example and how to update the pack description after editing it.
 Huckmine now runs from its FZEdit project. In Grand Prix, choose **Zenith**;
 Huckmine is the first course. It is also available in Practice.
 
-The example is `mods/packs/cgp/courses/HM.zip`. Inside are the author's
+The example is `mods/packs/cgp/courses/huckmine.zip`. Inside are the author's
 `hm.fzm` and its companion files, plus the small pack descriptions and credits
 we added. The original twelve files have not been renamed or converted.
 
 To edit and try this example:
 
-1. Make a spare copy of `HM.zip`, then extract it into a folder.
+1. Make a spare copy of `huckmine.zip`, then extract it into a folder.
 2. Open `HM/hm.fzm` in FZEdit. Keep its companion files beside it.
 3. Make your changes and save them in FZEdit.
 4. Zip the `HM` folder, `pack.json`, `courses.json` and `CREDITS.txt` together.
-   Replace the installed `mods/packs/cgp/courses/HM.zip` with that ZIP.
+   Replace the installed `mods/packs/cgp/courses/huckmine.zip` with that ZIP.
 5. Restart F-Zero Forever and choose Huckmine again.
 
 You do **not** need to make an `.fzc` file. The game reads the project and
-builds its own cache. Editing the project makes a new cache automatically.
+builds its own cache under `mods/packs/.cache/courses/`. Editing the project
+makes a new cache automatically. You can delete that cache; it rebuilds on launch.
 Keep backups outside `mods/packs`, and do not install this same example a
 second time as a separate pack.
 
@@ -68,8 +70,21 @@ in Audio settings. Without that recording, Huckmine uses its SNES music.
 
 The `.fzm` file is the starting point; the other files hold the track, sky,
 colors, minimap and computer drivers' route. Copy the whole set together.
-Our other bundled courses still use `.fzc` files extracted from ROM hacks
-where the original editor files were unavailable.
+All 75 bundled courses now have a ZIP in their pack's `courses` folder.
+Their names are unchanged apart from replacing `.fzc` with `.zip`.
+Huckmine contains the author's original files. The other 74 contain editor
+projects reconstructed from the ROM data we already imported.
+
+To edit another course, follow the same steps: extract its ZIP, open its `.fzm`
+in FZEdit, keep all the companion files together, then zip them back up and
+replace the course ZIP. Keep the file ending in `_Reconstruction.json` too.
+It preserves details that the editor cannot store. The game rebuilds the
+parts you change and keeps the other parts intact.
+
+Unedited courses keep their existing records. A changed course can get a
+separate records list; your previous records remain saved. Reconstructed
+projects recover the playable course, not the author's original working
+layers, filenames or editing history. They are labeled inside each ZIP.
 
 This example's league placement and CGP magnet behavior are already set up.
 For a **new** course or league, a pack description is still required; dropping

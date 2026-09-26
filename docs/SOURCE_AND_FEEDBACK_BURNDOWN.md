@@ -31,8 +31,8 @@ Evidence stays in ignored `captures/`: `huckmine-source-tests-02`,
 record writes and transitions run; they are not full driven-race qualification.
 
 Huckmine's 32-bit BI_BITFIELDS minimap is accepted without changing its bytes.
-The example is tracked in `examples/huckmine/HM.zip`; the exporter places it in
-`mods/packs/cgp/courses/HM.zip` instead of the extracted `.fzc`. Its small
+The example is tracked in `examples/huckmine/huckmine.zip`; the exporter places it in
+`mods/packs/cgp/courses/huckmine.zip` instead of the extracted `.fzc`. Its small
 source/ROM differences intentionally change Zenith's records namespace;
 previous records are retained on disk. Other 74 course hashes are unchanged.
 Bare-project autodiscovery and a Practice-only Custom Tracks UI remain future
@@ -50,4 +50,4 @@ Both ZIP CRC checks pass; no ROMs, saves, build source or caches are packaged.
 The music archive contains the reviewed 29 CGP + 10 Astra recordings. The
 no-audio archive contains zero PCM files. An extracted player ZIP successfully
 opens the real launcher, displays prefilled menu cues and generates Huckmine's
-cache from HM.zip. Developer files remain in `build-shared-packs/`.
+cache from huckmine.zip. Developer files remain in `build-shared-packs/`.

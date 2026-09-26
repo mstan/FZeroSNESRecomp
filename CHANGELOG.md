@@ -1,5 +1,15 @@
 ﻿# Changelog
 
+## 0.6.0 - Editable source archives for every bundled course
+
+- Ship all 75 course versions as editor ZIPs with their existing course filenames.
+  Huckmine retains the author's original project; the other 74 are reconstructed.
+- Keep generated FZC files in the disposable course cache. Unchanged projects
+  preserve the previous runtime data, music, artwork, mechanics and records.
+- Preserve native details absent from FZEdit using a data-only reconstruction
+  companion. Editing a source component rebuilds that component on launch.
+- Scan each course archive directory once to avoid repeated work at startup.
+
 ## 0.5.0 - Editor source example and pack music settings
 
 - Ship Huckmine as its original FZEdit source ZIP with pack descriptions;

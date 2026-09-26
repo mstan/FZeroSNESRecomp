@@ -15,6 +15,7 @@ extern "C" {
 #include <libxml/tree.h>
 #include <map>
 #include <png.h>
+#include <rapidjson/document.h>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -85,6 +86,147 @@ struct Files {
     auto r = p.lexically_relative(root);
     check(!r.empty() && *r.begin() != "..", "Component escapes pack");
     return p;
+  }
+};
+// Reconstructed projects retain native details that the editor cannot express
+// (including the original layout encoding). Each group is guarded by exactly
+// its editor inputs. Editing a component makes its editor output authoritative;
+// unrelated components keep their original bytes and record identity.
+struct Reconstruction {
+  rapidjson::Document document;
+  const Files &files;
+  const std::map<std::string, std::string> &properties;
+  struct Field {
+    const char *group, *name;
+    size_t offset, size;
+    bool scalar;
+  };
+#define BYTES(g, f)                                                            \
+  {g, #f, offsetof(FzeroCourse, f), sizeof(((FzeroCourse *)0)->f), false}
+#define SCALAR(g, f)                                                           \
+  {g, #f, offsetof(FzeroCourse, f), sizeof(((FzeroCourse *)0)->f), true}
+  static constexpr Field fields[] = {BYTES("layout", pool),
+                                     BYTES("layout", blocks),
+                                     BYTES("layout", grid),
+                                     SCALAR("layout", block_size),
+                                     SCALAR("layout", grid_size),
+                                     BYTES("shortcuts", shortcuts),
+                                     BYTES("checkpoints", path),
+                                     SCALAR("checkpoints", last_checkpoint),
+                                     SCALAR("checkpoints", finish_checkpoint),
+                                     SCALAR("checkpoints", pit_checkpoint),
+                                     SCALAR("checkpoints", has_pit),
+                                     BYTES("terrain", terrain),
+                                     BYTES("horizon_tiles", sky_graphics),
+                                     BYTES("horizon_map", sky_back),
+                                     BYTES("horizon_map", sky_front),
+                                     BYTES("intro", name),
+                                     BYTES("intro", intro_glyphs),
+                                     SCALAR("intro", intro_glyph_count),
+                                     SCALAR("setting", setting),
+                                     SCALAR("gradient", gradient),
+                                     BYTES("cycles", palette_cycles),
+                                     SCALAR("cycles", has_palette_cycles),
+                                     SCALAR("cycles", palette_cycle_count)};
+#undef BYTES
+#undef SCALAR
+  std::map<std::string, bool> enabled;
+  Reconstruction(const std::string &source, const Files &f,
+                 const std::map<std::string, std::string> &p)
+      : files(f), properties(p) {
+    if (source.empty())
+      return;
+    document.Parse(source.data(), source.size());
+    check(!document.HasParseError() && document.IsObject() &&
+              document.HasMember("format") && document["format"].IsString() &&
+              std::string(document["format"].GetString()) ==
+                  "fzero.reconstruction" &&
+              document.HasMember("version") && document["version"].IsUint() &&
+              document["version"].GetUint() == 1 &&
+              document.HasMember("groups") && document["groups"].IsObject(),
+          "Invalid reconstruction metadata");
+    for (auto it = document["groups"].MemberBegin();
+         it != document["groups"].MemberEnd(); ++it) {
+      std::string label = it->name.GetString();
+      unsigned count = 0;
+      for (auto &field : fields)
+        count += label == field.group;
+      auto &group = it->value;
+      check(count && group.IsObject() && group.HasMember("files") &&
+                group["files"].IsObject() && group.HasMember("properties") &&
+                group["properties"].IsObject() && group.HasMember("fields") &&
+                group["fields"].IsObject() &&
+                group["fields"].MemberCount() == count,
+            "Invalid reconstruction group: " + label);
+      bool matches = true;
+      for (auto input = group["files"].MemberBegin();
+           input != group["files"].MemberEnd(); ++input) {
+        check(input->value.IsString() && input->value.GetStringLength() == 64 &&
+                  properties.count(input->name.GetString()),
+              "Invalid reconstruction input");
+        auto bytes = text(files.get(properties.at(input->name.GetString())));
+        uint8_t digest[32];
+        char hex[65];
+        sha256_compute(reinterpret_cast<const uint8_t *>(bytes.data()),
+                       bytes.size(), digest);
+        for (unsigned i = 0; i < 32; ++i)
+          snprintf(hex + i * 2, 3, "%02x", digest[i]);
+        matches &= std::string(input->value.GetString()) == hex;
+      }
+      for (auto input = group["properties"].MemberBegin();
+           input != group["properties"].MemberEnd(); ++input) {
+        check(input->value.IsString() &&
+                  properties.count(input->name.GetString()),
+              "Invalid reconstruction property");
+        matches &=
+            properties.at(input->name.GetString()) == input->value.GetString();
+      }
+      check(enabled.emplace(label, matches).second,
+            "Duplicate reconstruction group");
+      // Validate dormant metadata too; invalid data must not depend on cache
+      // state.
+      FzeroCourse scratch{};
+      write(scratch, label);
+    }
+  }
+  void write(FzeroCourse &course, const std::string &label) const {
+    auto &values = document["groups"][label.c_str()]["fields"];
+    for (auto &field : fields) {
+      if (label != field.group)
+        continue;
+      check(values.HasMember(field.name), "Missing reconstruction field");
+      auto &value = values[field.name];
+      auto dest = reinterpret_cast<uint8_t *>(&course) + field.offset;
+      if (field.scalar) {
+        check(value.IsUint() &&
+                  value.GetUint() <= (field.size == 1 ? 255u : 65535u),
+              "Invalid reconstruction scalar");
+        if (field.size == 1)
+          *dest = uint8_t(value.GetUint());
+        else {
+          uint16_t n = uint16_t(value.GetUint());
+          memcpy(dest, &n, sizeof(n));
+        }
+      } else {
+        check(value.IsString() && value.GetStringLength() == field.size * 2,
+              "Invalid reconstruction byte field");
+        auto digit = [](char c) -> unsigned {
+          check((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'),
+                "Invalid reconstruction hex digit");
+          return c <= '9' ? unsigned(c - '0') : unsigned(c - 'a' + 10);
+        };
+        auto hex = value.GetString();
+        for (size_t i = 0; i < field.size; ++i)
+          dest[i] = uint8_t(digit(hex[i * 2]) * 16 + digit(hex[i * 2 + 1]));
+      }
+    }
+  }
+  bool apply(FzeroCourse &course, const std::string &label) const {
+    auto it = enabled.find(label);
+    if (it == enabled.end() || !it->second)
+      return false;
+    write(course, label);
+    return true;
   }
 };
 std::string attr(xmlNode *n, const char *k) {
@@ -397,6 +539,97 @@ void checkpoints(const std::string &s, FzeroCourse &c) {
   check(count > 0, "Empty AI path");
   c.last_checkpoint = uint8_t(count - 1);
 }
+// Reorder static rows to share long suffix/prefix runs when the straightforward
+// encoder exceeds the SNES address window. Mine rows remain private because
+// gameplay mutates them. Ordinary projects keep their existing encoding.
+void compactRows(std::vector<uint8_t> &rows, std::vector<uint8_t> &blocks,
+                 const std::vector<uint8_t> &pool) {
+  check(rows.size() < 65536, "Track exceeds row-address capacity");
+  std::map<unsigned, unsigned> addresses;
+  std::vector<std::array<uint8_t, 32>> data;
+  std::vector<bool> mutableRow;
+  for (size_t at = 512; at < blocks.size(); at += 2) {
+    unsigned offset = (u16(blocks.data() + at) - 0x7000) & 65535;
+    if (addresses.count(offset))
+      continue;
+    check(offset + 32 <= rows.size(), "Invalid row during compression");
+    std::array<uint8_t, 32> row;
+    std::copy_n(rows.data() + offset, 32, row.data());
+    bool mine = false;
+    for (unsigned x = 0; x < 32; x += 2) {
+      unsigned quad = u16(row.data() + x);
+      check(quad + 4 <= pool.size(), "Invalid tile during compression");
+      for (unsigned k = 0; k < 4; ++k)
+        mine |= pool[quad + k] >= 200 && pool[quad + k] <= 203;
+    }
+    addresses[offset] = unsigned(data.size());
+    data.push_back(row);
+    mutableRow.push_back(mine);
+  }
+  struct Edge {
+    unsigned from, to, overlap;
+  };
+  std::vector<Edge> edges;
+  for (unsigned from = 0; from < data.size(); ++from) {
+    if (mutableRow[from])
+      continue;
+    for (unsigned to = 0; to < data.size(); ++to) {
+      if (from == to || mutableRow[to])
+        continue;
+      for (unsigned n = 30; n; n -= 2)
+        if (std::equal(data[from].end() - n, data[from].end(),
+                       data[to].begin())) {
+          edges.push_back({from, to, n});
+          break;
+        }
+    }
+  }
+  std::sort(edges.begin(), edges.end(), [](auto &a, auto &b) {
+    if (a.overlap != b.overlap)
+      return a.overlap > b.overlap;
+    return a.from != b.from ? a.from < b.from : a.to < b.to;
+  });
+  const unsigned none = unsigned(data.size());
+  std::vector<unsigned> next(none, none), previous(none, none), overlap(none),
+      root(none);
+  for (unsigned i = 0; i < none; ++i)
+    root[i] = i;
+  auto find = [&](unsigned i) {
+    while (root[i] != i) {
+      root[i] = root[root[i]];
+      i = root[i];
+    }
+    return i;
+  };
+  for (auto &edge : edges) {
+    if (next[edge.from] != none || previous[edge.to] != none)
+      continue;
+    unsigned a = find(edge.from), b = find(edge.to);
+    if (a == b)
+      continue;
+    next[edge.from] = edge.to;
+    previous[edge.to] = edge.from;
+    overlap[edge.to] = edge.overlap;
+    root[a] = b;
+  }
+  std::vector<unsigned> positions(none);
+  std::vector<uint8_t> packed;
+  for (unsigned head = 0; head < none; ++head) {
+    if (previous[head] != none)
+      continue;
+    for (unsigned row = head; row != none; row = next[row]) {
+      positions[row] = unsigned(packed.size()) - overlap[row];
+      packed.insert(packed.end(), data[row].begin() + overlap[row],
+                    data[row].end());
+    }
+  }
+  check(packed.size() <= 0x9000, "Track exceeds compressed layout capacity");
+  for (size_t at = 512; at < blocks.size(); at += 2) {
+    unsigned old = (u16(blocks.data() + at) - 0x7000) & 65535;
+    word(blocks.data() + at, 0x7000 + positions[addresses.at(old)]);
+  }
+  rows = std::move(packed);
+}
 } // namespace
 bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
                      char *error, size_t cap) {
@@ -405,13 +638,19 @@ bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
     auto properties = props(text(path));
     check(properties.at("Version") == "FZEdit Version 0.9",
           "Unsupported FZM revision; export using FZEdit 1.2.0");
-    uint8_t digest[32] = {6};
+    auto reconstructionSource = properties.count("ReconstructionFile") ?
+        text(files.get(properties.at("ReconstructionFile"))) : std::string{};
+    check(!properties.count("ReconstructionFile") || !reconstructionSource.empty(),
+          "Empty reconstruction metadata");
+    Reconstruction reconstruction(reconstructionSource, files, properties);
+    uint8_t digest[32] = {9};
     auto hashPart = [&](const std::string &data) {
       std::vector<uint8_t> bytes(digest, digest + 32);
       bytes.insert(bytes.end(), data.begin(), data.end());
       sha256_compute(bytes.data(), bytes.size(), digest);
     };
     hashPart(text(path));
+    hashPart(reconstructionSource);
     for (const char *key :
          {"AiPathFile", "PaletteFile", "TilesetFile", "HorizonTileSetFile",
           "HorizonTileMapFile", "MiniMapFile", "TilesetTSX", "TrackFile"})
@@ -427,6 +666,7 @@ bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
       return true;
     FzeroCourse c{};
     checkpoints(text(files.get(properties.at("AiPathFile"))), c);
+    reconstruction.apply(c, "checkpoints");
     auto palette = image(files.get(properties.at("PaletteFile")));
     check(palette.w == 16 && palette.h == 7, "Expected 16x7 palette");
     for (unsigned i = 0; i < 112; ++i) {
@@ -607,82 +847,85 @@ bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
     auto values = layer(map.root(), "", 1024, 512);
     for (auto v : values)
       check(v <= 256, "Unsupported flipped or out-of-range track tile");
-    std::vector<uint8_t> pool, rows, blocks(512);
-    std::map<std::array<uint8_t, 4>, unsigned> quadIndex;
-    std::map<std::array<uint8_t, 32>, unsigned> rowIndex, blockIndex;
-    auto append = [](std::vector<uint8_t> &out, const uint8_t *data,
-                     unsigned size, unsigned align) {
-      for (unsigned overlap = size - align; overlap > 0; overlap -= align)
-        if (out.size() >= overlap &&
-            std::equal(data, data + overlap, out.end() - overlap)) {
-          unsigned at = unsigned(out.size() - overlap);
-          out.insert(out.end(), data + overlap, data + size);
-          return at;
-        }
-      unsigned at = unsigned(out.size());
-      out.insert(out.end(), data, data + size);
-      return at;
-    };
-    for (unsigned cy = 0; cy < 16; ++cy)
-      for (unsigned cx = 0; cx < 32; ++cx) {
-        std::array<uint8_t, 32> pointers{};
-        bool mineChunk = false;
-        for (unsigned y = 0; y < 16; ++y) {
-          std::array<uint8_t, 32> row{};
-          bool mine = false;
-          for (unsigned x = 0; x < 16; ++x) {
-            unsigned at = (cy * 32 + y * 2) * 1024 + cx * 32 + x * 2;
-            std::array<uint8_t, 4> q{};
-            unsigned indices[] = {at, at + 1024, at + 1, at + 1025};
-            for (unsigned k = 0; k < 4; ++k) {
-              q[k] = uint8_t(values[indices[k]] ? values[indices[k]] - 1 : 0);
-              mine |= q[k] >= 200 && q[k] <= 203;
-            }
-            auto it = quadIndex.find(q);
-            unsigned offset;
-            if (it == quadIndex.end()) {
-              offset = append(pool, q.data(), 4, 1);
-              quadIndex[q] = offset;
-            } else
-              offset = it->second;
-            check(offset + 4 <= sizeof(c.pool),
-                  "Track exceeds tile pool limit");
-            word(row.data() + x * 2, offset);
+    if (!reconstruction.apply(c, "layout")) {
+      std::vector<uint8_t> pool, rows, blocks(512);
+      std::map<std::array<uint8_t, 4>, unsigned> quadIndex;
+      std::map<std::array<uint8_t, 32>, unsigned> rowIndex, blockIndex;
+      auto append = [](std::vector<uint8_t> &out, const uint8_t *data,
+                       unsigned size, unsigned align) {
+        for (unsigned overlap = size - align; overlap > 0; overlap -= align)
+          if (out.size() >= overlap &&
+              std::equal(data, data + overlap, out.end() - overlap)) {
+            unsigned at = unsigned(out.size() - overlap);
+            out.insert(out.end(), data + overlap, data + size);
+            return at;
           }
-          unsigned at;
-          auto it = rowIndex.find(row);
-          if (mine || it == rowIndex.end()) {
-            at = mine ? unsigned(rows.size()) : append(rows, row.data(), 32, 2);
-            if (mine)
-              rows.insert(rows.end(), row.begin(), row.end());
-            else
-              rowIndex[row] = at;
+        unsigned at = unsigned(out.size());
+        out.insert(out.end(), data, data + size);
+        return at;
+      };
+      for (unsigned cy = 0; cy < 16; ++cy)
+        for (unsigned cx = 0; cx < 32; ++cx) {
+          std::array<uint8_t, 32> pointers{};
+          bool mineChunk = false;
+          for (unsigned y = 0; y < 16; ++y) {
+            std::array<uint8_t, 32> row{};
+            bool mine = false;
+            for (unsigned x = 0; x < 16; ++x) {
+              unsigned at = (cy * 32 + y * 2) * 1024 + cx * 32 + x * 2;
+              std::array<uint8_t, 4> q{};
+              unsigned indices[] = {at, at + 1024, at + 1, at + 1025};
+              for (unsigned k = 0; k < 4; ++k) {
+                q[k] = uint8_t(values[indices[k]] ? values[indices[k]] - 1 : 0);
+                mine |= q[k] >= 200 && q[k] <= 203;
+              }
+              auto it = quadIndex.find(q);
+              unsigned offset;
+              if (it == quadIndex.end()) {
+                offset = append(pool, q.data(), 4, 1);
+                quadIndex[q] = offset;
+              } else
+                offset = it->second;
+              check(offset + 4 <= sizeof(c.pool),
+                    "Track exceeds tile pool limit");
+              word(row.data() + x * 2, offset);
+            }
+            unsigned at;
+            auto it = rowIndex.find(row);
+            if (mine || it == rowIndex.end()) {
+              at = mine ? unsigned(rows.size()) : append(rows, row.data(), 32, 2);
+              if (mine)
+                rows.insert(rows.end(), row.begin(), row.end());
+              else
+                rowIndex[row] = at;
+            } else
+              at = it->second;
+            word(pointers.data() + y * 2, at + 0x7000);
+            mineChunk |= mine;
+          }
+          unsigned offset;
+          auto it = blockIndex.find(pointers);
+          if (mineChunk || it == blockIndex.end()) {
+            offset = unsigned(blocks.size() - 512);
+            blocks.insert(blocks.end(), pointers.begin(), pointers.end());
+            if (!mineChunk)
+              blockIndex[pointers] = offset;
           } else
-            at = it->second;
-          word(pointers.data() + y * 2, at + 0x7000);
-          mineChunk |= mine;
+            offset = it->second;
+          check(offset / 32 < 256, "Track exceeds 256 unique chunks");
+          blocks[cy * 32 + cx] = uint8_t(offset / 32);
         }
-        unsigned offset;
-        auto it = blockIndex.find(pointers);
-        if (mineChunk || it == blockIndex.end()) {
-          offset = unsigned(blocks.size() - 512);
-          blocks.insert(blocks.end(), pointers.begin(), pointers.end());
-          if (!mineChunk)
-            blockIndex[pointers] = offset;
-        } else
-          offset = it->second;
-        check(offset / 32 < 256, "Track exceeds 256 unique chunks");
-        blocks[cy * 32 + cx] = uint8_t(offset / 32);
-      }
-    while (rows.size() % 18)
-      rows.push_back(0xff);
-    check(blocks.size() <= sizeof(c.blocks) && rows.size() <= sizeof(c.grid),
-          "Track exceeds engine layout capacity");
-    memcpy(c.pool, pool.data(), pool.size());
-    memcpy(c.blocks, blocks.data(), blocks.size());
-    memcpy(c.grid, rows.data(), rows.size());
-    c.block_size = uint16_t(blocks.size());
-    c.grid_size = uint16_t(rows.size());
+      if (rows.size() > sizeof(c.grid)) compactRows(rows, blocks, pool);
+      while (rows.size() % 18)
+        rows.push_back(0xff);
+      check(blocks.size() <= sizeof(c.blocks) && rows.size() <= sizeof(c.grid),
+            "Track exceeds engine layout capacity");
+      memcpy(c.pool, pool.data(), pool.size());
+      memcpy(c.blocks, blocks.data(), blocks.size());
+      memcpy(c.grid, rows.data(), rows.size());
+      c.block_size = uint16_t(blocks.size());
+      c.grid_size = uint16_t(rows.size());
+    }
     // Preserve authored shortcut landing rectangles; pair J_n and L_n objects.
     struct Rect {
       unsigned x, y, w, h, checkpoint;
@@ -728,6 +971,9 @@ bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
     }
     check(lands.size() == jumps.size(), "Unpaired shortcut landing");
     c.shortcuts[shortcut * 17] = c.shortcuts[shortcut * 17 + 1] = 0xff;
+    for (const char *group : {"shortcuts", "terrain", "horizon_tiles", "horizon_map",
+                             "intro", "setting", "gradient", "cycles"})
+      reconstruction.apply(c, group);
     char validation[256] = {0};
     check(FzeroCourseValidate(&c, validation, sizeof(validation)), validation);
     FzeroCourseHash(&c);
