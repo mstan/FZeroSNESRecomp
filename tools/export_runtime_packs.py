@@ -12,6 +12,7 @@ import struct
 import shutil
 import tempfile
 from parse_track_pack import donor, fields
+from pack_manifest import write_index
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -81,7 +82,7 @@ def main():
             course['requires']=[] # Explicitly replace embedded extraction metadata.
             if extra:
                 course['mechanics']=[mechanic_module(course['id'],extra)]
-        (root/'pack.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+        write_index(root, manifest)
         credits={'astra-front':'Astra-Front-credits.txt','bower-league':'Bower-League-credits.txt',
                  'cgp':'CGP-credits.txt','max-league':'MAX-League-credits.txt'}
         shutil.copy2(ROOT/'assets/track-packs'/credits[ident],root/'CREDITS.txt')

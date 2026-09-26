@@ -82,7 +82,7 @@ class MusicExclusionTests(unittest.TestCase):
         (src / 'cgp-41.pcm').write_bytes(self.keep)
         pack = self.root / 'courses'
         pack.mkdir()
-        (pack / 'pack.json').write_text(json.dumps(dict(courses=[
+        (pack / 'courses.json').write_text(json.dumps(dict(courses=[
             dict(id='different-id',name='Different Display Name',source='nested/map.fzc',music=dict(track=41)),
             dict(id='missing',source='missing.fzc',music=dict(track=42))])))
         self.assertEqual(music.stage_course_music(src,pack),2)

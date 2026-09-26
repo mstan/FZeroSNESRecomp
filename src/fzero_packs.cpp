@@ -1,5 +1,4 @@
-// Game-owned pack discovery. Neither filenames nor pack IDs select engine
-// behavior.
+// Game-owned course semantics over snesrecomp folder/ZIP transport.
 #include "fzero_packs.h"
 #include "fzero_fzedit.h"
 extern "C" {
@@ -9,8 +8,9 @@ extern "C" {
 #include "sha256.h"
 }
 #include <algorithm>
-#include <archive.h>
-#include <archive_entry.h>
+#include "data_pack.h"
+#include "data_pack_io.hpp"
+#include <memory>
 #include <cctype>
 #include <cstring>
 #include <filesystem>
@@ -48,38 +48,13 @@ std::string lower(std::string s) {
                  [](unsigned char c) { return char(std::tolower(c)); });
   return s;
 }
-void validateJson(const Value &v, unsigned depth = 0) {
-  if (depth > 64)
-    throw std::runtime_error("JSON nesting exceeds limit");
-  if (v.IsObject()) {
-    std::set<std::string> keys;
-    for (auto i = v.MemberBegin(); i != v.MemberEnd(); ++i) {
-      std::string key(i->name.GetString(), i->name.GetStringLength());
-      if (key.find('\0') != std::string::npos || !keys.insert(key).second)
-        throw std::runtime_error("Duplicate or invalid JSON key");
-      validateJson(i->value, depth + 1);
-    }
-  } else if (v.IsArray())
-    for (auto &item : v.GetArray())
-      validateJson(item, depth + 1);
-}
+using snesrecomp::data_pack::inside;
+using snesrecomp::data_pack::read;
+using snesrecomp::data_pack::validate_json;
+using snesrecomp::data_pack::string;
 void require(bool yes, const std::string &message) {
   if (!yes)
     throw std::runtime_error(message);
-}
-std::string read(const fs::path &p, size_t limit = 4 * 1024 * 1024) {
-  require(fs::is_regular_file(p) && fs::file_size(p) <= limit,
-          "Missing or oversized file: " + p.string());
-  std::ifstream f(p, std::ios::binary);
-  require(bool(f), "Cannot read " + p.string());
-  return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
-}
-std::string str(const Value &v, const char *key) {
-  require(v.IsObject() && v.HasMember(key) && v[key].IsString(),
-          std::string("Missing string: ") + key);
-  std::string s(v[key].GetString(), v[key].GetStringLength());
-  require(s.find('\0') == std::string::npos, "NUL in string");
-  return s;
 }
 void ident(const std::string &s) {
   require(!s.empty() && s.size() < CP_ID &&
@@ -92,122 +67,10 @@ template <size_t N> void copy(char (&out)[N], const std::string &s) {
   std::copy(s.begin(), s.end(), out);
   out[s.size()] = 0;
 }
-fs::path inside(const fs::path &root, const std::string &relative) {
-  require(!relative.empty() && relative.find('\\') == std::string::npos &&
-              relative.find(':') == std::string::npos,
-          "Expected relative pack path");
-  fs::path p(reinterpret_cast<const char8_t *>(relative.c_str()));
-  require(!p.is_absolute(), "Absolute pack path");
-  for (const auto &part : p)
-    require(part != "..", "Pack path escapes its directory");
-  auto canonical = fs::weakly_canonical(root / p),
-       base = fs::weakly_canonical(root);
-  auto rel = canonical.lexically_relative(base);
-  require(!rel.empty() && *rel.begin() != "..",
-          "Pack symlink escapes its directory");
-  return canonical;
-}
 fs::path courseMusic(const Pack &pack, unsigned index) {
   auto name = pack.courses[index].filename();
   name.replace_extension(".pcm");
   return inside(pack.root, "music/" + name.string());
-}
-std::string contentKey(const fs::path &path) {
-  // Bounded streaming digest chain, used only as a disposable cache key.
-  std::ifstream in(path, std::ios::binary);
-  require(bool(in), "Cannot hash pack archive");
-  std::vector<uint8_t> buffer(65536 + 32, 0);
-  uint8_t digest[32] = {0};
-  while (in) {
-    in.read(reinterpret_cast<char *>(buffer.data() + 32), 65536);
-    auto n = in.gcount();
-    if (n > 0) {
-      memcpy(buffer.data(), digest, 32);
-      sha256_compute(buffer.data(), size_t(n) + 32, digest);
-    }
-  }
-  require(in.eof(), "Cannot read pack archive");
-  char hex[65];
-  for (unsigned i = 0; i < 32; ++i)
-    snprintf(hex + i * 2, 3, "%02x", digest[i]);
-  return hex;
-}
-fs::path unpack(const fs::path &zip, const fs::path &cache) {
-  // Marker lives outside the archive-controlled tree. Reuse only a fully
-  // extracted content-addressed cache; interrupted extraction is retried.
-  auto ready = cache;
-  ready += ".ready";
-  if (!fs::is_regular_file(ready)) {
-    fs::create_directories(cache);
-    struct archive *a = archive_read_new();
-    archive_read_support_format_zip(a);
-    archive_read_support_filter_none(a);
-    if (archive_read_open_filename(a, zip.string().c_str(), 65536) !=
-        ARCHIVE_OK) {
-      archive_read_free(a);
-      throw std::runtime_error("Cannot open ZIP");
-    }
-    uint64_t total = 0;
-    unsigned files = 0;
-    struct archive_entry *entry = nullptr;
-    std::set<std::string> names;
-    try {
-      int status;
-      while ((status = archive_read_next_header(a, &entry)) == ARCHIVE_OK) {
-        require(++files <= 20000, "ZIP contains too many entries");
-        require(!archive_entry_symlink(entry) && !archive_entry_hardlink(entry),
-                "ZIP links are not supported");
-        const char *name = archive_entry_pathname(entry);
-        require(name != nullptr, "Invalid ZIP name");
-        std::string normalized = name;
-        std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                       [](unsigned char c) { return char(std::tolower(c)); });
-        require(names.insert(normalized).second, "Duplicate ZIP entry");
-        auto target = inside(cache, name);
-        auto type = archive_entry_filetype(entry);
-        if (type == AE_IFDIR) {
-          fs::create_directories(target);
-          continue;
-        }
-        require(type == AE_IFREG, "Unsupported ZIP entry type");
-        auto size = archive_entry_size(entry);
-        require(size >= 0 && size <= INT64_C(2147483648) &&
-                    total + size <= UINT64_C(8589934592),
-                "ZIP exceeds pack size limits");
-        total += size;
-        fs::create_directories(target.parent_path());
-        std::ofstream out(target, std::ios::binary | std::ios::trunc);
-        require(bool(out), "Cannot write pack cache");
-        char data[65536];
-        int64_t actual = 0;
-        la_ssize_t n;
-        while ((n = archive_read_data(a, data, sizeof(data))) > 0) {
-          actual += n;
-          require(actual <= size, "ZIP entry exceeds declared size");
-          out.write(data, n);
-          require(bool(out), "Pack cache write failed");
-        }
-        require(n == 0 && actual == size, "Damaged ZIP entry");
-      }
-      require(status == ARCHIVE_EOF, "Invalid ZIP directory");
-    } catch (...) {
-      archive_read_free(a);
-      throw;
-    }
-    archive_read_free(a);
-    std::ofstream marker(ready, std::ios::binary | std::ios::trunc);
-    marker << "1\n";
-    require(bool(marker), "Cannot complete ZIP cache");
-  }
-  if (fs::exists(cache / "pack.json"))
-    return cache;
-  std::vector<fs::path> roots;
-  for (auto &f : fs::directory_iterator(cache))
-    if (f.is_directory() && fs::exists(f.path() / "pack.json"))
-      roots.push_back(f.path());
-  require(roots.size() == 1,
-          "ZIP needs one pack.json at its root or one enclosing directory");
-  return roots[0];
 }
 unsigned requiredFeatures(const Value &features) {
   require(features.IsArray(), "requires must be an array");
@@ -243,12 +106,12 @@ unsigned mechanics(const fs::path &root, const Value &owner) {
                                                         bytes.size());
     require(!module.HasParseError() && module.IsObject(),
             "Invalid mechanics module");
-    validateJson(module);
+    validate_json(module);
     require(module.HasMember("format") && module["format"].IsInt() &&
                 module["format"].GetInt() == 1,
             "Unsupported mechanics module format");
-    ident(str(module, "id"));
-    require(str(module, "engine") == "fzero-course-v1",
+    ident(string(module, "id"));
+    require(string(module, "engine") == "fzero-course-v1",
             "Unsupported mechanics engine");
     require(module.HasMember("requires"),
             "Mechanics module has no requirements");
@@ -256,24 +119,26 @@ unsigned mechanics(const fs::path &root, const Value &owner) {
   }
   return bits;
 }
-Pack parse(const fs::path &root, std::vector<Sound> &audio,
+Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &audio,
            std::string &newPrimary) {
   rapidjson::Document d;
-  auto text = read(root / "pack.json");
+  std::string text(reinterpret_cast<const char *>(entry.payload), entry.payload_size);
   d.Parse<rapidjson::kParseIterativeFlag |
           rapidjson::kParseValidateEncodingFlag>(text.data(), text.size());
-  require(!d.HasParseError() && d.IsObject(), "Invalid pack.json");
-  validateJson(d);
+  require(!d.HasParseError() && d.IsObject(), "Invalid courses.json");
+  validate_json(d);
   require(d.HasMember("format") && d["format"].IsInt() &&
               d["format"].GetInt() == 1,
           "Unsupported pack format");
   Pack p;
   p.root = root;
-  auto id = str(d, "id");
+  auto id = string(d, "id");
+  require(id == entry.id && string(d, "name") == entry.title,
+          "Course index identity differs from pack envelope");
   ident(id);
   copy(p.info.id, id);
-  copy(p.info.name, str(d, "name"));
-  copy(p.info.author, str(d, "author"));
+  copy(p.info.name, string(d, "name"));
+  copy(p.info.author, string(d, "author"));
   copy(p.info.adapter, "fzero-course-v1");
   if (d.HasMember("order")) {
     require(d["order"].IsInt(), "order must be an integer");
@@ -282,26 +147,26 @@ Pack parse(const fs::path &root, std::vector<Sound> &audio,
   if (d.HasMember("titles")) {
     require(d["titles"].IsArray(), "Invalid title list");
     for (auto &t : d["titles"].GetArray()) {
-      auto tid = str(t, "id");
+      auto tid = string(t, "id");
       ident(tid);
-      auto file = inside(root, str(t, "source"));
+      auto file = inside(root, string(t, "source"));
       auto resource = read(file);
       require(resource.size() == 0x1489 &&
                   !memcmp(resource.data(), "FZTITLE\1\0", 9),
               "Invalid title resource");
-      p.titles.push_back({tid, str(t, "name"), file});
+      p.titles.push_back({tid, string(t, "name"), file});
     }
   }
   if (d.HasMember("soundtracks")) {
     require(d["soundtracks"].IsArray(), "soundtracks must be an array");
     for (auto &s : d["soundtracks"].GetArray()) {
-      auto sid = str(s, "id");
+      auto sid = string(s, "id");
       ident(sid);
-      auto prefix = str(s, "prefix");
+      auto prefix = string(s, "prefix");
       require(!prefix.empty() && prefix.size() < 96 &&
                   prefix.find_first_of("/\\:") == std::string::npos,
               "Invalid PCM prefix");
-      auto dir = inside(root, str(s, "directory"));
+      auto dir = inside(root, string(s, "directory"));
       audio.push_back({sid, prefix, dir});
       if (s.HasMember("primary")) {
         require(s["primary"].IsBool(), "primary must be boolean");
@@ -325,18 +190,18 @@ Pack parse(const fs::path &root, std::vector<Sound> &audio,
   std::map<std::string, const Value *> definitions;
   unsigned packMechanics = mechanics(root, d);
   for (auto &c : d["courses"].GetArray()) {
-    auto cid = str(c, "id");
+    auto cid = string(c, "id");
     ident(cid);
     require(definitions.emplace(cid, &c).second, "Duplicate course ID");
   }
   std::set<std::string> cupids;
   for (auto &cup : d["cups"].GetArray()) {
-    auto cid = str(cup, "id");
+    auto cid = string(cup, "id");
     ident(cid);
     require(cupids.insert(cid).second, "Duplicate cup ID");
     auto &dest = p.info.cups[p.info.cup_count++];
     copy(dest.id, cid);
-    copy(dest.name, str(cup, "name"));
+    copy(dest.name, string(cup, "name"));
     dest.slot = p.info.cup_count - 1;
     require(cup.HasMember("courses") && cup["courses"].IsArray() &&
                 cup["courses"].Size() > 0 && cup["courses"].Size() <= 5,
@@ -347,11 +212,11 @@ Pack parse(const fs::path &root, std::vector<Sound> &audio,
       require(p.info.track_count < CP_TRACKS, "Too many cup entries");
       auto &c = *definitions.at(ref.GetString());
       auto &t = p.info.tracks[p.info.track_count++];
-      copy(t.id, str(c, "id"));
-      copy(t.name, str(c, "name"));
+      copy(t.id, string(c, "id"));
+      copy(t.name, string(c, "name"));
       copy(t.cup, cid);
       t.slot = (unsigned)p.courses.size();
-      p.courses.push_back(inside(root, str(c, "source")));
+      p.courses.push_back(inside(root, string(c, "source")));
       FzeroCourse decoded{};
       char error[256] = {0};
       auto source = p.courses.back();
@@ -364,7 +229,7 @@ Pack parse(const fs::path &root, std::vector<Sound> &audio,
                              &decoded, error, sizeof(error));
       else
         snprintf(error, sizeof(error), "Expected .fzm or .fzc source");
-      require(ok, str(c, "id") + ": " + error);
+      require(ok, string(c, "id") + ": " + error);
       if (c.HasMember("requires"))
         decoded.required = uint8_t(requiredFeatures(c["requires"]));
       decoded.required |= uint8_t(packMechanics | mechanics(root, c));
@@ -378,7 +243,7 @@ Pack parse(const fs::path &root, std::vector<Sound> &audio,
           decoded.music = uint8_t(m["spc"].GetUint() * 9);
         }
         if (m.HasMember("soundtrack")) {
-          auto id = str(m, "soundtrack");
+          auto id = string(m, "soundtrack");
           ident(id);
           copy(decoded.msu_source, id);
           require(m.HasMember("track") && m["track"].IsUint() &&
@@ -400,39 +265,32 @@ void FzeroPacksDiscover(CpCatalog *cat, const char *directory) {
   sounds.clear();
   primary.clear();
   std::vector<Pack> candidates;
-  std::map<std::string, unsigned> ids;
   std::vector<std::vector<Sound>> audios;
   std::vector<std::string> primaries;
   try {
-    fs::path dir(reinterpret_cast<const char8_t *>(directory));
-    if (!fs::exists(dir))
-      return;
-    std::vector<fs::path> entries;
-    for (auto &f : fs::directory_iterator(dir))
-      entries.push_back(f.path());
-    std::sort(entries.begin(), entries.end());
-    for (auto &entry : entries) {
-      if (entry.filename().string().starts_with('.'))
-        continue;
-      if (!(fs::is_directory(entry) && fs::exists(entry / "pack.json")) &&
-          entry.extension() != ".zip")
-        continue;
+    auto report = [](void *, const char *source, const char *reason) {
+      FzeroTracksReport((fs::path(reinterpret_cast<const char8_t *>(source)).filename().string() + ": " + reason).c_str());
+    };
+    uint8_t base[32];
+    cp_hash_parse("bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2", base);
+    const char *caps[] = {"fzero-course-v1"};
+    std::unique_ptr<SnesDataPacks, decltype(&snes_data_packs_destroy)> shared(
+        snes_data_packs_scan(directory, "f-zero", "fzero.course-index", base, caps, 1,
+                             report, nullptr), snes_data_packs_destroy);
+    auto cache = (fs::path(reinterpret_cast<const char8_t *>(directory)) / ".cache").string();
+    for (size_t i = 0; i < snes_data_packs_count(shared.get()); ++i) {
+      const auto *entry = snes_data_packs_get(shared.get(), i);
+      const char *root = snes_data_pack_directory(shared.get(), i, cache.c_str(), report, nullptr);
+      if (!root) continue;
       try {
-        auto root = entry;
-        if (entry.extension() == ".zip") {
-          auto key = contentKey(entry);
-          root = unpack(entry, dir / ".cache" / key);
-        }
         std::vector<Sound> audio;
         std::string prim;
-        auto pack = parse(root, audio, prim);
-        ++ids[pack.info.id];
+        auto pack = parse(fs::path(reinterpret_cast<const char8_t *>(root)), *entry, audio, prim);
         candidates.push_back(std::move(pack));
         audios.push_back(std::move(audio));
         primaries.push_back(prim);
       } catch (const std::exception &e) {
-        FzeroTracksReport(
-            (entry.filename().string() + ": " + e.what()).c_str());
+        report(nullptr, entry->source, e.what());
       }
     }
     std::vector<unsigned> order;
@@ -443,11 +301,6 @@ void FzeroPacksDiscover(CpCatalog *cat, const char *directory) {
     });
     for (auto i : order) {
       auto &p = candidates[i];
-      if (ids[p.info.id] != 1) {
-        FzeroTracksReport(
-            (std::string("Duplicate pack ID: ") + p.info.id).c_str());
-        continue;
-      }
       char error[256];
       if (p.info.track_count &&
           !cp_catalog_add(cat, &p.info, error, sizeof(error))) {

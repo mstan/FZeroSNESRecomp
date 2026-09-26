@@ -1,5 +1,6 @@
 """Local integration checks for extracted/raw pack parity (private ROM required)."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -47,10 +48,14 @@ def main():
     for case in ('unknown-mechanic','missing-course','duplicate-id'):
         target=out/case;target.mkdir()
         shutil.copytree(packs/'bower-league',target/'first')
-        descriptor=target/'first/pack.json';data=json.loads(descriptor.read_text())
+        descriptor=target/'first/courses.json';data=json.loads(descriptor.read_text())
         if case=='unknown-mechanic':data['courses'][0]['requires']=['unknown-mechanic']
         if case=='missing-course':data['courses'][0]['source']='absent.fzc'
         descriptor.write_text(json.dumps(data))
+        envelope=target/'first/pack.json'
+        metadata=json.loads(envelope.read_text())
+        metadata['payload']['sha256']=hashlib.sha256(descriptor.read_bytes()).hexdigest()
+        envelope.write_text(json.dumps(metadata))
         if case=='duplicate-id':shutil.copytree(target/'first',target/'second')
         result=subprocess.run([str(build/'FZeroInspectPacks.exe'),str(target)],capture_output=True,text=True,env=clean)
         assert result.returncode and result.stderr and not result.stdout,(case,result)

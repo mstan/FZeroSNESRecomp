@@ -76,7 +76,7 @@ def stage_music(source, destination):
 def stage_course_music(source, pack):
     """Stage reviewed recordings as music/<course source basename>.pcm."""
     manifest = verify_music(source)
-    courses = json.loads((pack / "pack.json").read_text())["courses"]
+    courses = json.loads((pack / "courses.json").read_text())["courses"]
     files, used = {}, set()
     for course in courses:
         number = str(course.get("music", {}).get("track", ""))

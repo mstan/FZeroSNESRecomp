@@ -1,6 +1,7 @@
 #include "fzero_course_file.h"
 #include "fzero_packs.h"
 #include "fzero_tracks.h"
+#include "sha256.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +29,22 @@ static void write_file(const char *path, const void *bytes, size_t n) {
   CHECK(f);
   CHECK(fwrite(bytes, 1, n, f) == n);
   CHECK(!fclose(f));
+}
+static void write_pack(const char *folder, const char *index, const char *id, const char *title) {
+  char path[256], hash[65], envelope[1024];
+  uint8_t digest[32];
+  sha256_compute((const uint8_t *)index,strlen(index),digest);
+  for(unsigned i=0;i<32;++i)snprintf(hash+2*i,3,"%02x",digest[i]);
+  snprintf(path,sizeof(path),"%s/courses.json",folder);
+  write_file(path,index,strlen(index));
+  snprintf(envelope,sizeof(envelope),
+    "{\"format\":\"snesrecomp.data-pack\",\"version\":1,\"game\":\"f-zero\","
+    "\"id\":\"%s\",\"title\":\"%s\",\"base_rom_sha256\":"
+    "\"bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2\","
+    "\"payload\":{\"format\":\"fzero.course-index\",\"file\":\"courses.json\",\"sha256\":\"%s\"}}",
+    id,title,hash);
+  snprintf(path,sizeof(path),"%s/pack.json",folder);
+  write_file(path,envelope,strlen(envelope));
 }
 static void set_packs(const char *path) {
 #ifdef _WIN32
@@ -60,7 +77,7 @@ int main(void) {
       "\"cups\":[{\"id\":\"solo\",\"name\":\"Solo\",\"courses\":[\"course\"]}],"
       "\"courses\":[{\"id\":\"course\",\"name\":\"Course\",\"source\":\"course."
       "fzc\"}]}";
-  write_file("test-pack-discovery/a/pack.json", manifest, strlen(manifest));
+  write_pack("test-pack-discovery/a", manifest, "one", "One");
   CHECK(FzeroTracksInit("test-pack-discovery/settings", true));
   const CpPack *one = cp_catalog_find(FzeroTracksCatalog(), "one");
   CHECK(one);
@@ -104,7 +121,7 @@ int main(void) {
   write_file("test-pack-discovery/b/grip.json",grip,strlen(grip));
   write_file("test-pack-discovery/b/rainbow.json",rainbow,strlen(rainbow));
   CHECK(FzeroCourseFileWrite("test-pack-discovery/b/course.fzc", &c,error,sizeof(error)));
-  write_file("test-pack-discovery/b/pack.json",scoped,strlen(scoped));
+  write_pack("test-pack-discovery/b", scoped, "scoped", "Scoped");
   CHECK(FzeroTracksInit("test-pack-discovery/settings",true));
   CHECK(FzeroPacksLoadCourse("scoped",0,&copy,error,sizeof(error)) && copy.required==7);
   CHECK(FzeroPacksLoadCourse("scoped",1,&copy,error,sizeof(error)) && copy.required==3);
@@ -122,7 +139,7 @@ int main(void) {
   CHECK(!cp_catalog_find(FzeroTracksCatalog(),"scoped") && FzeroTracksDiagnosticCount());
   CHECK(FzeroCourseFileWrite("test-pack-discovery/b/course.fzc", &c, error,
                              sizeof(error)));
-  write_file("test-pack-discovery/b/pack.json", manifest, strlen(manifest));
+  write_pack("test-pack-discovery/b", manifest, "one", "One");
   CHECK(FzeroTracksInit("test-pack-discovery/settings", false));
   CHECK(!cp_catalog_find(FzeroTracksCatalog(), "one"));
   CHECK(FzeroTracksDiagnosticCount() == 2);
@@ -132,7 +149,7 @@ int main(void) {
   CHECK(!remove("test-pack-discovery/b/pack.json"));
   const char *invalid = "{\"format\":1,\"id\":\"bad\",\"name\":\"Bad\","
                         "\"author\":\"Test\",\"courses\":[]}";
-  write_file("test-pack-discovery/b/pack.json", invalid, strlen(invalid));
+  write_pack("test-pack-discovery/b", invalid, "bad", "Bad");
   CHECK(FzeroTracksInit("test-pack-discovery/settings", true));
   CHECK(cp_catalog_find(FzeroTracksCatalog(), "one"));
   CHECK(!cp_catalog_find(FzeroTracksCatalog(), "bad"));

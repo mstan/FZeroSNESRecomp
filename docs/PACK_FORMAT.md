@@ -1,4 +1,4 @@
-# F-Zero Forever packs (format 1)
+# F-Zero Forever packs (shared envelope, course index format 1)
 
 Put a pack folder or ZIP in `mods/packs`, then restart the game. **Track Pack
 Loader** is enabled by default and adds every valid installed course pack.
@@ -12,6 +12,26 @@ Use relative paths with forward slashes. Keep each FZEdit export's referenced
 files together; filenames do not have to match course IDs. Stable IDs identify
 content, while names are the labels players see. Never assign another pack's ID
 to an unrelated pack. Duplicate installed IDs exclude both copies.
+
+`pack.json` is the shared snesrecomp envelope:
+
+```json
+{
+  "format": "snesrecomp.data-pack", "version": 1, "game": "f-zero",
+  "id": "my-project", "title": "My Project",
+  "base_rom_sha256": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2",
+  "requires": ["fzero-course-v1"],
+  "payload": {"format": "fzero.course-index", "file": "courses.json",
+              "sha256": "<SHA-256 of courses.json bytes>"}
+}
+```
+
+The game-owned index below goes in `courses.json`. Its `id` and `name` must
+match the envelope. `tools/pack_manifest.py:write_index(folder, index)` writes
+both files and computes the digest; it uses the pinned engine's shared writer.
+Set `SNESRECOMP_ROOT` when developing against a separate engine worktree.
+Old pre-release single-file manifests must be re-exported; course resources,
+record identities and music filenames stay unchanged.
 
 ```json
 {
@@ -83,7 +103,7 @@ modules are validated before the pack is registered; missing files, unknown
 formats/engines, and unsupported requirements reject the pack with a diagnostic.
 
 These files bundle declarations of reviewed ASM behavior. The native adapters
-that implement that behavior remain in the engine; raw `.asm` is not assembled
+that implement that behavior remain in the F-Zero adapter; raw `.asm` is not assembled
 or executed at launch. New packs may reuse supported mechanics without an EXE
 update. New ASM behavior still needs a reviewed adapter. Developer distributions
 retain the original ASM sources for that work.

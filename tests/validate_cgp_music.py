@@ -13,6 +13,9 @@ import shutil
 import struct
 import subprocess
 import wave
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"tools"))
+from pack_manifest import write_index
 
 from validate_native_menus import player_route, press
 from validate_practice_catalog import route as practice_route
@@ -98,7 +101,11 @@ def main():
             installed_root=folder/'mods/packs'
             shutil.copytree(args.packs,installed_root)
             shutil.copytree(pack,installed_root/'audio')
-            (installed_root/'audio/pack.json').write_text(json.dumps(dict(format=1,id="test-audio",name="Test Audio",author="QA",soundtracks=[dict(id="cgp",prefix="cgp",directory=".")]))+'\n')
+            audio=installed_root/'audio'
+            music=audio/'music';music.mkdir()
+            for f in audio.glob('*.pcm'):f.rename(music/f.name)
+            write_index(audio,dict(format=1,id="test-audio",name="Test Audio",author="QA",
+                                  soundtracks=[dict(id="cgp",prefix="cgp",directory="music")]))
         if case.get("course_files"):
             installed_root=folder/'mods/packs'
             shutil.copytree(args.packs,installed_root)
@@ -109,7 +116,7 @@ def main():
                 shutil.copy2(pack/f'cgp-{number}.pcm',menu/f'cgp-{number}.pcm')
             ident,cup=case['cup'].split('/')
             root=installed_root/ident
-            metadata=json.loads((root/'pack.json').read_text())
+            metadata=json.loads((root/'courses.json').read_text())
             key=next(c for c in metadata['cups'] if c['id']==cup)['courses'][0]
             course=next(c for c in metadata['courses'] if c['id']==key)
             filename=Path(course['source']).stem+'.pcm'
