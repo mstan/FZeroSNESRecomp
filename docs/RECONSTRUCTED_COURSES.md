@@ -14,13 +14,26 @@ Branch: `f-zero-forever`. Beads: `beads-8wg.5.74`. Tester version: 0.6.0.
 - [x] Avoid rescanning every neighboring course ZIP for each course.
 - [x] Add stronger row compression for Death City, Forest IV and White Land I
   when the ordinary raw-source compiler exceeds the native row-address window.
-- [ ] Build and package both tester variants; retain developer files.
+- [x] Build and package both tester variants; retain developer files.
 
 Evidence: `captures/reconstructed-projects-01/baseline` contains the previous
-runtime course dumps. `captures/reconstructed-projects-03/validation-final`
+runtime course dumps. `captures/reconstructed-projects-03/validation-release`
 contains exact roundtrips, independent editor-only decodes, edited-course dumps
-and the validation report. The cold 75-course scan took 9.64 seconds here;
-the warm scan took 2.84 seconds.
+and the validation report. The final cold 75-course scan took 11.22 seconds
+here; the warm scan took 2.88 seconds. All 13 CTest checks passed.
+
+Implementation commit: `b2a7d88da7f1fb799510a0316a5557800ab79e53`.
+Both player bundles are in `release-stage/0.6.0/`, with full file hashes and
+ZIP CRCs checked. Each includes 75 source ZIPs and no compiled FZC/cache files.
+The no-music bundle is 17.7 MiB; the 39-recording bundle is 862.5 MiB.
+`build-shared-packs` retains the developer build with generated course caches.
+Obsolete installed FZC sources were backed up under
+`captures/reconstructed-projects-03/previous-installed`.
+
+A concurrent QA scan sharing the CTest extraction cache produced one
+transient partial-metadata read; the subsequent single-process scan passed.
+Shared-cache publication under concurrent processes is tracked separately as
+`beads-8wg.2.79`. These corpus tests use their own working/cache directory.
 
 The recovered files use FZEdit's actual formats, including CRLF checkpoint
 files and 16-pixel Tiled track previews. They are not the author's original
