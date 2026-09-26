@@ -149,8 +149,8 @@ cues retain the existing adapter filenames in that folder. Original numbered
 MSU packs remain supported through the existing custom-source adapter, but are
 not required for course-file matching. No Astra recordings are bundled yet.
 
-This convention is implemented after the 0.3.0 tester ZIPs; those existing ZIPs
-still need their original prefixed recordings. A rebuilt executable is required.
+This convention requires 0.4.0 or newer. The older 0.3.0 tester ZIPs still need
+their original prefixed recordings.
 
 ## Optional title artwork
 

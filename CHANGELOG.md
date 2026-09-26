@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## 0.4.0 - Course-owned mechanics and simple music filenames
+
+- Load optional race music from each pack's `music/` folder by matching its
+  course source filename. No extra song map, prefix or MSU descriptor required.
+- Bundle CGP race recordings using those filenames inside its course pack;
+  remove the separate audio pack from new releases. Missing songs use SNES audio.
+- Package mandatory grip/up magnets and Rainbow Road rules with the courses
+  that require them, and remove their global Mods checkboxes.
+- Enable Track Pack Loader and Legend by default; leave diagnostics off.
+  Preserve explicit saved settings and the Vanilla/Satellaview presets.
+- Preserve all 75 imported course record identifiers. Provide runtime-only
+  Windows tester ZIPs with and without the approved CGP recordings.
+
 ## 0.3.0 - Discoverable course and music packs
 
 - Replace individual track switches with one Track Pack Loader. Load versioned
