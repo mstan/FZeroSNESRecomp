@@ -1,7 +1,8 @@
 # Shared snesrecomp pack transport
 
 F-Zero Forever and the experimental SMW `feat/shared-data-packs` branch now pin
-the same snesrecomp `feat/shared-content-packs` revision. The engine owns the
+snesrecomp main commit `48bfc272fbbe2be89dacd280862730ced699ff00`, merged
+in [PR #105](https://github.com/RetroPortingToolKit/snesrecomp/pull/105). The engine owns the
 folder/ZIP catalog, envelope validation, bounded resource reads, optional disk
 materialization and manifest writer. F-Zero retains course/FZEdit decoding,
 records, cup ordering, vehicles, title resources and music/mechanics semantics.
@@ -29,3 +30,8 @@ Windows validation, 2026-09-25:
 Evidence stays local under `captures/shared-*`. Original source packs, previous
 builds and tester ZIPs were preserved. No new release is published by this
 framework migration. Central tracking: `beads-8wg.2.78`.
+
+Merge follow-up: the original shared SRAM writer remains unchanged; durable
+save publication is an explicit API. Disabled-by-default CMake and standalone
+frame-dump checks passed, all PR CI checks were green, and all 13 F-Zero CTests
+passed on the final source tree. No pack features auto-enable in other games.
