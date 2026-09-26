@@ -192,7 +192,7 @@ for label, source in {
     "imgui": dependency_roots["recomp-ui"] / "src/third_party/imgui/LICENSE.txt",
 }.items():
     shutil.copy2(source, notices / (label + ".txt"))
-for package in ("gcc-libs", "libiconv", "libwinpthread", "winpthreads", "SDL3", "crt", "headers", "libxml2", "libpng", "rapidjson", "zlib", "zstd", "bzip2", "brotli", "openssl", "expat"):
+for package in ("gcc-libs", "libiconv", "libwinpthread", "winpthreads", "SDL3", "crt", "headers", "libxml2", "libpng", "rapidjson", "zlib", "zstd", "bzip2", "brotli", "openssl", "expat", "xz", "libb2"):
     source = mingw / "share/licenses" / package
     if source.is_dir():
         shutil.copytree(source, notices / package)

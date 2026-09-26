@@ -18,7 +18,7 @@ The existing course runtime is the parity oracle, not a replacement engine.
 - [x] Move course mechanics and title selection data into pack metadata.
 - [x] Namespace SPC/MSU mappings and support separate audio packs.
 - [x] Validate records, GP/Practice, reload/rewind and synthetic MSU routing.
-- [ ] Package and inspect local 0.3.0 test builds with/without CGP music.
+- [x] Package and inspect local 0.3.0 test builds with/without CGP music.
 
 ## Findings
 
@@ -28,3 +28,22 @@ FZEdit map music is an SPC selection independent of venue. Raw imports must
 preserve these values and reject unknown mechanics rather than run donor ASM.
 Private inspection material stays under ignored `captures/fzedit-source`.
 No Astra recordings were provided; only synthetic audio can be tested today.
+
+## Validation evidence (local, 2026-09-25)
+
+- 75 exact resource roundtrips and unchanged record hashes; folder/ZIP equivalence.
+- GP start on Astra, Bower, CGP and MAX (`captures/pack-loader-qa-final`).
+- Actual FZEdit 1.2.0 Mute City export decoded and raced; corrected native row
+  pointer offset during visual validation (`captures/raw-fixture-fixed.png`).
+- CGP and Astra records: completion, detail pages, vehicle isolation, state and
+  battery reload in stock-car and expanded-car modes (`pack-records-*-01`).
+- Synthetic CGP/Astra PCM routing, Practice, missing song fallback, rewind and
+  shared installed audio directory (`pack-music-01`, `pack-music-installed-01`).
+- All 13 CTest targets pass; shared PCM resolver test passes.
+- Unsafe ZIP paths, unknown mechanics, missing resources and duplicate IDs are
+  rejected without partial registration. Completed ZIP caches are reused.
+- No author Astra recordings tested or bundled; those are not available yet.
+- Both ZIP variants staged with payload/hash checks and recursive DLL closure.
+  Packaged desktop booted for 180 frames with only bundled DLLs on PATH and
+  discovered all four course packs (`captures/release-smoke-030.log`).
+  Final bundles live under `release-stage/0.3.0-ready`.
