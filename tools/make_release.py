@@ -24,11 +24,14 @@ p.add_argument("--label", default="", help="Optional local build label, such as 
 p.add_argument("--exe", default="FZeroSNESRecomp.exe", help="Desktop executable filename in the build directory")
 p.add_argument("--music", choices=("bundled", "external"), default="bundled",
                help="Include the approved CGP soundtrack, or retain MSU support without audio files")
+p.add_argument("--profile", choices=("player", "developer"), default="player",
+               help="Player bundles contain runtime files and credits; developer bundles also include source/reference material")
 p.add_argument("--packs", type=Path, required=True, help="Reviewed exported course packs; never copy arbitrary installed packs")
 p.add_argument("--deluxe-mods", type=Path, default=ROOT / "captures/bs-deluxe/mods",
                help="Imported Deluxe directory; its credits and provenance ship with the build")
 a = p.parse_args()
 bundled_music = a.music == "bundled"
+developer = a.profile == "developer"
 # BS Deluxe ships in every download, and that is allowed: it is a ROM hack,
 # included with its authors' permission (GuyPerfect, Porthor, PowerPanda). Only
 # OFFICIAL copyrighted assets are withheld from a release -- the commercial ROM
@@ -79,11 +82,14 @@ for source in Path(cache.get("FZERO_GEN_DIR", ROOT / "src/gen")).glob("*.c"):
         raise SystemExit("Regenerate without the AOT deny gate before packaging")
 flavor = "with-msu" if bundled_music else "without-msu"
 name = f"FZeroSNESRecomp-{release_version}-windows-x64-{flavor}"
+if developer:
+    name += "-dev"
 stage = ROOT / a.output / name
 stage.mkdir(parents=True, exist_ok=False)
 shutil.copy2(exe, stage / "FZeroSNESRecomp.exe")
 # Build trees can contain privately imported shaders; never redistribute them.
-shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns("shaders", "music", "track-packs"))
+shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns(
+    "shaders", "music", "track-packs", *([] if developer else ["README.md"])))
 shutil.copytree(ROOT / "assets/shaders", stage / "assets/shaders")
 # Release inputs are explicit: do not package the user's installation/cache.
 pack_root = a.packs.resolve()
@@ -96,7 +102,8 @@ for ident in ("astra-front","bower-league","cgp","max-league"):
     for course, digest in extraction["record_hashes"].items():
         if f"{ident}/{course} {digest}" not in inspection:
             raise SystemExit(f"Course parity mismatch: {ident}/{course}")
-    shutil.copytree(source,stage/"mods/packs"/ident,ignore=shutil.ignore_patterns(".cache","*.pcm","*.msu"))
+    shutil.copytree(source,stage/"mods/packs"/ident,ignore=shutil.ignore_patterns(
+        ".cache","*.pcm","*.msu", *([] if developer else ["extraction.json"])))
 # Only the hidden future F-Zero 55 artwork remains in the internal registry.
 (stage/"assets/track-packs/presentation").mkdir(parents=True)
 for filename in ("screens.txt","fzero-55.ips"):
@@ -108,46 +115,59 @@ if bundled_music:
     shutil.copytree(music, stage / "mods/packs/cgp-audio")
     shutil.copy2(ROOT/"assets/music/cgp-pack.json",stage/"mods/packs/cgp-audio/pack.json")
 (stage / "assets/music").mkdir(parents=True, exist_ok=True)
-shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
-shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
-shutil.copy2(ROOT / "assets/music/CGP_ATTRIBUTION.md", stage / "assets/music/CGP_ATTRIBUTION.md")
+if developer:
+    shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
+    shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
+    shutil.copy2(ROOT / "assets/music/CGP_ATTRIBUTION.md", stage / "assets/music/CGP_ATTRIBUTION.md")
 if bundled_music and music_manifest.get("attribution_review", {}).get("status") == "incomplete":
     print("WARNING: soundtrack attribution is incomplete; not cleared for release. See assets/music/CGP_ATTRIBUTION.md.")
-patches = ROOT / "patches"
-if patches.is_dir():
-    shutil.copytree(patches, stage / "patches")
-for filename in ("README.md", "MODS.md", "CHANGELOG.md", "VERSION", "LICENSE"):
-    shutil.copy2(ROOT / filename, stage / filename)
-(stage / "docs").mkdir()
-shutil.copy2(ROOT / "docs/ADAPTIVE_RENDERER.md", stage / "docs/ADAPTIVE_RENDERER.md")
-shutil.copy2(ROOT / "docs/BS_DELUXE_EXPLORATION.md", stage / "docs/BS_DELUXE_EXPLORATION.md")
-shutil.copy2(ROOT / "docs/SAVE_STATES.md", stage / "docs/SAVE_STATES.md")
-shutil.copy2(ROOT / "docs/HD_MODE7.md", stage / "docs/HD_MODE7.md")
-shutil.copy2(ROOT / "docs/HD_MODE7_PERFORMANCE.md", stage / "docs/HD_MODE7_PERFORMANCE.md")
-shutil.copy2(ROOT / "docs/PERFORMANCE_DIAGNOSTICS.md", stage / "docs/PERFORMANCE_DIAGNOSTICS.md")
-screenshots = ROOT / "docs/screenshots"
-if screenshots.is_dir():
-    shutil.copytree(screenshots, stage / "docs/screenshots")
-shutil.copy2(ROOT / "assets/README.md", stage / "assets/README.md")
-# Credits and provenance still ship as files. The payload itself does not: a
-# copy beside the executable is only a development override, and a stale one
-# would be tried ahead of the embedded bytes.
+# Runtime is embedded; retain credits without development overrides or sources.
 (stage / "mods").mkdir(exist_ok=True)
-for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
-    shutil.copy2(deluxe_mods / filename, stage / "mods" / filename)
-(stage / "mods/track-packs").mkdir()
-for filename in ("README.md", "PARSE_MANIFEST.md"):
-    shutil.copy2(ROOT / "mods" / filename, stage / "mods" / filename)
-    text = (ROOT / "mods" / filename).read_text(encoding="utf-8")
-    (stage / "mods/track-packs" / filename).write_text(text.replace("(cgp-source/README.md)", "(../cgp-source/README.md)").replace("(../docs/", "(../../docs/").replace("(../assets/", "(../../assets/").replace("(../MODS.md)", "(../../MODS.md)"), encoding="utf-8")
-shutil.copytree(ROOT / "mods/cgp-source", stage / "mods/cgp-source")
-shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
-shutil.copy2(ROOT / "docs/BOWER_AND_CGP_LEAGUES.md", stage / "docs/BOWER_AND_CGP_LEAGUES.md")
-shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
-shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
-for filename in ("CGP_COURSE_CAPABILITIES.md", "CGP_LANDING_AUDIT.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md"):
-    shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
-shutil.copy2(ROOT/"docs/PACK_FORMAT.md",stage/"docs/PACK_FORMAT.md")
+shutil.copy2(deluxe_mods / "BS-Deluxe-credits.txt", stage / "mods/BS-Deluxe-credits.txt")
+shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
+(stage / "CREDITS.txt").write_text(
+    "F-Zero Forever\n\n"
+    "CGP gameplay and vehicle artwork: Fennor Virastar, Worthy MF and the CGP contributors.\n"
+    "MSU adapter source: Conn, Khilendel and Catador.\n"
+    "See mods/packs/*/CREDITS.txt and mods/BS-Deluxe-credits.txt for original pack credits.\n"
+    "Third-party software and font notices are in licenses/.\n", encoding="utf-8")
+shutil.copy2(ROOT / "assets/music/CGP_ATTRIBUTION.md", stage / "assets/music/CGP_ATTRIBUTION.md")
+if developer:
+    patches = ROOT / "patches"
+    if patches.is_dir():
+        shutil.copytree(patches, stage / "patches")
+    for filename in ("README.md", "MODS.md", "CHANGELOG.md", "VERSION", "LICENSE"):
+        shutil.copy2(ROOT / filename, stage / filename)
+    (stage / "docs").mkdir()
+    shutil.copy2(ROOT / "docs/ADAPTIVE_RENDERER.md", stage / "docs/ADAPTIVE_RENDERER.md")
+    shutil.copy2(ROOT / "docs/BS_DELUXE_EXPLORATION.md", stage / "docs/BS_DELUXE_EXPLORATION.md")
+    shutil.copy2(ROOT / "docs/SAVE_STATES.md", stage / "docs/SAVE_STATES.md")
+    shutil.copy2(ROOT / "docs/HD_MODE7.md", stage / "docs/HD_MODE7.md")
+    shutil.copy2(ROOT / "docs/HD_MODE7_PERFORMANCE.md", stage / "docs/HD_MODE7_PERFORMANCE.md")
+    shutil.copy2(ROOT / "docs/PERFORMANCE_DIAGNOSTICS.md", stage / "docs/PERFORMANCE_DIAGNOSTICS.md")
+    screenshots = ROOT / "docs/screenshots"
+    if screenshots.is_dir():
+        shutil.copytree(screenshots, stage / "docs/screenshots")
+    shutil.copy2(ROOT / "assets/README.md", stage / "assets/README.md")
+    # Credits and provenance still ship as files. The payload itself does not: a
+    # copy beside the executable is only a development override, and a stale one
+    # would be tried ahead of the embedded bytes.
+    (stage / "mods").mkdir(exist_ok=True)
+    for filename in ("bs-deluxe-import.json", "BS-Deluxe-credits.txt"):
+        shutil.copy2(deluxe_mods / filename, stage / "mods" / filename)
+    (stage / "mods/track-packs").mkdir()
+    for filename in ("README.md", "PARSE_MANIFEST.md"):
+        shutil.copy2(ROOT / "mods" / filename, stage / "mods" / filename)
+        text = (ROOT / "mods" / filename).read_text(encoding="utf-8")
+        (stage / "mods/track-packs" / filename).write_text(text.replace("(cgp-source/README.md)", "(../cgp-source/README.md)").replace("(../docs/", "(../../docs/").replace("(../assets/", "(../../assets/").replace("(../MODS.md)", "(../../MODS.md)"), encoding="utf-8")
+    shutil.copytree(ROOT / "mods/cgp-source", stage / "mods/cgp-source")
+    shutil.copy2(ROOT / "docs/ADDITIVE_TRACK_PACKS.md", stage / "docs/ADDITIVE_TRACK_PACKS.md")
+    shutil.copy2(ROOT / "docs/BOWER_AND_CGP_LEAGUES.md", stage / "docs/BOWER_AND_CGP_LEAGUES.md")
+    shutil.copy2(ROOT / "docs/TESTER_NOTES_FZERO55.md", stage / "TESTER_NOTES.md")
+    shutil.copy2(ROOT / "docs/CGP_MUSIC_AND_PRESETS.md", stage / "docs/CGP_MUSIC_AND_PRESETS.md")
+    for filename in ("CGP_COURSE_CAPABILITIES.md", "CGP_LANDING_AUDIT.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md"):
+        shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
+    shutil.copy2(ROOT/"docs/PACK_FORMAT.md",stage/"docs/PACK_FORMAT.md")
 (stage/"README.txt").write_text(
     f"F-Zero Forever {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own F-Zero (USA) ROM.\n"
@@ -158,9 +178,9 @@ shutil.copy2(ROOT/"docs/PACK_FORMAT.md",stage/"docs/PACK_FORMAT.md")
     + ("CGP audio is included as mods/packs/cgp-audio.\n" if bundled_music else "Audio is not included; you can add music packs separately.\n") +
     "Enable MSU-1 in Settings > Audio; Installed pack music uses discovered recordings.\n"
     "Custom selects loose MSU files. Missing songs use their course's native SNES music.\n"
-    "Astra recordings are not included. See docs/PACK_FORMAT.md for the audio-pack manifest.\n\n"
+    "Astra recordings are not included.\n\n"
     "F7: save-state menu. R: rewind. D/C: left/right shoulder. Alt+Enter: fullscreen.\n"
-    "See README.md, MODS.md and docs/PACK_FORMAT.md for authoring and options.\n",encoding="utf-8")
+    "Credits are in CREDITS.txt and each pack; license notices are in licenses/.\n",encoding="utf-8")
 
 pending, seen = [stage / "FZeroSNESRecomp.exe"], set()
 system = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32"
@@ -227,9 +247,13 @@ for name, pin in pins.items():
     if len(recorded) < 3 or recorded[2] != pin:
         raise SystemExit(f"Build dependency {name} does not match committed submodule pin")
 manifest = {"version": version, "label": a.label, "music": a.music,
-            "commit": commit, "dependencies": pins, "files": {}}
+            "commit": commit, "dependencies": pins, "profile": a.profile, "files": {}}
 for path in sorted(stage.rglob("*")):
     if path.is_file():
+        if not developer and (path.suffix.lower() in (".asm", ".cpp", ".cc", ".h", ".py", ".ps1")
+                              or path.relative_to(stage).parts[0] in ("docs", "patches")
+                              or path.name in ("extraction.json", "PARSE_MANIFEST.md", "SOURCE_INDEX.json")):
+            raise SystemExit(f"Developer material in player bundle: {path}")
         if (path.suffix.lower() in (".sfc", ".smc", ".srm", ".sav", ".bin", ".c")
                 or path.name.lower() in ("config.ini", "rom.cfg", "fzero-video.ini", "f-zero_msu1.ips")
                 or path.name.lower().startswith("crt-geom")):
@@ -238,7 +262,8 @@ for path in sorted(stage.rglob("*")):
                 not bundled_music or path.parent != stage / "mods/packs/cgp-audio"):
             raise SystemExit(f"Unapproved music payload: {path}")
         manifest["files"][path.relative_to(stage).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
-(stage / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+manifest_path = stage / "manifest.json" if developer else stage.parent / (stage.name + ".manifest.json")
+manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 archive = stage.parent / (stage.name + ".zip")
 with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     for path in sorted(stage.rglob("*")):

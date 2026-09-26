@@ -36,6 +36,12 @@ Tracked by `beads-8wg.5.65`.
 
 ## Preparing a release
 
+Tester bundles use the default `--profile player`: runtime resources, short
+launch instructions, credits and licenses only. Integrity manifests remain
+beside the ZIPs. Use `--profile developer` for a separate `-dev` bundle with
+ASM sources, extraction reports, authoring documentation and reference images.
+Keep developer staging folders separate from the shareable tester directory.
+
 1. Update `VERSION`, add the matching changelog entry and refresh tester notes.
 2. Reconfigure the existing build so `SNESRECOMP_BUILD_VERSION` matches
    `VERSION`; an old CMake cache can retain the prior preview version. In
