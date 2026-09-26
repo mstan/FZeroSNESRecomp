@@ -3,6 +3,7 @@
 #include "fzero_music_sources.h"
 #include "fzero_tracks.h"
 #include "fzero_packs.h"
+#include "fzero_course_runtime.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "sha256.h"
@@ -29,6 +30,10 @@ void FzeroMsuSelectTrackSource(const char *source, bool race) {
 }
 static bool resolve_track(void *context, const char *base, uint16_t track, char *path, size_t cap) {
   (void)context;
+  /* Course filenames identify installed race music without soundtrack IDs,
+   * prefixes or a numeric song map. Menus/custom SNES packs retain their own
+   * existing resolver. This also covers packs with no MSU metadata at all. */
+  if (selected_race && FzeroTracksCurrentMusic(path, cap)) return true;
   const char *leaf = base;
   for (const char *p = base; *p; ++p) if (*p == '/' || *p == '\\') leaf = p + 1;
   size_t length = (size_t)(leaf - base);

@@ -62,6 +62,10 @@ def main():
               dict(name="astra",cup="astra-front/astra",track=110),
               dict(name="front",cup="astra-front/front",track=115,rewind=True),
               dict(name="astra-missing",cup="astra-front/front",ordinal=4,fallback=True)]
+    cases += [dict(name="course-astra",cup="astra-front/astra",track=110,course_files=True,rewind=True),
+              dict(name="course-bower",cup="bower-league/bower",track=210,course_files=True),
+              dict(name="course-missing",cup="astra-front/astra",fallback=True,course_files=True),
+              dict(name="course-practice",cup="cgp/cgp-1",practice=True,track=35,course_files=True)]
     if args.legacy_patch:
         make_tracks(legacy, "test", range(1, 32))
         shutil.copy2(args.legacy_patch, legacy / "f-zero_msu1.ips")
@@ -95,6 +99,25 @@ def main():
             shutil.copytree(args.packs,installed_root)
             shutil.copytree(pack,installed_root/'audio')
             (installed_root/'audio/pack.json').write_text(json.dumps(dict(format=1,id="test-audio",name="Test Audio",author="QA",soundtracks=[dict(id="cgp",prefix="cgp",directory=".")]))+'\n')
+        if case.get("course_files"):
+            installed_root=folder/'mods/packs'
+            shutil.copytree(args.packs,installed_root)
+            # Keep the existing shared menu cues. Race songs have no prefix or
+            # new JSON map, including Bower which has no MSU metadata at all.
+            menu=installed_root/'cgp/music';menu.mkdir(exist_ok=True)
+            for number in (1,2,3,4,5,7):
+                shutil.copy2(pack/f'cgp-{number}.pcm',menu/f'cgp-{number}.pcm')
+            ident,cup=case['cup'].split('/')
+            root=installed_root/ident
+            metadata=json.loads((root/'pack.json').read_text())
+            key=next(c for c in metadata['cups'] if c['id']==cup)['courses'][0]
+            course=next(c for c in metadata['courses'] if c['id']==key)
+            filename=Path(course['source']).stem+'.pcm'
+            music=root/'music';music.mkdir(exist_ok=True)
+            # A same-named PCM in another pack must not mask a missing song.
+            target=menu/filename if case.get('fallback') else music/filename
+            sample=case.get('track',110)*100
+            target.write_bytes(b'MSU1'+bytes(4)+struct.pack('<hh',sample,-sample)*4410)
         source = legacy / "test.msu" if case.get("legacy") else (
             empty / "none" if case.get("empty") else pack / "cgp.msu")
         if installed_root: source=folder/"installed-music"

@@ -8,6 +8,9 @@ Its bundled CGP, Astra Front, Bower and MAX packs add **75 course versions in
 15 cups**, alongside the untouched original 15 courses. Drop a compatible
 folder or ZIP into `mods/packs` and restart. All installed packs load together.
 BS Satellaview Tracks excludes the loader; vehicle options remain independent.
+Optional race music uses the same filename as the course source, in its pack's
+`music/` folder: `courses/example.fzc` or `example.fzm` uses `music/example.pcm`.
+Restart and enable **Settings > Audio > MSU-1 > Installed pack music**.
 
 See [pack authoring and music](docs/PACK_FORMAT.md) for JSON manifests,
 raw FZEdit exports, extracted course resources and separate audio packs.

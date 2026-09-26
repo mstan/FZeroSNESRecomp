@@ -290,20 +290,6 @@ add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMENT "Staging F-Zero shader presets"
     VERBATIM)
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp/cgp.msu")
-    find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/music/cgp.json"
-        "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_cgp_music.py")
-    add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
-        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_cgp_music.py"
-            --stage-from "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp"
-            --out "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs/cgp-audio"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/assets/music/cgp-pack.json"
-            "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs/cgp-audio/pack.json"
-        COMMENT "Staging CGP music with contributor exclusions" VERBATIM)
-endif()
-
 if(SNESRECOMP_BUILD_VERSION)
     target_compile_definitions(FZeroSNESRecomp PRIVATE
         SNESRECOMP_BUILD_VERSION="${SNESRECOMP_BUILD_VERSION}")
@@ -335,6 +321,17 @@ if(FZERO_PACK_SOURCE)
     add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${FZERO_PACK_SOURCE}" "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs"
         VERBATIM)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp/cgp.msu")
+        find_package(Python3 COMPONENTS Interpreter REQUIRED)
+        set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/music/cgp.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_cgp_music.py")
+        add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_cgp_music.py"
+                --stage-course-from "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp"
+                --out "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs/cgp"
+            COMMENT "Staging verified CGP music by course filename" VERBATIM)
+    endif()
 endif()
 file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.ini"

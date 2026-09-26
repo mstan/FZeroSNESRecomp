@@ -10,6 +10,8 @@ void FzeroPacksDiscover(CpCatalog *catalog, const char *directory);
 bool FzeroPacksContains(const char *id);
 bool FzeroPacksLoadCourse(const char *id, unsigned index, FzeroCourse *out,
                           char *error, size_t cap);
+/* courses/name.fzc or name.fzm -> this pack's music/name.pcm. */
+bool FzeroPacksCourseMusic(const char *id, unsigned index, char *out, size_t cap);
 bool FzeroPacksMusicSources(FzeroMusicSources *out);
 bool FzeroPacksResolveMusic(const char *source, unsigned track, char *out,
                             size_t cap);

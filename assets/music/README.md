@@ -14,8 +14,9 @@ or ownership of the music.
 
 The complete source is now **F-Zero CGP P1 MSU PCPORT.zip**, replacing the
 older P1/P2/P3 soundtrack archives. It contains 29 PCM recordings (about 567 MB
-uncompressed) and an empty descriptor. Files are renamed to the common `cgp`
-prefix without changing audio or loop points. `cgp.json` records their hashes,
+uncompressed) and an empty descriptor. The private author import retains a
+common `cgp` prefix. Player race songs are staged as `music/<course filename>.pcm`
+inside the CGP course pack, without changing audio or loop points. `cgp.json` records their hashes,
 the eight author exclusions, and 24 superseded recordings to physically remove
 from old staging directories. Missing recordings use the game's SNES music.
 These 29 recordings are the owner-confirmed, attribution-cleared bundle.
@@ -25,11 +26,11 @@ are physically removed after checking their hashes; Git ignores are only a
 secondary guard. No ROM or unrelated archive contents are extracted.
 
 Select **Settings > Audio > Enable MSU-1 music**, leaving the source on
-**Community Grand Prix**, or apply that preset in Mods. Music starts off on
+**Installed pack music**, or apply the CGP preset in Mods. Music starts off on
 a fresh installation. Custom music remains available from **Custom...**.
 The smaller **without-msu** download omits the soundtrack while retaining MSU
-support. Select your own music folder in Settings > Audio; its CGP preset uses
-SNES audio until a custom source has been selected.
+support. Add recordings matching course filenames to each pack's `music/`
+folder and restart, then enable Installed pack music. Missing songs use SNES audio.
 
 ## Building from source
 
@@ -40,7 +41,7 @@ python tools/import_cgp_music.py 'E:\Downloads\F-Zero CGP P1 MSU PCPORT.zip'
 ```
 
 This creates the ignored `music/cgp` directory. Reconfigure and build to stage
-it beside the executable under `assets/music/cgp`. The release tool validates
+it beside the executable under `mods/packs/cgp/music`. The release tool validates
 the 29 retained files before packaging and rejects excluded or unexpected files.
 Do not place arbitrary user
 music in this directory. For an old import, run

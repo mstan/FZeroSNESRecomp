@@ -55,10 +55,10 @@ def main():
                 if metadata[19]: entry.setdefault('music',{}).update(soundtrack=sections[16].split(b'\0')[0].decode(),track=metadata[19])
                 manifest['courses'].append(entry)
                 next(c for c in manifest['cups'] if c['id']==cup)['courses'].append(tid)
+        (root/'music').mkdir(exist_ok=True)
         if ident in ('cgp','astra-front'):
             prefixes = ['cgp','F-Zero CGP P1'] if ident=='cgp' else ['F-ZERO Astra Front']
             manifest['soundtracks'] = [dict(id=ident,prefix=p,directory='music',primary=ident=='cgp') for p in prefixes]
-            (root/'music').mkdir(exist_ok=True)
         title = ROOT/'assets/track-packs/presentation'/f'{ident}.ips'
         if title.exists():
             from inspect_bs_deluxe import apply_ips

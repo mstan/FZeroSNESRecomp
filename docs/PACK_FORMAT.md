@@ -122,35 +122,35 @@ Building the importer requires C++20, RapidJSON, libarchive, libxml2, libpng,
 and giflib in addition to the existing game dependencies. Runtime packages
 include the Windows DLL dependencies; end users do not install FZEdit or Python.
 
-## Music packs
+## Music
 
 Music is optional and independently enabled in Audio settings. **Installed pack
 music** uses the discovered audio; **Custom** uses a selected loose MSU source.
-Missing recordings fall back to the course's SPC song. Numeric PCM IDs belong
-to a soundtrack namespace: Astra track 10 cannot become CGP track 10.
+Use one naming rule: **the PCM matches the course source filename**, in that
+pack's `music/` folder. Drop it in, restart, enable MSU-1, and select Installed
+pack music. Create `music/` if it is absent.
 
-For an audio-only pack, omit `courses` and `cups`:
-
-```json
-{
-  "format": 1, "id": "astra-front-audio", "name": "Astra Front Music",
-  "author": "Soundtrack authors",
-  "soundtracks": [{"id": "astra-front", "prefix": "F-ZERO Astra Front", "directory": "."}]
-}
+```text
+mods/packs/astra-front/
+    courses/u-zero-1.fzc
+    music/u-zero-1.pcm
 ```
 
-Place `F-ZERO Astra Front-10.pcm` through `-19.pcm` beside this manifest. The
-`.msu` file may accompany them; it is not needed for discovered PCM routing.
-The ten numbers follow Astra then Front race order. No Astra recordings ship
-with this project yet. Course packs may alternatively include their own
-`music/` directory, using their declared prefix.
-Known prefixes can also coexist in an installed audio pack's directory: Astra
-PCMs can sit beside CGP PCMs, keeping their original names. The course pack's
-soundtrack declaration supplies the association; audio contents are not guessed.
+For raw FZEdit input, `courses/coast/Coast.fzm` uses `music/Coast.pcm`.
+Match the filename exactly, including case, without the `.fzc`/`.fzm` extension.
+No MSU number, soundtrack prefix, JSON music mapping, or `.msu` file is needed.
+The course display name and ID do not select the recording. Two source files
+with the same basename in one pack share its PCM; different packs stay separate.
+Missing recordings use SNES music. Adding music does not change course records.
 
-`primary: true` on a soundtrack declaration supplies shared menu cues and
-stock-course music. CGP currently declares that role. Do not install competing
-primary soundtrack declarations or duplicate recordings for one mapping.
+CGP recordings now ship in `mods/packs/cgp/music`, following the same rule for
+race songs. There is no separate `cgp-audio` folder in new bundles. Shared menu
+cues retain the existing adapter filenames in that folder. Original numbered
+MSU packs remain supported through the existing custom-source adapter, but are
+not required for course-file matching. No Astra recordings are bundled yet.
+
+This convention is implemented after the 0.3.0 tester ZIPs; those existing ZIPs
+still need their original prefixed recordings. A rebuilt executable is required.
 
 ## Optional title artwork
 

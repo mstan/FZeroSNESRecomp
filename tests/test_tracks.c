@@ -43,6 +43,8 @@ int main(void) {
   MKDIR("test-pack-discovery/b");
   remove("test-pack-discovery/settings/loader.cfg");
   remove("test-pack-discovery/b/pack.json");
+  remove("test-pack-discovery/a/music/course.pcm");
+  remove("test-pack-discovery/b/music/course.pcm");
   set_packs(root);
   FzeroCourse c = {0};
   c.block_size = 544;
@@ -77,6 +79,19 @@ int main(void) {
   FzeroCourse copy;
   CHECK(FzeroPacksLoadCourse("one", 0, &copy, error, sizeof(error)));
   CHECK(FzeroCourseValidate(&copy, error, sizeof(error)));
+  /* Music follows the source filename, without any soundtrack declaration. */
+  char music_a[CP_PATH], music_b[CP_PATH];
+  uint8_t record_hash[32];
+  memcpy(record_hash, copy.hash, sizeof(record_hash));
+  CHECK(!FzeroPacksHasMusic());
+  CHECK(!FzeroPacksCourseMusic("one",0,music_a,sizeof(music_a)));
+  MKDIR("test-pack-discovery/a/music");
+  write_file("test-pack-discovery/a/music/course.pcm","MSU1\0\0\0\0",8);
+  CHECK(FzeroPacksHasMusic());
+  CHECK(FzeroPacksCourseMusic("one",0,music_a,sizeof(music_a)));
+  CHECK(!FzeroPacksCourseMusic("one",1,music_b,sizeof(music_b)));
+  CHECK(FzeroPacksLoadCourse("one",0,&copy,error,sizeof(error)));
+  CHECK(!memcmp(record_hash,copy.hash,sizeof(record_hash)));
   /* A pack-wide module and a course-only module compose without making an
    * undeclared course in another pack inherit those terrain semantics. */
   const char *scoped =
@@ -94,6 +109,13 @@ int main(void) {
   CHECK(FzeroPacksLoadCourse("scoped",0,&copy,error,sizeof(error)) && copy.required==7);
   CHECK(FzeroPacksLoadCourse("scoped",1,&copy,error,sizeof(error)) && copy.required==3);
   CHECK(FzeroPacksLoadCourse("one",0,&copy,error,sizeof(error)) && copy.required==0);
+  CHECK(!FzeroPacksCourseMusic("scoped",0,music_b,sizeof(music_b)));
+  MKDIR("test-pack-discovery/b/music");
+  write_file("test-pack-discovery/b/music/course.pcm","MSU1\0\0\0\0",8);
+  CHECK(FzeroPacksCourseMusic("scoped",0,music_b,sizeof(music_b)));
+  CHECK(strcmp(music_a,music_b)); /* Same name stays scoped to its pack. */
+  CHECK(!remove("test-pack-discovery/b/music/course.pcm"));
+  CHECK(!FzeroPacksCourseMusic("scoped",0,music_b,sizeof(music_b)));
   const char *bad_module="{\"format\":2,\"id\":\"grip\",\"engine\":\"fzero-course-v1\",\"requires\":[]}";
   write_file("test-pack-discovery/b/grip.json",bad_module,strlen(bad_module));
   CHECK(FzeroTracksInit("test-pack-discovery/settings",true));

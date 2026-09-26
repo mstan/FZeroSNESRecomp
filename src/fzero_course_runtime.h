@@ -2,6 +2,7 @@
 #include "fzero_course.h"
 #include "content_pack.h"
 const FzeroCourse *FzeroTracksCurrentCourse(void);
+bool FzeroTracksCurrentMusic(char *out, size_t cap);
 unsigned FzeroTracksRequiredFeatures(void);
 void FzeroTracksRefreshCourse(void);
 void FzeroTracksInstallHooks(void);

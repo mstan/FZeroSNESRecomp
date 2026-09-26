@@ -67,3 +67,22 @@ Owning issue: `beads-8wg.5.67`.
 
 Developer pack payloads are in `captures/pack-mechanics-payloads`. This update
 has not replaced the existing 0.3.0 tester ZIPs; it is in the local build only.
+
+## Course filename music (2026-09-25)
+
+Owning issue: `beads-8wg.5.68`.
+
+- [x] Match a course source basename to `music/<basename>.pcm` in its own pack.
+  No new filename maps, prefixes, MSU numbers or `.msu` descriptor are required.
+- [x] Detect these recordings for Installed pack music, including packs with no
+  soundtrack metadata; preserve existing custom MSU support and shared cues.
+- [x] Stage the approved CGP race songs by course filename inside `cgp/music`;
+  future bundles omit the separate `cgp-audio` pack.
+- [x] Validate Astra GP/rewind, Bower without MSU metadata, missing-song fallback
+  without borrowing another pack's same-named file, and CGP Practice playback
+  (`captures/course-filename-audio-02`). Tracks/music tests and six importer
+  tests pass; all 75 imported course record hashes remain unchanged.
+
+No new release ZIP was generated. Local safety review rejected recursive
+deletion of old generated `build/mods/packs/cgp-audio`; its verified files remain
+in place with `pack.json` renamed to `pack.json.retired`, preventing discovery.

@@ -73,19 +73,53 @@ def stage_music(source, destination):
     return len(manifest["tracks"])
 
 
+def stage_course_music(source, pack):
+    """Stage reviewed recordings as music/<course source basename>.pcm."""
+    manifest = verify_music(source)
+    courses = json.loads((pack / "pack.json").read_text())["courses"]
+    files, used = {}, set()
+    for course in courses:
+        number = str(course.get("music", {}).get("track", ""))
+        if number not in manifest["tracks"]:
+            continue  # The approved replacement intentionally uses SPC here.
+        name = Path(course["source"]).stem + ".pcm"
+        if name in files and files[name] != number:
+            raise ValueError(f"Conflicting music filename: {name}")
+        files[name] = number
+        used.add(number)
+    # Non-race cues retain the existing MSU adapter's names, in the same folder.
+    for number in manifest["tracks"].keys() - used:
+        if int(number) >= 10:
+            raise ValueError(f"Approved recording has no course: {number}")
+        files[f"cgp-{number}.pcm"] = number
+    directory = pack / "music"
+    directory.mkdir(exist_ok=True)
+    if {p.name for p in directory.iterdir()} - files.keys():
+        raise ValueError("Unexpected files in staged course music")
+    for name, number in files.items():
+        shutil.copy2(source / f"cgp-{number}.pcm", directory / name)
+        verify_file(directory / name, manifest["tracks"][number])
+    return len(files)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("archive", type=Path, nargs="?")
     operations = p.add_mutually_exclusive_group()
     operations.add_argument("--stage-from", type=Path)
+    operations.add_argument("--stage-course-from", type=Path,
+                            help="Stage into --out course pack, matching course filenames")
     operations.add_argument("--prune-excluded", type=Path,
                             help="Remove hash-verified excluded files from an existing import/build")
     operations.add_argument("--prune-retired", type=Path,
                             help="Remove hash-verified excluded and superseded PC-port recordings")
     p.add_argument("--out", type=Path, default=ROOT / "music/cgp")
     a = p.parse_args()
-    if bool(a.archive) + bool(a.stage_from) + bool(a.prune_excluded) + bool(a.prune_retired) != 1:
-        p.error("Choose an archive, --stage-from, --prune-excluded, or --prune-retired")
+    if sum(bool(x) for x in (a.archive, a.stage_from, a.stage_course_from, a.prune_excluded, a.prune_retired)) != 1:
+        p.error("Choose an archive or one staging/pruning operation")
+    if a.stage_course_from:
+        print(f"Staged {stage_course_music(a.stage_course_from, a.out)} course/menu recordings in {a.out / 'music'}")
+        return
     if a.prune_retired:
         print(f"Removed {prune_excluded(a.prune_retired, superseded=True)} retired CGP files from {a.prune_retired}")
         return

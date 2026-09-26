@@ -107,6 +107,11 @@ fs::path inside(const fs::path &root, const std::string &relative) {
           "Pack symlink escapes its directory");
   return canonical;
 }
+fs::path courseMusic(const Pack &pack, unsigned index) {
+  auto name = pack.courses[index].filename();
+  name.replace_extension(".pcm");
+  return inside(pack.root, "music/" + name.string());
+}
 std::string contentKey(const fs::path &path) {
   // Bounded streaming digest chain, used only as a disposable cache key.
   std::ifstream in(path, std::ios::binary);
@@ -491,6 +496,21 @@ bool FzeroPacksLoadCourse(const char *id, unsigned index, FzeroCourse *out,
   snprintf(error, cap, "Course not found in installed pack");
   return false;
 }
+bool FzeroPacksCourseMusic(const char *id, unsigned index, char *out, size_t cap) {
+  try {
+    for (auto &pack : packs)
+      if (!strcmp(pack.info.id, id) && index < pack.courses.size()) {
+        auto file = courseMusic(pack, index);
+        auto path = file.string();
+        if (!fs::is_regular_file(file) || path.size() >= cap)
+          return false;
+        strcpy(out, path.c_str());
+        return true;
+      }
+  } catch (const std::exception &) {
+  }
+  return false;
+}
 bool FzeroPacksMusicSources(FzeroMusicSources *out) {
   FzeroMusicSources s{};
   if (primary.size() >= sizeof(s.primary))
@@ -547,6 +567,10 @@ bool FzeroPacksResolveMusic(const char *source, unsigned track, char *out,
 
 bool FzeroPacksHasMusic(void) {
   try {
+    for (auto &pack : packs)
+      for (unsigned i = 0; i < pack.courses.size(); ++i)
+        if (fs::is_regular_file(courseMusic(pack, i)))
+          return true;
     for (auto &s : sounds)
       if (fs::is_directory(s.root))
         for (auto &f : fs::directory_iterator(s.root))

@@ -2,6 +2,7 @@
 import contextlib
 import hashlib
 import io
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -74,6 +75,19 @@ class MusicExclusionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             music.prune_excluded(dst)
         self.assertEqual((dst / 'cgp-25.pcm').read_bytes(), replacement)
+
+    def test_course_music_uses_source_basename_and_preserves_audio(self):
+        src = self.folder('source')
+        self.manifest['tracks']['41'] = self.manifest['tracks']['4']
+        (src / 'cgp-41.pcm').write_bytes(self.keep)
+        pack = self.root / 'courses'
+        pack.mkdir()
+        (pack / 'pack.json').write_text(json.dumps(dict(courses=[
+            dict(id='different-id',name='Different Display Name',source='nested/map.fzc',music=dict(track=41)),
+            dict(id='missing',source='missing.fzc',music=dict(track=42))])))
+        self.assertEqual(music.stage_course_music(src,pack),2)
+        self.assertEqual({p.name for p in (pack/'music').iterdir()},{'map.pcm','cgp-4.pcm'})
+        self.assertEqual((pack/'music/map.pcm').read_bytes(),self.keep)
 
 
 if __name__ == '__main__':

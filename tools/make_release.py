@@ -13,7 +13,7 @@ import shutil
 import struct
 import subprocess
 import zipfile
-from import_cgp_music import verify_music
+from import_cgp_music import verify_music, stage_course_music
 
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
@@ -112,8 +112,7 @@ for filename in ("screens.txt","fzero-55.ips"):
 music = ROOT / "music/cgp"
 if bundled_music:
     music_manifest = verify_music(music)
-    shutil.copytree(music, stage / "mods/packs/cgp-audio")
-    shutil.copy2(ROOT/"assets/music/cgp-pack.json",stage/"mods/packs/cgp-audio/pack.json")
+    stage_course_music(music, stage / "mods/packs/cgp")
 (stage / "assets/music").mkdir(parents=True, exist_ok=True)
 if developer:
     shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
@@ -177,7 +176,8 @@ if developer:
     "Vehicle packs, rules and screen override remain separate options. CGP preset enables the full experience.\n\n"
     "Required course mechanics load automatically with their pack and have no separate switches.\n"
     "Legend difficulty defaults on; diagnostics and MSU-1 default off. Saved choices are respected.\n\n"
-    + ("CGP audio is included as mods/packs/cgp-audio.\n" if bundled_music else "Audio is not included; you can add music packs separately.\n") +
+    + ("CGP audio is included in mods/packs/cgp/music.\n" if bundled_music else "Audio is not included; you can add it to each pack's music folder.\n") +
+    "Match the course source filename: courses/example.fzc or example.fzm uses music/example.pcm.\n"
     "Enable MSU-1 in Settings > Audio; Installed pack music uses discovered recordings.\n"
     "Custom selects loose MSU files. Missing songs use their course's native SNES music.\n"
     "Astra recordings are not included.\n\n"
@@ -261,7 +261,7 @@ for path in sorted(stage.rglob("*")):
                 or path.name.lower().startswith("crt-geom")):
             raise SystemExit(f"Forbidden payload: {path}")
         if path.suffix.lower() in (".pcm", ".msu") and (
-                not bundled_music or path.parent != stage / "mods/packs/cgp-audio"):
+                not bundled_music or path.parent != stage / "mods/packs/cgp/music"):
             raise SystemExit(f"Unapproved music payload: {path}")
         manifest["files"][path.relative_to(stage).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 manifest_path = stage / "manifest.json" if developer else stage.parent / (stage.name + ".manifest.json")

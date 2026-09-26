@@ -53,10 +53,11 @@ off. Explicit saved settings remain respected.
 The label becomes **Custom** when an owned option differs. Unrelated changes
 do not change the label. Settings persist on Play and on closing the launcher.
 
-Settings > Audio has a source dropdown: **Community Grand Prix**, then
-**Custom...**. CGP is the initial source, with MSU disabled. Custom opens a
+Settings > Audio offers **Installed pack music** when recordings are present,
+alongside **Custom...**, with MSU disabled initially. Custom opens a
 `.msu` file picker and retains the previous custom path when switching back
-to CGP. Existing folder-based custom settings migrate without being replaced.
+to installed music. Course recordings use `music/<course source basename>.pcm`
+inside their own pack; no filename prefix or song map is required.
 Turning music off restores SNES audio without removing any track pack.
 
 ## Shared UI contract
