@@ -10,7 +10,7 @@ find_path(RAPIDJSON_INCLUDE_DIR rapidjson/document.h REQUIRED)
 
 include(CTest)
 set(SNESRECOMP_ROOT "${CMAKE_SOURCE_DIR}/snesrecomp" CACHE PATH "Framework checkout")
-add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_course.c src/fzero_course_file.c src/fzero_title.c src/fzero_music_sources.c src/fzero_packs.cpp src/fzero_fzedit.cpp
+add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_menu_music.c src/fzero_course.c src/fzero_course_file.c src/fzero_title.c src/fzero_music_sources.c src/fzero_packs.cpp src/fzero_fzedit.cpp
     "${SNESRECOMP_ROOT}/runner/src/content_pack.c"
     "${SNESRECOMP_ROOT}/runner/src/content_patch.c"
     "${SNESRECOMP_ROOT}/runner/src/sha256.c")
@@ -332,6 +332,17 @@ if(FZERO_PACK_SOURCE)
                 --stage-course-from "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp"
                 --out "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs/cgp"
             COMMENT "Staging verified CGP music by course filename" VERBATIM)
+    endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music/astra-front/moon.pcm")
+        find_package(Python3 COMPONENTS Interpreter REQUIRED)
+        set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/music/astra-front.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_astra_music.py")
+        add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/import_astra_music.py"
+                --stage-course-from "${CMAKE_CURRENT_SOURCE_DIR}/music/astra-front"
+                --out "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs/astra-front"
+            COMMENT "Staging verified Astra music by course filename" VERBATIM)
     endif()
 endif()
 file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS

@@ -1,5 +1,82 @@
 # Mods and differences from the source games
 
+## Choosing menu music
+
+Open **Settings > Audio**, enable **MSU-1**, and choose **Installed pack music**.
+Then open **Mods > Menu and event music**. The existing CGP songs are already
+filled in; the music bundle is ready to play them. In the smaller download,
+the same paths show where to put the recordings.
+
+| What plays | Supplied file inside `mods/packs/cgp/` |
+| --- | --- |
+| Countdown / race start | `music/cgp-1.pcm` |
+| Racers ready / zoom | `music/cgp-2.pcm` |
+| Lost life | `music/cgp-3.pcm` |
+| Title screen | `music/cgp-4.pcm` |
+| Menus and records | `music/cgp-5.pcm` |
+| Ending / victory | `music/cgp-7.pcm` |
+
+Use **Change file** beside any song to choose a replacement `.pcm`. Its name can
+be anything; you are selecting the file itself. **Clear selection** restores that song's
+pack default. These choices are saved when you press Play. Turning this mod
+off uses SNES music for these events and leaves course music alone. A missing
+recording also falls back to SNES music.
+
+The soundtrack dropdown lists installed packs that supply menu songs. CGP is
+the supplied default. A pack can provide some events and leave the rest as
+SNES audio. Changing the default soundtrack keeps your individual replacements.
+
+For **course music**, place the recording in that pack's `music` folder and
+match the course filename: `courses/moon.fzc` uses `music/moon.pcm`.
+The music bundle includes the ten supplied Astra recordings in
+`mods/packs/astra-front/music`. You can add those same files to the smaller
+download without changing any JSON. Astra's course music does not replace
+CGP's menu songs.
+
+Pack authors can copy the `menu_music` object from CGP's `courses.json` as a
+template. Its six keys are `countdown`, `ready`, `lost-life`, `title`, `select`
+and `ending`; each value is a PCM filename relative to the pack folder. These
+defaults appear in Mods automatically. See [the pack format](docs/PACK_FORMAT.md)
+for the full example and how to update the pack description after editing it.
+
+## Trying the Huckmine source example
+
+Huckmine now runs from its FZEdit project. In Grand Prix, choose **Zenith**;
+Huckmine is the first course. It is also available in Practice.
+
+The example is `mods/packs/cgp/courses/HM.zip`. Inside are the author's
+`hm.fzm` and its companion files, plus the small pack descriptions and credits
+we added. The original twelve files have not been renamed or converted.
+
+To edit and try this example:
+
+1. Make a spare copy of `HM.zip`, then extract it into a folder.
+2. Open `HM/hm.fzm` in FZEdit. Keep its companion files beside it.
+3. Make your changes and save them in FZEdit.
+4. Zip the `HM` folder, `pack.json`, `courses.json` and `CREDITS.txt` together.
+   Replace the installed `mods/packs/cgp/courses/HM.zip` with that ZIP.
+5. Restart F-Zero Forever and choose Huckmine again.
+
+You do **not** need to make an `.fzc` file. The game reads the project and
+builds its own cache. Editing the project makes a new cache automatically.
+Keep backups outside `mods/packs`, and do not install this same example a
+second time as a separate pack.
+
+For optional music, use `mods/packs/cgp/music/hm.pcm`: the name follows
+`hm.fzm`, not the ZIP's name. Enable MSU-1 and select **Installed pack music**
+in Audio settings. Without that recording, Huckmine uses its SNES music.
+
+The `.fzm` file is the starting point; the other files hold the track, sky,
+colors, minimap and computer drivers' route. Copy the whole set together.
+Our other bundled courses still use `.fzc` files extracted from ROM hacks
+where the original editor files were unavailable.
+
+This example's league placement and CGP magnet behavior are already set up.
+For a **new** course or league, a pack description is still required; dropping
+a bare editor ZIP into the game is not yet supported. The example demonstrates
+source loading, not automatic league creation. Advanced authoring details are
+in [the pack format](docs/PACK_FORMAT.md).
+
 Track packs add courses to the original 15. Their required terrain mechanics
 follow the **course you are racing**. Vehicle rebalances, difficulty and other
 general gameplay options follow your **Mods settings**, including when you
@@ -51,6 +128,15 @@ manifest or reference their own bundled mechanics modules. See the [technical au
 Same-named courses in different packs can be different revisions. They retain
 separate identities and records; names alone are not used to deduplicate them.
 The records browser supports enabled cups and individual vehicle records.
+Imported courses show their own scenery, and individual records use that car's
+icon. Newly saved CGP Practice ghosts retain their selected car. Existing ghosts
+saved by older builds may retain the old donor identity; record a new ghost to
+replace one. Old vehicle save states are incompatible with the corrected ghost
+workspace; battery records remain available.
+
+The Huckmine editor project differs slightly from the older ROM extraction.
+Zenith therefore starts a new set of records; its previous records stay on disk.
+Other cups keep their record identities.
 
 ## Keeping these notes accurate
 

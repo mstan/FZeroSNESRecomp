@@ -94,7 +94,7 @@ def main():
                     color = sources[source_group][0x7cd06 + HUD_ROWS[SLOTS[member]] * 32:][:2]
                     assert ram[0x606 + HUD_ROWS[slot] * 32:][:2] == color, (name, slot, "cohort/rival marker")
                 if name in practice:
-                    assert ram[0x58] and ram[0x14ce3] == practice[name][1]
+                    assert ram[0x58] and ram[0x14ce8] == practice[name][1]
             phases.add(ram[0x51] & 4)
             exhaust.add(ram[0x668:0x66e])
             image = Image.frombytes("RGB", (256, 224), capture[PIXELS:RAM], "raw", "BGRX")

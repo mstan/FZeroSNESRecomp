@@ -13,6 +13,7 @@ void FzeroVehiclesInstallHooks(void);
 const char *FzeroVehicleIdentity(void);
 const char *FzeroVehicleRecordIdentity(unsigned index);
 const char *FzeroVehicleRecordName(unsigned index);
+bool FzeroVehicleRecordIcon(unsigned index, uint32_t pixels[16 * 16]);
 unsigned FzeroVehicleCount(void);
 unsigned FzeroVehicleSelected(void);
 unsigned FzeroVehicleAcceleration(unsigned slot, unsigned speed);

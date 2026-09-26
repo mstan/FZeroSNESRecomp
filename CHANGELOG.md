@@ -1,5 +1,21 @@
 ﻿# Changelog
 
+## 0.5.0 - Editor source example and pack music settings
+
+- Ship Huckmine as its original FZEdit source ZIP with pack descriptions;
+  build the course cache on launch. Preserve its twelve author files.
+- Add Menu and event music in Mods, prefilled with CGP's six recordings.
+  Browse to replace individual cues, Clear to restore pack defaults.
+- Include the supplied ten Astra recordings in the music bundle, using the
+  same course filenames supported by the smaller download.
+- Preserve CGP identity in newly recorded Practice ghosts and keep rival
+  selection state outside the native ghost codec's workspace.
+- Show imported course scenery and the selected vehicle's icons in records.
+- Huckmine's source differs slightly from the extracted ROM revision; Zenith
+  starts a new records namespace. Existing records remain on disk. The ghost
+  workspace fix changes the vehicle snapshot signature; old vehicle save
+  states are incompatible, while battery records are retained.
+
 ## 0.4.0 - Course-owned mechanics and simple music filenames
 
 - Load optional race music from each pack's `music/` folder by matching its

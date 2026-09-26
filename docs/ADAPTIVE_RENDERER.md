@@ -103,8 +103,9 @@ the lap table and menu stay centered. Do not copy the race power meter or extend
 the collapsed colour window there. The original one-column edge residue remains.
 
 Scene 3 phase 5 is shared by the results-menu fade and live race/attract exit.
-Distinguish their published PPU layouts, not the phase alone: results have no
-track backgrounds (main `$94`, BG3 + OBJ), while a live race retains BG1/BG2
+Use the native result-setup flag (`$5F` bit 7), not the phase alone.
+Successful results retain the frozen course (main `$97`); failed results have
+no track backgrounds (main `$94`, BG3 + OBJ). A live race retains BG1/BG2
 (main `$17`). In particular, END GAME reuses OBJ slots 20..30; interpreting
 those as race HUD slots splits its text as soon as the fade starts. Both menu
 choices retain the results layout until black. Regression tests cover these

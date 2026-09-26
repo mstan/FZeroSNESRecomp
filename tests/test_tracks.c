@@ -1,6 +1,7 @@
 #include "fzero_course_file.h"
 #include "fzero_packs.h"
 #include "fzero_tracks.h"
+#include "fzero_menu_music.h"
 #include "sha256.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,6 +63,7 @@ int main(void) {
   remove("test-pack-discovery/b/pack.json");
   remove("test-pack-discovery/a/music/course.pcm");
   remove("test-pack-discovery/b/music/course.pcm");
+  remove("test-pack-discovery/a/music/menu.pcm");
   set_packs(root);
   FzeroCourse c = {0};
   c.block_size = 544;
@@ -74,6 +76,7 @@ int main(void) {
                              sizeof(error)));
   const char *manifest =
       "{\"format\":1,\"id\":\"one\",\"name\":\"One\",\"author\":\"Test\","
+      "\"menu_music\":{\"select\":\"music/menu.pcm\"},"
       "\"cups\":[{\"id\":\"solo\",\"name\":\"Solo\",\"courses\":[\"course\"]}],"
       "\"courses\":[{\"id\":\"course\",\"name\":\"Course\",\"source\":\"course."
       "fzc\"}]}";
@@ -109,6 +112,30 @@ int main(void) {
   CHECK(!FzeroPacksCourseMusic("one",1,music_b,sizeof(music_b)));
   CHECK(FzeroPacksLoadCourse("one",0,&copy,error,sizeof(error)));
   CHECK(!memcmp(record_hash,copy.hash,sizeof(record_hash)));
+  /* Prefilled missing defaults, event-only overrides, persistence and removal. */
+  CHECK(FzeroMenuMusicPath(4,music_b,sizeof(music_b)));
+  CHECK(strstr(music_b,"menu.pcm"));
+  CHECK(!FzeroMenuMusicResolve(5,music_b,sizeof(music_b)));
+  const unsigned char pcm[] = {'M','S','U','1',0,0,0,0,0,0,0,0};
+  write_file("test-pack-discovery/a/music/menu.pcm",pcm,sizeof(pcm));
+  CHECK(FzeroMenuMusicResolve(5,music_b,sizeof(music_b)));
+  CHECK(!FzeroMenuMusicResolve(6,music_b,sizeof(music_b)));
+  CHECK(!FzeroMenuMusicSetPath(4,"test-pack-discovery/a/music/course.pcm"));
+  CHECK(FzeroMenuMusicSetPath(0,"test-pack-discovery/a/music/menu.pcm"));
+  CHECK(FzeroMenuMusicSetPack("one"));
+  FzeroMenuMusicEnable(false);
+  CHECK(!FzeroMenuMusicResolve(1,music_b,sizeof(music_b)));
+  CHECK(FzeroPacksCourseMusic("one",0,music_a,sizeof(music_a)));
+  CHECK(FzeroTracksSave());
+  CHECK(FzeroTracksInit("test-pack-discovery/settings",true));
+  CHECK(!FzeroMenuMusicEnabled() && FzeroMenuMusicCustom(0));
+  CHECK(!strcmp(FzeroMenuMusicPack(),"one"));
+  FzeroMenuMusicEnable(true);
+  CHECK(FzeroMenuMusicResolve(1,music_b,sizeof(music_b)));
+  CHECK(FzeroMenuMusicSetPath(0,""));
+  CHECK(!FzeroMenuMusicResolve(1,music_b,sizeof(music_b)));
+  CHECK(!remove("test-pack-discovery/a/music/menu.pcm"));
+  CHECK(!FzeroMenuMusicResolve(5,music_b,sizeof(music_b)));
   /* A pack-wide module and a course-only module compose without making an
    * undeclared course in another pack inherit those terrain semantics. */
   const char *scoped =

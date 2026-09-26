@@ -49,8 +49,10 @@ static uint8_t race_acceleration[4][4][29], race_turn[4][4][30];
 enum { IMAGE_SIZE = 0x400000, ID_ADDRESS = 0x14dff,
        INFO_BASE = 0x80000, INFO_CARD_SIZE = 0x580,
        INFO_ENTRY_SIZE = INFO_CARD_SIZE + 6,
-       RIVAL_ID = 0x14ce3, RIVAL_FIRST = 0x14ce4,
-       RIVAL_VERSION = 0x14ce5, RIVAL_SLOT = 0x14ce6,
+       /* Reserved gap after the ghost codec ($14CA0..$14CE5) and before
+        * record times ($14CF0). The car-record tail is copied on load. */
+       RIVAL_ID = 0x14ce8, RIVAL_FIRST = 0x14ce9,
+       RIVAL_VERSION = 0x14cea, RIVAL_SLOT = 0x14ceb,
        RIVAL_ART = 0x350000, RIVAL_PALETTES = 0x358000 };
 
 bool FzeroVehiclesActive(void) {
@@ -80,6 +82,23 @@ static unsigned group_for(unsigned id) {
     return vehicles[id].group;
   return (choices.stock_rebalance & (1u << id)) ? (id == 0 || id == 2 ? 2 : 3)
                                                 : 0;
+}
+bool FzeroVehicleRecordIcon(unsigned index, uint32_t pixels[16 * 16]) {
+  if (index >= count || !pixels) return false;
+  unsigned id = roster[index], group = group_for(id), slot = vehicles[id].slot;
+  const uint8_t *source = group ? art[group - 1] : stock_image;
+  const uint8_t *graphic = source + 0x40000 + slot * 0x8000 + 0x6aa0;
+  const uint8_t *palette = source + 0x7cd80 + slot * 32;
+  for (unsigned y = 0; y < 16; ++y)
+    for (unsigned x = 0; x < 16; ++x) {
+      unsigned at = (y / 8 * 2 + x / 8) * 32 + y % 8 * 2, color = 0;
+      for (unsigned bit = 0; bit < 4; ++bit)
+        color |= ((graphic[at + bit / 2 * 16 + bit % 2] >> (7 - x % 8)) & 1) << bit;
+      unsigned rgb = palette[color * 2] | (unsigned)palette[color * 2 + 1] << 8;
+      pixels[y * 16 + x] = color ? 0xff000000u | ((rgb & 31) * 255 / 31 << 16) |
+          (((rgb >> 5) & 31) * 255 / 31 << 8) | (((rgb >> 10) & 31) * 255 / 31) : 0;
+    }
+  return true;
 }
 static unsigned gp_group_for(unsigned id) {
   /* Roster membership is independent of the player's handling choice.
@@ -291,7 +310,7 @@ bool FzeroVehiclesPrepare(uint8_t **rom, size_t *size, char *error,
     memcpy(base + 0xf0063 + slot * 256, stock_image + 0x149ab + slot * 19, 19);
     memcpy(base + 0xf0076 + slot * 256, stock_image + 0x14a37 + slot * 19, 19);
   }
-  uint8_t identity[4 * 32 + 8] = {2, 0, 0, 0};
+  uint8_t identity[4 * 32 + 8] = {3, 0, 0, 0};
   identity[4] = (uint8_t)choices.vehicle_packs;
   identity[5] = (uint8_t)choices.stock_rebalance;
   bool tracks = FzeroBsTracks(), ok = true;
@@ -776,7 +795,33 @@ void FzeroVehiclesEndFrame(Ppu *ppu) {
   pane_active = false;
 }
 static void menu_hook(CpuState *cpu, uint32_t pc) {
-  if (pc == 0x1ec4da) {
+  if (pc == 0x1eb4e7) {
+    /* Deluxe saves a four/eight-car number in its ghost header. Reserve bit
+     * 7 for our stable identity; leave its recording/checksum format intact. */
+    cpu_write_a_m(cpu, (uint16_t)(0x80 | FzeroVehicleSelected()));
+  } else if (pc == 0x1eb24f) {
+    unsigned saved = cpu->A;
+    if (saved & 0x80) {
+      unsigned id = saved & ~0x80u;
+      cpu_write_a_m(cpu, (uint16_t)(id < 12 && enabled(id) ? vehicles[id].slot : 0xffff));
+    }
+  } else if (pc == 0x1eb3f3) {
+    unsigned saved = g_ram[0x14cfd], id = saved & 0x7f;
+    /* Authored BS ghosts keep the ordinary native path. A CGP ghost owns
+     * the same spare slot as a chosen Practice rival, with its own artwork. */
+    if (!(g_ram[0x14ca0] & 0x40) && (saved & 0x80) && id < 12 && enabled(id)) {
+      unsigned slot = (vehicles[FzeroVehicleSelected()].slot + 1) % 4;
+      g_ram[RIVAL_ID] = (uint8_t)id;
+      g_ram[RIVAL_SLOT] = (uint8_t)slot;
+      g_ram[RIVAL_VERSION] = 1;
+      g_ram[0xcf2] = (uint8_t)slot;
+      FzeroVehiclesSync();
+      cpu_write_a_m(cpu, (uint16_t)slot);
+      cpu->_flag_Z = !slot;
+      cpu->_flag_N = 0;
+      interp_bridge_pre_opcode_redirect(0x1eb3f7);
+    }
+  } else if (pc == 0x1ec4da) {
     /* Native title/frame palettes follow the selected identity, not its
      * current display row. Original cars retain their retail colors unless
      * their individual rebalance is enabled. Leave the copy routine intact. */
@@ -930,7 +975,8 @@ void FzeroVehiclesInstallHooks(void) {
   if (!count)
     return;
   const unsigned sites[] = {0x1edd01, 0x1ec76e, 0x1ed90a, 0x1edb0c, 0x1ec81b,
-                            0x1ed04f, 0x1ec831, 0x00d54c, 0x00c163, 0x1ec4da};
+                            0x1ed04f, 0x1ec831, 0x00d54c, 0x00c163, 0x1ec4da,
+                            0x1eb4e7, 0x1eb24f, 0x1eb3f3};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], menu_hook);
 }

@@ -62,6 +62,54 @@ static const char *scroll_label(const char *label, unsigned width, bool selected
   }
   return label;
 }
+static unsigned read_word(const uint8_t *p) { return p[0] | (unsigned)p[1] << 8; }
+static uint32_t record_color(unsigned rgb) {
+  return 0xff000000u | ((rgb & 31) * 255 / 31 << 16) |
+      (((rgb >> 5) & 31) * 255 / 31 << 8) | (((rgb >> 10) & 31) * 255 / 31);
+}
+static unsigned horizon_pixel(const FzeroCourse *course, const uint8_t *map, unsigned x, unsigned y) {
+  unsigned tile = read_word(map + ((x / 256) * 224 + (y / 8) * 32 + x / 8 % 32) * 2);
+  if ((tile & 1023) >= 256) return 0;
+  unsigned px = x % 8, py = y % 8;
+  if (tile & 0x4000) px = 7 - px;
+  if (tile & 0x8000) py = 7 - py;
+  const uint8_t *graphic = course->sky_graphics + (tile & 255) * 32 + py * 2;
+  unsigned color = 0;
+  for (unsigned bit = 0; bit < 4; ++bit)
+    color |= ((graphic[bit / 2 * 16 + bit % 2] >> (7 - px)) & 1) << bit;
+  unsigned palette = (tile >> 10) & 7;
+  return color && palette >= 1 ? palette * 16 + color : 0;
+}
+static void records_art(Canvas canvas, const FzeroRecordsView *view) {
+  FzeroTracksRefreshCourse();
+  const FzeroCourse *course = FzeroTracksCurrentCourse();
+  if (course) {
+    /* Keep the native 256x40 venue strip. Use the actual course's two horizon
+     * layers and palette, rather than tinting a retail venue illustration. */
+    for (unsigned y = 0; y < 40; ++y)
+      for (unsigned x = 0; x < 256; ++x) {
+        unsigned color = horizon_pixel(course, course->sky_back, x, y + 16);
+        if (!color) color = horizon_pixel(course, course->sky_front, x, y + 16);
+        if (!color) color = 96;
+        box(canvas, (int)x, 16 + (int)y, 1, 1,
+            record_color(read_word(course->palette + (color - 16) * 2)));
+      }
+  }
+  uint32_t icon[16 * 16];
+  if (!FzeroDeluxeActive() || !FzeroVehicleRecordIcon(view->vehicle, icon)) return;
+  /* The native detail screen owns eleven 16x16 car reservations: ten ranked
+   * times and best lap. Empty rows are hidden at Y=224. Use their positions,
+   * but draw the identity owning this records namespace, not its donor slot. */
+  for (unsigned row = 0; row < 11; ++row) {
+    const uint8_t *oam = g_ram + 0x200 + row * 4;
+    unsigned x = oam[0], y = oam[1];
+    if (y + 16 > 224 || x + 16 > 256) continue;
+    for (unsigned yy = 0; yy < 16; ++yy)
+      for (unsigned xx = 0; xx < 16; ++xx)
+        box(canvas, (int)(x + xx), (int)(y + yy), 1, 1,
+            icon[yy * 16 + xx] ? icon[yy * 16 + xx] : 0xff000000);
+  }
+}
 void FzeroRecordsOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch) {
   FzeroRecordsView *v = FzeroRecordsViewState();
   if (!v || !pixels || height < 224 || height % 224 || width / (height / 224) < 256) return;
@@ -74,6 +122,7 @@ void FzeroRecordsOverlay(uint32_t *pixels, unsigned width, unsigned height, size
   box(c, 0, 0, 256, 16, 0xff000000);
   record_text(c, (256 - (int)strlen(label) * 8) / 2, 4, label, 32, 0xffb8e8ff);
   if (detail) {
+    records_art(c, v);
     const CpCup *cup = FzeroTracksRuntimeCup(FzeroRecordsCup(), NULL);
     const CpTrack *track = FzeroTracksRuntimeTrack(FzeroRecordsCup(), FzeroRecordsOrder());
     box(c, 8, 76, 120, 38, 0xff000000);

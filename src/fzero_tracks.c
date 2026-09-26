@@ -1,6 +1,7 @@
 #include "fzero_tracks.h"
 #include "fzero_packs.h"
 #include "fzero_title.h"
+#include "fzero_menu_music.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -166,6 +167,7 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
   loader_enabled = true;
   title_enabled = false;
   FzeroTitleCatalogInit();
+  FzeroMenuMusicInit();
   strcpy(title_style, "original");
   if (!root || !*root || strlen(root) >= sizeof(root_path) - 32)
     return fail("Pack settings path too long");
@@ -185,12 +187,13 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
   const char *directory = getenv("FZERO_PACKS_DIR");
   FzeroPacksDiscover(&catalog,
                      directory && *directory ? directory : "mods/packs");
-  char path[CP_PATH + 32], line[128];
+  char path[CP_PATH + 32], line[1200];
   snprintf(path, sizeof(path), "%s/loader.cfg", root_path);
   FILE *f = fopen(path, "rb");
   if (f) {
     while (fgets(line, sizeof(line), f)) {
       line[strcspn(line, "\r\n")] = 0;
+      FzeroMenuMusicRead(line);
       if (!strcmp(line, "enabled=1"))
         loader_enabled = true;
       else if (!strcmp(line, "enabled=0"))
@@ -218,6 +221,7 @@ bool FzeroTracksSave(void) {
     return fail("Cannot write loader settings");
   bool ok = fprintf(f, "enabled=%u\ntitle=%s\ntitle_enabled=%u\n",
                     loader_enabled, title_style, title_enabled) > 0;
+  if (!FzeroMenuMusicWrite(f)) ok = false;
   if (fclose(f))
     ok = false;
 #ifdef _WIN32

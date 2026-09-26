@@ -16,6 +16,9 @@ bool FzeroPacksMusicSources(FzeroMusicSources *out);
 bool FzeroPacksResolveMusic(const char *source, unsigned track, char *out,
                             size_t cap);
 bool FzeroPacksHasMusic(void);
+const char *FzeroPacksMenuMusicId(unsigned index);
+const char *FzeroPacksMenuMusicName(const char *id);
+bool FzeroPacksMenuMusic(const char *id, const char *cue, char *out, size_t cap);
 #ifdef __cplusplus
 }
 #endif

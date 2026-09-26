@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import shutil
 import zipfile
+from pack_manifest import course_source_stem
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -82,7 +83,7 @@ def stage_course_music(source, pack):
         number = str(course.get("music", {}).get("track", ""))
         if number not in manifest["tracks"]:
             continue  # The approved replacement intentionally uses SPC here.
-        name = Path(course["source"]).stem + ".pcm"
+        name = course_source_stem(pack, course) + ".pcm"
         if name in files and files[name] != number:
             raise ValueError(f"Conflicting music filename: {name}")
         files[name] = number

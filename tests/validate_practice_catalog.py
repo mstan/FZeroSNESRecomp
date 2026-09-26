@@ -118,11 +118,11 @@ def main():
             assert visited == case["courses"], (name, visited)
             assert ram[0x54:0x57] == bytes([2, 1, 1]), (name, ram[0x54:0x57].hex())
         else:
-            assert ram[0x14ce3] == rival, (name, "rival", ram[0x14ce3], rival)
+            assert ram[0x14ce8] == rival, (name, "rival", ram[0x14ce8], rival)
         if race:
             assert ram[0x54:0x56] == bytes([2, 3]), (name, ram[0x54:0x57].hex())
             if rival < 12:
-                assert ram[0xcf2] == ram[0x14ce6] != ram[0x52], (name, "physical slot collision")
+                assert ram[0xcf2] == ram[0x14ceb] != ram[0x52], (name, "physical slot collision")
                 cart = (folder / "cart.bin").read_bytes()
                 expected_acceleration = b""
                 for who, identity in enumerate((player, rival)):
@@ -146,7 +146,7 @@ def main():
         if case.get("rewind"):
             assert "rewind: actual ring restore and ten-frame resimulation identical" in log, name
         assert "[MSU-1] enabled:" not in log, name
-        results[name] = dict(player=ram[0x14dff], rival=ram[0x14ce3], scene=list(ram[0x54:0x57]), frames=frames)
+        results[name] = dict(player=ram[0x14dff], rival=ram[0x14ce8], scene=list(ram[0x54:0x57]), frames=frames)
         print(name, "PASS", flush=True)
 
     with ThreadPoolExecutor(max_workers=3) as pool:

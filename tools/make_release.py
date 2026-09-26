@@ -14,6 +14,7 @@ import struct
 import subprocess
 import zipfile
 from import_cgp_music import verify_music, stage_course_music
+from import_astra_music import stage_music as stage_astra_music
 
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
@@ -23,7 +24,7 @@ p.add_argument("--output", default="release-stage", help="Parent for a fresh ver
 p.add_argument("--label", default="", help="Optional local build label, such as fzero-55")
 p.add_argument("--exe", default="FZeroSNESRecomp.exe", help="Desktop executable filename in the build directory")
 p.add_argument("--music", choices=("bundled", "external"), default="bundled",
-               help="Include the approved CGP soundtrack, or retain MSU support without audio files")
+               help="Include the approved CGP and Astra soundtracks, or retain MSU support without audio files")
 p.add_argument("--profile", choices=("player", "developer"), default="player",
                help="Player bundles contain runtime files and credits; developer bundles also include source/reference material")
 p.add_argument("--packs", type=Path, required=True, help="Reviewed exported course packs; never copy arbitrary installed packs")
@@ -108,14 +109,16 @@ for ident in ("astra-front","bower-league","cgp","max-league"):
 (stage/"assets/track-packs/presentation").mkdir(parents=True)
 for filename in ("screens.txt","fzero-55.ips"):
     shutil.copy2(ROOT/"assets/track-packs/presentation"/filename,stage/"assets/track-packs/presentation"/filename)
-# Reviewed CGP soundtrack only; never copy arbitrary user music from a build.
+# Reviewed author soundtracks only; never copy arbitrary user music from a build.
 music = ROOT / "music/cgp"
 if bundled_music:
     music_manifest = verify_music(music)
     stage_course_music(music, stage / "mods/packs/cgp")
+    stage_astra_music(ROOT / "music/astra-front", stage / "mods/packs/astra-front")
 (stage / "assets/music").mkdir(parents=True, exist_ok=True)
 if developer:
     shutil.copy2(ROOT / "assets/music/cgp.json", stage / "assets/music/cgp.json")
+    shutil.copy2(ROOT / "assets/music/astra-front.json", stage / "assets/music/astra-front.json")
     shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
     shutil.copy2(ROOT / "assets/music/CGP_ATTRIBUTION.md", stage / "assets/music/CGP_ATTRIBUTION.md")
 if bundled_music and music_manifest.get("attribution_review", {}).get("status") == "incomplete":
@@ -124,6 +127,7 @@ if bundled_music and music_manifest.get("attribution_review", {}).get("status") 
 (stage / "mods").mkdir(exist_ok=True)
 shutil.copy2(deluxe_mods / "BS-Deluxe-credits.txt", stage / "mods/BS-Deluxe-credits.txt")
 shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
+shutil.copy2(ROOT / "MODS.md", stage / "MODS.md")
 (stage / "CREDITS.txt").write_text(
     "F-Zero Forever\n\n"
     "CGP gameplay and vehicle artwork: Fennor Virastar, Worthy MF and the CGP contributors.\n"
@@ -167,6 +171,13 @@ if developer:
     for filename in ("CGP_COURSE_CAPABILITIES.md", "CGP_LANDING_AUDIT.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md"):
         shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
     shutil.copy2(ROOT/"docs/PACK_FORMAT.md",stage/"docs/PACK_FORMAT.md")
+# MODS.md links to these instructions in player downloads too.
+(stage / "docs").mkdir(exist_ok=True)
+player_guides = ("PACK_FORMAT.md", "CGP_COURSE_CAPABILITIES.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md")
+for filename in player_guides:
+    shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
+shutil.copy2(ROOT / "mods/PARSE_MANIFEST.md", stage / "mods/PARSE_MANIFEST.md")
+shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
 (stage/"README.txt").write_text(
     f"F-Zero Forever {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own F-Zero (USA) ROM.\n"
@@ -176,11 +187,12 @@ if developer:
     "Vehicle packs, rules and screen override remain separate options. CGP preset enables the full experience.\n\n"
     "Required course mechanics load automatically with their pack and have no separate switches.\n"
     "Legend difficulty defaults on; diagnostics and MSU-1 default off. Saved choices are respected.\n\n"
-    + ("CGP audio is included in mods/packs/cgp/music.\n" if bundled_music else "Audio is not included; you can add it to each pack's music folder.\n") +
+    + ("CGP and Astra audio are included in their mods/packs/<pack>/music folders.\n" if bundled_music else "Audio is not included; you can add it to each pack's music folder.\n") +
     "Match the course source filename: courses/example.fzc or example.fzm uses music/example.pcm.\n"
     "Enable MSU-1 in Settings > Audio; Installed pack music uses discovered recordings.\n"
     "Custom selects loose MSU files. Missing songs use their course's native SNES music.\n"
-    "Astra recordings are not included.\n\n"
+    "Mods > Menu and event music shows the supplied CGP menu songs and lets you replace them.\n"
+    "See MODS.md for music instructions and the editable Huckmine source ZIP example.\n\n"
     "F7: save-state menu. R: rewind. D/C: left/right shoulder. Alt+Enter: fullscreen.\n"
     "Credits are in CREDITS.txt and each pack; license notices are in licenses/.\n",encoding="utf-8")
 
@@ -253,15 +265,16 @@ manifest = {"version": version, "label": a.label, "music": a.music,
 for path in sorted(stage.rglob("*")):
     if path.is_file():
         if not developer and (path.suffix.lower() in (".asm", ".cpp", ".cc", ".h", ".py", ".ps1")
-                              or path.relative_to(stage).parts[0] in ("docs", "patches")
-                              or path.name in ("extraction.json", "PARSE_MANIFEST.md", "SOURCE_INDEX.json")):
+                              or path.relative_to(stage).parts[0] == "patches"
+                              or (path.relative_to(stage).parts[0] == "docs" and path.name not in player_guides)
+                              or path.name in ("extraction.json", "SOURCE_INDEX.json")):
             raise SystemExit(f"Developer material in player bundle: {path}")
         if (path.suffix.lower() in (".sfc", ".smc", ".srm", ".sav", ".bin", ".c")
                 or path.name.lower() in ("config.ini", "rom.cfg", "fzero-video.ini", "f-zero_msu1.ips")
                 or path.name.lower().startswith("crt-geom")):
             raise SystemExit(f"Forbidden payload: {path}")
         if path.suffix.lower() in (".pcm", ".msu") and (
-                not bundled_music or path.parent != stage / "mods/packs/cgp/music"):
+                not bundled_music or path.parent not in (stage / "mods/packs/cgp/music", stage / "mods/packs/astra-front/music")):
             raise SystemExit(f"Unapproved music payload: {path}")
         manifest["files"][path.relative_to(stage).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
 manifest_path = stage / "manifest.json" if developer else stage.parent / (stage.name + ".manifest.json")

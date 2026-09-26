@@ -5,6 +5,7 @@ extern "C" {
 #include "fzero_course_file.h"
 #include "fzero_title.h"
 #include "fzero_tracks.h"
+#include "fzero_menu_music.h"
 #include "sha256.h"
 }
 #include <algorithm>
@@ -34,6 +35,7 @@ struct Pack {
   std::vector<fs::path> courses;
   std::vector<FzeroCourse> decoded;
   std::vector<Title> titles;
+  std::map<std::string, fs::path> menu_music;
   int order = 0;
 };
 struct Sound {
@@ -120,7 +122,7 @@ unsigned mechanics(const fs::path &root, const Value &owner) {
   return bits;
 }
 Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &audio,
-           std::string &newPrimary) {
+           std::string &newPrimary, bool courseArchive = false) {
   rapidjson::Document d;
   std::string text(reinterpret_cast<const char *>(entry.payload), entry.payload_size);
   d.Parse<rapidjson::kParseIterativeFlag |
@@ -178,8 +180,21 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
       }
     }
   }
+  if (d.HasMember("menu_music")) {
+    auto &menu = d["menu_music"];
+    require(menu.IsObject(), "menu_music must be an object");
+    for (auto it = menu.MemberBegin(); it != menu.MemberEnd(); ++it) {
+      std::string cue(it->name.GetString(), it->name.GetStringLength());
+      bool known = false;
+      for (auto &event : FzeroMenuCues) known |= cue == event.id;
+      require(known && it->value.IsString(), "Unknown menu_music cue: " + cue);
+      auto file = inside(root, string(menu, cue.c_str()));
+      require(lower(file.extension().string()) == ".pcm", "Menu music must be PCM");
+      p.menu_music.emplace(cue, file);
+    }
+  }
   if (!d.HasMember("courses")) {
-    require(!audio.empty(), "Pack has no courses or audio");
+    require(!audio.empty() || !p.menu_music.empty(), "Pack has no courses or audio");
     return p;
   }
   require(d["courses"].IsArray() && d["courses"].Size() <= CP_TRACKS,
@@ -221,17 +236,56 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
       char error[256] = {0};
       auto source = p.courses.back();
       bool ok = false;
-      if (source.extension() == ".fzc")
+      if (lower(source.extension().string()) == ".zip") {
+        require(!courseArchive, "A course ZIP cannot contain another course ZIP");
+        // A one-course pack can also supply a course in a larger league.
+        // Use the shared ZIP validator/cache, exactly as for installed packs.
+        struct Errors { std::string source, message; } errors{source.string(), {}};
+        auto report = [](void *user, const char *file, const char *reason) {
+          auto &errors = *static_cast<Errors *>(user);
+          if (fs::path(file) == fs::path(errors.source)) errors.message = reason;
+        };
+        uint8_t base[32];
+        cp_hash_parse("bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2", base);
+        const char *caps[] = {"fzero-course-v1"};
+        std::unique_ptr<SnesDataPacks, decltype(&snes_data_packs_destroy)> nested(
+            snes_data_packs_scan(source.parent_path().string().c_str(), "f-zero",
+                                "fzero.course-index", base, caps, 1, report, &errors),
+            snes_data_packs_destroy);
+        for (size_t i = 0; i < snes_data_packs_count(nested.get()); ++i) {
+          const auto *item = snes_data_packs_get(nested.get(), i);
+          if (fs::path(item->source) != source) continue;
+          const char *directory = snes_data_pack_directory(
+              nested.get(), i, "mods/packs/.cache/sources", report, &errors);
+          require(directory != nullptr, errors.message.empty() ?
+                  "Cannot open course ZIP" : errors.message);
+          std::vector<Sound> unusedAudio;
+          std::string unusedPrimary;
+          auto project = parse(fs::path(reinterpret_cast<const char8_t *>(directory)),
+                               *item, unusedAudio, unusedPrimary, true);
+          require(project.decoded.size() == 1,
+                  "A course ZIP must contain exactly one course");
+          decoded = project.decoded.front();
+          // Music follows the actual .fzm/.fzc filename, never the ZIP name.
+          p.courses.back() = project.courses.front();
+          ok = true;
+          break;
+        }
+        require(ok, errors.message.empty() ? "Course ZIP has no valid pack manifest" :
+                                            errors.message);
+      } else if (source.extension() == ".fzc")
         ok = FzeroCourseFileRead(source.string().c_str(), &decoded, error,
                                  sizeof(error));
       else if (source.extension() == ".fzm")
         ok = FzeroFzeditRead(root.string().c_str(), source.string().c_str(),
                              &decoded, error, sizeof(error));
       else
-        snprintf(error, sizeof(error), "Expected .fzm or .fzc source");
+        snprintf(error, sizeof(error), "Expected .fzm, .fzc or single-course .zip source");
       require(ok, string(c, "id") + ": " + error);
-      if (c.HasMember("requires"))
+      if (c.HasMember("requires") && lower(source.extension().string()) != ".zip")
         decoded.required = uint8_t(requiredFeatures(c["requires"]));
+      else if (c.HasMember("requires"))
+        decoded.required |= uint8_t(requiredFeatures(c["requires"]));
       decoded.required |= uint8_t(packMechanics | mechanics(root, c));
       if (c.HasMember("music")) {
         auto &m = c["music"];
@@ -421,6 +475,9 @@ bool FzeroPacksResolveMusic(const char *source, unsigned track, char *out,
 bool FzeroPacksHasMusic(void) {
   try {
     for (auto &pack : packs)
+      for (auto &[cue, path] : pack.menu_music)
+        if (fs::is_regular_file(path)) return true;
+    for (auto &pack : packs)
       for (unsigned i = 0; i < pack.courses.size(); ++i)
         if (fs::is_regular_file(courseMusic(pack, i)))
           return true;
@@ -431,6 +488,37 @@ bool FzeroPacksHasMusic(void) {
               f.path().filename().string().starts_with(s.prefix + "-"))
             return true;
   } catch (const fs::filesystem_error &) {
+  }
+  return false;
+}
+
+const char *FzeroPacksMenuMusicId(unsigned index) {
+  for (auto &pack : packs)
+    if (!pack.menu_music.empty() && index-- == 0) return pack.info.id;
+  return nullptr;
+}
+const char *FzeroPacksMenuMusicName(const char *id) {
+  if (!id) return nullptr;
+  for (auto &pack : packs)
+    if (!pack.menu_music.empty() && id == std::string(pack.info.id)) return pack.info.name;
+  return nullptr;
+}
+bool FzeroPacksMenuMusic(const char *id, const char *cue, char *out, size_t cap) {
+  if (!id || !cue || !out || !cap) return false;
+  out[0] = 0;
+  std::string wanted = *id ? id : primary;
+  if (!*id && !FzeroPacksMenuMusicName(wanted.c_str())) {
+    const char *first = FzeroPacksMenuMusicId(0);
+    wanted = first ? first : "";
+  }
+  for (auto &pack : packs) {
+    if (wanted != pack.info.id) continue;
+    auto found = pack.menu_music.find(cue);
+    if (found == pack.menu_music.end()) return false;
+    auto path = found->second.string();
+    if (path.size() >= cap) return false;
+    strcpy(out, path.c_str());
+    return true; // Return the template path even in a download without audio.
   }
   return false;
 }

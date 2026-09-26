@@ -200,8 +200,9 @@ static void record_hook(CpuState *cpu, uint32_t pc) {
     FzeroTracksRefreshCourse();
     const FzeroCourse *c = FzeroTracksCurrentCourse();
     if (c) {
-      /* Reuse the native venue illustration for this course's setting. The
-       * decoded course supplies its own colors and minimap below. */
+      /* Keep the native detail-screen setup and sprite reservations. The
+       * host overlay replaces its stock illustration with course scenery;
+       * decoded course data also supplies the minimap and palette below. */
       for (unsigned i = 0; i < 15; ++i)
         if ((g_snes->cart->rom[0x16129 + i] & 15) == (c->setting & 15)) { native = i; break; }
       for (unsigned i = 0; i < 15; ++i)

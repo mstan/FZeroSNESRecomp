@@ -1,7 +1,7 @@
 """Reconstruct standalone course packs from reviewed IPS/BPS inputs.
 
-These are extracted resources, not the author's original editor project.
-No source ROM or executable patch is included in the result.
+Huckmine uses the preserved author project; the remaining courses are extracted
+resources. No source ROM or executable patch is included in the result.
 """
 import argparse
 import hashlib
@@ -60,6 +60,8 @@ def main():
         if ident in ('cgp','astra-front'):
             prefixes = ['cgp','F-Zero CGP P1'] if ident=='cgp' else ['F-ZERO Astra Front']
             manifest['soundtracks'] = [dict(id=ident,prefix=p,directory='music',primary=ident=='cgp') for p in prefixes]
+        if ident == 'cgp':
+            manifest['menu_music'] = json.loads((ROOT/'assets/music/cgp-menu.json').read_text())
         title = ROOT/'assets/track-packs/presentation'/f'{ident}.ips'
         if title.exists():
             from inspect_bs_deluxe import apply_ips
@@ -82,14 +84,29 @@ def main():
             course['requires']=[] # Explicitly replace embedded extraction metadata.
             if extra:
                 course['mechanics']=[mechanic_module(course['id'],extra)]
+        source_projects = {}
+        extracted_huckmine = None
+        if ident == 'cgp':
+            example = ROOT/'examples/huckmine'
+            audit = json.loads((example/'source.json').read_text())
+            project = (example/'HM.zip').read_bytes()
+            assert hashlib.sha256(project).hexdigest() == audit['archive_sha256']
+            (root/'courses/HM.zip').write_bytes(project)
+            (root/'courses/huckmine.fzc').unlink()
+            next(c for c in manifest['courses'] if c['id']=='huckmine')['source']='courses/HM.zip'
+            extracted_huckmine = hashes['huckmine']
+            hashes['huckmine'] = audit['course_hash']
+            source_projects['huckmine'] = audit
         write_index(root, manifest)
         credits={'astra-front':'Astra-Front-credits.txt','bower-league':'Bower-League-credits.txt',
                  'cgp':'CGP-credits.txt','max-league':'MAX-League-credits.txt'}
         shutil.copy2(ROOT/'assets/track-packs'/credits[ident],root/'CREDITS.txt')
         audit = dict(source='reviewed patch extraction; not original FZEdit project',
                      donor_sha256=hashlib.sha256(result).hexdigest(),record_hashes=hashes)
+        if source_projects:
+            audit.update(source_projects=source_projects, extracted_huckmine_hash=extracted_huckmine)
         (root/'extraction.json').write_text(json.dumps(audit,indent=2)+'\n',encoding='utf-8')
-        print(f'{ident}: {len(hashes)} courses round-tripped exactly')
+        print(f'{ident}: {len(hashes)} courses exported' + (' (Huckmine from author source)' if source_projects else ' from reviewed extraction'))
 
 if __name__=='__main__':
     main()

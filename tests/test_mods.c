@@ -12,7 +12,7 @@ int main(void) {
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
   const CpCatalog *catalog = FzeroTracksCatalog();
-  CHECK(p->package_count(NULL) == 2 + FZERO_RULE_COUNT && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 3 + FZERO_RULE_COUNT && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -24,6 +24,24 @@ int main(void) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
+    if (!strcmp(pack.id, "menu-music")) {
+      CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == 1 && pack.enabled);
+      CHECK(p->feature_resource_count(NULL, pack.package_id, pack.id) == 6);
+      static const char *cues[] = {"countdown", "ready", "lost-life", "title", "select", "ending"};
+      for (int cue = 0; cue < 6; ++cue) {
+        RecompLauncherCModResource music;
+        CHECK(p->feature_resource_get(NULL, pack.package_id, pack.id, cue, &music));
+        CHECK(!strcmp(music.id, cues[cue]) && !strcmp(music.file_patterns, "*.pcm"));
+        CHECK(!p->feature_resource_set_path(NULL, pack.package_id, pack.id, music.id, "missing.pcm"));
+        CHECK(p->feature_resource_set_path(NULL, pack.package_id, pack.id, music.id, ""));
+      }
+      CHECK(p->feature_option_get(NULL, pack.package_id, pack.id, 0, &option));
+      CHECK(option.type == RECOMP_MOD_OPTION_CHOICE && option.choice_count >= 1);
+      CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 0));
+      CHECK(p->feature_get(NULL, i, &pack) && !pack.enabled);
+      CHECK(p->feature_enable(NULL, pack.package_id, pack.id, 1));
+      continue;
+    }
     CHECK(strcmp(pack.package_id, "track-library") && !strcmp(pack.id, "tracks"));
     CHECK(!strcmp(pack.package_id, package.id) && pack.option_count == 0);
     RecompLauncherCModResource resource;

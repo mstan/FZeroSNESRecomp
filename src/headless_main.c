@@ -117,6 +117,11 @@ static void replay_wram_before(long frame) {
       memcpy(g_ram + e->address, e->bytes, e->size);
   }
 }
+static void finish_rank_fixture(CpuState *cpu, uint32_t pc) {
+  (void)pc;
+  unsigned rank = (unsigned)strtoul(getenv("FZERO_TEST_FINISH_RANK"), NULL, 10);
+  if (rank >= 1 && rank <= 3) cpu_write_a_m(cpu, (uint16_t)rank);
+}
 static void stock_landing_probe(CpuState *cpu, uint32_t pc) {
   (void)cpu; (void)pc; /* Run the native instructions as a negative control. */
 }
@@ -438,10 +443,15 @@ int main(int argc, char **argv) {
   /* Private records QA: cross each course's actual finish line on the final
    * lap. Native finish, record-writing and cup-completion code still runs. */
   bool records_test = getenv("FZERO_TEST_RECORDS_CUP") != NULL;
+  const char *finish_rank_text = getenv("FZERO_TEST_FINISH_RANK");
+  unsigned finish_rank = finish_rank_text ? (unsigned)strtoul(finish_rank_text, NULL, 10) : 1;
+  if (finish_rank < 1 || finish_rank > 3) finish_rank = 1;
   unsigned records_course = 99, records_race_frames = 0;
   if (!replay_wram_init()) { fputs("Invalid WRAM replay fixture\n", stderr); return 10; }
   if (getenv("FZERO_TEST_STOCK_LANDING"))
     interp_bridge_set_pre_opcode_hook(0x009c9a, stock_landing_probe);
+  if (records_test && finish_rank_text)
+    interp_bridge_set_pre_opcode_hook(0x1ebb3b, finish_rank_fixture);
 
   for (long frame = 0; frame < frame_limit; frame++) {
     replay_wram_before(frame);
@@ -460,12 +470,12 @@ int main(int argc, char **argv) {
       static const uint8_t times[] = {0,0x20,0x52, 0,0x41,0x27, 1,0,0x59,
                                       1,0x20,0x40, 0xff,0xff,0xff};
       memcpy(g_ram + 0xe90, times, sizeof(times));
-      memset(g_ram + 0xf30, 1, 6);
+      memset(g_ram + 0xf30, (int)finish_rank, 6);
       g_ram[0xc0] = 1; g_ram[0xc1] = 0x30; g_ram[0xc2] = 0x32;
       g_ram[0xd40] = 4; g_ram[0xd41] = 0x80; g_ram[0xd00] = 0;
       g_ram[0xb70] = 0x90; g_ram[0xb71] = g_ram[0xae];
       g_ram[0xb90] = 0x80; g_ram[0xb91] = g_ram[0xaf];
-      g_ram[0xdc8] = 1;
+      g_ram[0xdc8] = (uint8_t)finish_rank;
       fprintf(stderr, "records-fixture: finish crossing course=%u frame=%ld\n",
               records_course, frame);
     }
@@ -506,15 +516,23 @@ int main(int argc, char **argv) {
       if (!snes_rewind_open()) return 8;
       for (unsigned i=0;i<10;++i) snes_rewind_step(-1);
       snes_rewind_commit();
-      if (memcmp(initial_ram,g_ram,sizeof(initial_ram)) || initial_master!=g_cpu.master_cycles)
+      if (memcmp(initial_ram,g_ram,sizeof(initial_ram)) || initial_master!=g_cpu.master_cycles) {
+        for (unsigned i=0;i<sizeof(initial_ram);++i) if(initial_ram[i]!=g_ram[i]) {
+          fprintf(stderr,"rewind restore mismatch $%05x: %02x -> %02x\n",i,initial_ram[i],g_ram[i]); break;
+        }
         return 8;
+      }
       for (long n = frame; n < frame + 10; ++n) {
         (void)RtlRunFrame(scripted_input(input_spans, input_span_count, n));
         if (g_fail || !FzeroLastLleResult()) return 8;
         FzeroDrawPpuFrame();
       }
-      if (memcmp(replay_expected,g_ram,sizeof(replay_expected)) || replay_master!=g_cpu.master_cycles)
+      if (memcmp(replay_expected,g_ram,sizeof(replay_expected)) || replay_master!=g_cpu.master_cycles) {
+        for (unsigned i=0;i<sizeof(replay_expected);++i) if(replay_expected[i]!=g_ram[i]) {
+          fprintf(stderr,"rewind replay mismatch $%05x: %02x -> %02x\n",i,replay_expected[i],g_ram[i]); break;
+        }
         return 8;
+      }
       if (!RtlLoadSnapshotFromMemory(initial,length)) return 8;
       free(initial);
       snes_rewind_shutdown();

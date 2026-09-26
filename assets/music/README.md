@@ -52,3 +52,18 @@ leftover excluded PCM copies in older capture/staging folders.
 
 The separately supported Conn/Cubear v11 patch and third-party custom packs
 are user-supplied and are not part of this soundtrack bundle.
+
+## Astra Front and menu songs
+
+The supplied `astra front msu (1).zip` contains ten course recordings. Import
+it with `python tools/import_astra_music.py "path/to/astra front msu (1).zip"`.
+The reviewed hashes and loop points are in `astra-front.json`. The source set
+stays in ignored `music/astra-front`; releases copy the recordings into the
+Astra pack's `music/` directory without renaming or modifying their contents.
+
+CGP's six non-course recordings are declared in its `courses.json`, using the
+reference template in `cgp-menu.json`. **Mods > Menu and event music** displays
+them even in a download without audio. Browse selects a replacement; Clear
+restores that event's pack default. See [MODS.md](../../MODS.md) for the event
+names, exact filenames and installation steps. Astra course music uses its
+own filenames and leaves these menu choices intact.

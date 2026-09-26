@@ -1,0 +1,57 @@
+{
+  "name": "Astra Front",
+  "source_archive": "astra front msu (1).zip",
+  "format": "msu1-pcm-1",
+  "tracks": {
+    "brutal-wind-1.pcm": {
+      "bytes": 67470344,
+      "sha256": "90de9fb18a20ee6969bedd0ba0f58b2caa1c4b62e6e3cceda0c14de0ba8d34b0",
+      "loop": 0
+    },
+    "candany.pcm": {
+      "bytes": 97440776,
+      "sha256": "426e145f8541a0645e9cdc8416883bc05f46157bac9b276edfe188df407d27df",
+      "loop": 0
+    },
+    "death-city.pcm": {
+      "bytes": 43974152,
+      "sha256": "efd1e317214ff5d468177fe369de2e944eb3db99455f704763cc2783b91f7acb",
+      "loop": 0
+    },
+    "moon.pcm": {
+      "bytes": 25909760,
+      "sha256": "0f4660c9a4606a839f606a626a7454b2492b21aa79910ba3df4b131d08c849da",
+      "loop": 0
+    },
+    "u-zero-1.pcm": {
+      "bytes": 29509428,
+      "sha256": "5a755645359a5f17aa8c4e90c441ff609eb60cff46129f6d6aa2c3bcb8c39e6f",
+      "loop": 0
+    },
+    "u-zero-2.pcm": {
+      "bytes": 29509428,
+      "sha256": "5a755645359a5f17aa8c4e90c441ff609eb60cff46129f6d6aa2c3bcb8c39e6f",
+      "loop": 0
+    },
+    "u-zero-3.pcm": {
+      "bytes": 29509428,
+      "sha256": "5a755645359a5f17aa8c4e90c441ff609eb60cff46129f6d6aa2c3bcb8c39e6f",
+      "loop": 0
+    },
+    "u-zero-4.pcm": {
+      "bytes": 20342552,
+      "sha256": "3034bfa9b0009ac132267aed4e7a609056c8566062ccf2c82a8b28f60620fbb0",
+      "loop": 0
+    },
+    "u-zero-5.pcm": {
+      "bytes": 23393692,
+      "sha256": "80aab9cf09e8feea61917c5e5bf18885b33e2118d5013fa9051504bff2a21bda",
+      "loop": 0
+    },
+    "vulcanom.pcm": {
+      "bytes": 43737644,
+      "sha256": "27a7a286da97b28be637728966a22ca0a360c96a5e90d59ae6f8369e237aee75",
+      "loop": 0
+    }
+  }
+}

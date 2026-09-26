@@ -69,6 +69,8 @@ def main():
               dict(name="course-bower",cup="bower-league/bower",track=210,course_files=True),
               dict(name="course-missing",cup="astra-front/astra",fallback=True,course_files=True),
               dict(name="course-practice",cup="cgp/cgp-1",practice=True,track=35,course_files=True)]
+    cases += [dict(name="menu-custom",cup="astra-front/astra",track=110,course_files=True,menu_custom=True),
+              dict(name="menu-off",cup="astra-front/astra",track=110,course_files=True,menu_off=True)]
     if args.legacy_patch:
         make_tracks(legacy, "test", range(1, 32))
         shutil.copy2(args.legacy_patch, legacy / "f-zero_msu1.ips")
@@ -128,6 +130,14 @@ def main():
         source = legacy / "test.msu" if case.get("legacy") else (
             empty / "none" if case.get("empty") else pack / "cgp.msu")
         if installed_root: source=folder/"installed-music"
+        if case.get('menu_custom') or case.get('menu_off'):
+            settings = folder/'packs'; settings.mkdir()
+            if case.get('menu_custom'):
+                custom = folder/'my-title.pcm'
+                custom.write_bytes(b'MSU1'+bytes(4)+struct.pack('<hh',2500,-2500)*4410)
+                (settings/'loader.cfg').write_text(f'menu_title={custom}\n')
+            else:
+                (settings/'loader.cfg').write_text('menu_music=0\n')
         env = dict(clean, FZERO_DELUXE_DATA="embedded", FZERO_BS_CARS=str(int(bs)),
                    FZERO_BS_TRACKS=str(int(bs)), FZERO_CGP_CARS=str(packs),
                    FZERO_CGP_REBALANCE="15" if packs else "0",
@@ -154,7 +164,11 @@ def main():
         with wave.open(str(folder / "audio.wav")) as audio:
             pairs = list(struct.iter_unpack("<hh", audio.readframes(audio.getnframes())))
         if not case.get("empty"):
-            assert pairs.count((400, -400)) > 1000, (case["name"], "title PCM missing")
+            title = (2500,-2500) if case.get('menu_custom') else (400,-400)
+            if case.get('menu_off'):
+                assert pairs.count(title) < 100, 'Menu switch failed to restore SNES audio'
+            else:
+                assert pairs.count(title) > 1000, (case["name"], "title PCM missing")
         # Centered SNES engine SFX cancel in L-R, exposing the song signature.
         tail = collections.Counter(left - right for left, right in pairs[-100000:])
         if "track" in case:

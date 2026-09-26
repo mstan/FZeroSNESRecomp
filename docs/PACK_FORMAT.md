@@ -64,6 +64,22 @@ uses its AIP checkpoint file, CSV TMX layers, TSX properties, indexed tilesets,
 palette, horizon and minimap. Image signatures determine the format: FZEdit
 can save PNG data with a BMP/GIF filename. Cache files are disposable.
 
+A course may also reference a single-course pack ZIP, for example
+`"source": "courses/HM.zip"`. The ZIP uses the same shared `pack.json` and
+`courses.json` format and must contain exactly one course. Its source must be
+FZM or FZC; nested ZIP chains are rejected. Its required mechanics are retained
+and combined with the enclosing pack. The enclosing pack supplies the league
+position, course identity and optional music overrides. Audio filenames follow
+the inner project (`HM/hm.fzm` means `music/hm.pcm` in the enclosing pack).
+
+The Huckmine example preserves the supplied twelve files byte-for-byte. The
+maintainer helper `tools/package_fzedit_course.py` adds descriptors and credits
+to a new ZIP without changing the original archive. Its map layout, checkpoints,
+palette, horizon and minimap match the ROM extraction; some tile artwork differs.
+Source conversion also uses different layout compression, so its compiled
+record signature differs. Previous Zenith records are preserved in their old
+namespace rather than reassigned to a different source build.
+
 The source supplies SPC music unless `music.spc` overrides it. SPC indices are:
 0 Mute City, 1 Big Blue, 2 Sand Ocean, 3 Silence, 4 Port Town, 5 Red Canyon,
 6 White Land I, 7 White Land II, 8 Fire Field, 9 Death Wind.
@@ -189,3 +205,32 @@ of Git. Qualify all course resources, then test GP, Practice and records before
 publishing a pack. Compare extracted packs with the original resource hashes;
 for raw sources, compare decoded layout and gameplay rather than compressor
 byte ordering. Updating music alone must not reset course records.
+## Menu and event recordings
+
+The course index can supply optional menu defaults, including in an audio-only
+pack. No executable change is needed to add another soundtrack to the Mods
+dropdown. Paths are relative to that pack and remain displayed when recordings
+are absent from the no-audio download:
+
+```json
+"menu_music": {
+  "countdown": "music/cgp-1.pcm",
+  "ready": "music/cgp-2.pcm",
+  "lost-life": "music/cgp-3.pcm",
+  "title": "music/cgp-4.pcm",
+  "select": "music/cgp-5.pcm",
+  "ending": "music/cgp-7.pcm"
+}
+```
+
+Any subset is valid. Unknown event names and paths outside the pack are rejected.
+Unavailable songs use SNES audio. User-selected files override one event and are
+stored in `loader.cfg`; clearing a selection restores its pack value. An explicit
+selection of a temporarily absent pack is preserved rather than silently switching
+soundtracks. With no explicit selection, the primary soundtrack pack supplies the
+defaults (CGP in the supplied installation), otherwise the first declared pack.
+The first three cues play once; the others loop. These command assignments follow
+the [authors' MSU patch map](https://www.zeldix.net/t2768-bs-f-zero-deluxe-msu-1).
+
+After editing `courses.json`, regenerate `pack.json` using
+`tools/pack_manifest.py`'s `write_index`; its payload digest must match.

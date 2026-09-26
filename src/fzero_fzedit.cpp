@@ -183,17 +183,42 @@ Image image(const fs::path &p) {
   } else if (bytes.starts_with("BM")) {
     check(bytes.size() >= 54, "Truncated BMP");
     unsigned off = u32(b + 10), header = u32(b + 14), bits = u16(b + 28);
+    unsigned compression = u32(b + 30);
+    bool bitfields = compression == 3 && (bits == 16 || bits == 32);
     im.w = u32(b + 18);
     int height = int(u32(b + 22));
     im.h = height < 0 ? unsigned(-int64_t(height)) : unsigned(height);
     check(header >= 40 && uint64_t(header) + 14 <= bytes.size() &&
               off >= uint64_t(header) + 14 && im.w <= 512 && im.h <= 512 &&
-              im.w && im.h && u32(b + 30) == 0 &&
-              (bits == 8 || bits == 24 || bits == 32),
+              im.w && im.h && u16(b + 26) == 1 &&
+              (bitfields || (compression == 0 &&
+                            (bits == 8 || bits == 24 || bits == 32))),
           "Unsupported BMP encoding");
     unsigned stride = ((im.w * bits + 31) / 32) * 4;
     check(uint64_t(off) + uint64_t(stride) * im.h <= bytes.size(),
           "Truncated BMP pixels");
+    std::array<uint32_t, 3> masks{};
+    std::array<unsigned, 3> shifts{};
+    if (bitfields) {
+      // BITMAPINFOHEADER stores masks after its header; V2/V3/V4/V5
+      // headers include them. FZEdit/Tiled exports can use either form.
+      check((header == 40 || header >= 52) && off >= 66,
+            "Truncated BMP color masks");
+      uint32_t used = 0;
+      for (unsigned i = 0; i < 3; ++i) {
+        uint32_t mask = u32(b + 54 + i * 4);
+        check(mask && !(mask & used) && (bits == 32 || !(mask >> bits)),
+              "Invalid BMP color masks");
+        used |= mask;
+        while (!(mask & 1)) {
+          ++shifts[i];
+          mask >>= 1;
+        }
+        check((uint64_t(mask) & (uint64_t(mask) + 1)) == 0,
+              "Noncontiguous BMP color mask");
+        masks[i] = mask;
+      }
+    }
     if (bits == 8) {
       unsigned count = u32(b + 46);
       if (!count)
@@ -211,7 +236,14 @@ Image image(const fs::path &p) {
             b + off + (height > 0 ? im.h - 1 - y : y) * stride + x * (bits / 8);
         if (bits == 8)
           im.indices.push_back(c[0]);
-        else
+        else if (bitfields) {
+          uint32_t pixel = bits == 32 ? u32(c) : u16(c);
+          std::array<uint8_t, 3> rgb;
+          for (unsigned i = 0; i < 3; ++i)
+            rgb[i] = uint8_t((uint64_t((pixel >> shifts[i]) & masks[i]) *
+                              255 + masks[i] / 2) / masks[i]);
+          im.rgb.push_back(rgb);
+        } else
           im.rgb.push_back({c[2], c[1], c[0]});
       }
   } else {
@@ -373,7 +405,7 @@ bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
     auto properties = props(text(path));
     check(properties.at("Version") == "FZEdit Version 0.9",
           "Unsupported FZM revision; export using FZEdit 1.2.0");
-    uint8_t digest[32] = {5};
+    uint8_t digest[32] = {6};
     auto hashPart = [&](const std::string &data) {
       std::vector<uint8_t> bytes(digest, digest + 32);
       bytes.insert(bytes.end(), data.begin(), data.end());

@@ -1,0 +1,8 @@
+{
+  "countdown": "music/cgp-1.pcm",
+  "ready": "music/cgp-2.pcm",
+  "lost-life": "music/cgp-3.pcm",
+  "title": "music/cgp-4.pcm",
+  "select": "music/cgp-5.pcm",
+  "ending": "music/cgp-7.pcm"
+}
