@@ -65,6 +65,22 @@ def main():
             image = apply_ips(stock, title.read_bytes())
             (root/'title.fzt').write_bytes(b'FZTITLE\1\0'+image[0x66c00:0x68000]+image[0x7c2e0:0x7c360])
             manifest['titles'] = [dict(id=ident,name='Community Grand Prix' if ident=='cgp' else 'MAX League',source='title.fzt')]
+        # Reusable, pack-owned mechanic modules. Per-course modules add to the
+        # shared requirements; the runtime never installs donor ASM globally.
+        common=set.intersection(*(set(c['requires']) for c in manifest['courses']))
+        def mechanic_module(label, requirements):
+            path=root/'mechanics'/f'{label}.json'
+            path.parent.mkdir(exist_ok=True)
+            module=dict(format=1,id=label,engine='fzero-course-v1',requires=sorted(requirements))
+            path.write_text(json.dumps(module,indent=2)+'\n',encoding='utf-8')
+            return path.relative_to(root).as_posix()
+        if common:
+            manifest['mechanics']=[mechanic_module('terrain',common)]
+        for course in manifest['courses']:
+            extra=set(course['requires'])-common
+            course['requires']=[] # Explicitly replace embedded extraction metadata.
+            if extra:
+                course['mechanics']=[mechanic_module(course['id'],extra)]
         (root/'pack.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
         credits={'astra-front':'Astra-Front-credits.txt','bower-league':'Bower-League-credits.txt',
                  'cgp':'CGP-credits.txt','max-league':'MAX-League-credits.txt'}

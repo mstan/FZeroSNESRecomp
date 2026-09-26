@@ -13,7 +13,7 @@ ZIPs under `mods/packs`. See [the pack format](docs/PACK_FORMAT.md).
 | Content | Behavior in this port |
 | --- | --- |
 | Original Knight, Queen and King | Original courses remain available. CGP's revisions are additional cups. |
-| CGP courses | Use their authored terrain properties, including required grip/up magnets. These mechanics work even with the optional magnet switches off. |
+| CGP courses | Use their authored terrain properties, including required grip/up magnets. Mandatory mechanics come from the pack; there are no global terrain switches. |
 | MAX and Bower | Use their own imported course data and native magnet rules. Enabling the CGP preset does not change the meaning of their magnet tiles. |
 | Astra Front | Adds ten courses in Astra and Front. Uses the same author's CGP grip/up-magnet mechanics, scoped to these courses. Unused CGP resources and global car/rule changes in its donor are excluded. See [the import audit](docs/ASTRA_FRONT_IMPORT.md). |
 | Original BS tracks / CGP BS revisions | The loader and original BS track provider exclude each other. CGP supplies its corrected versions. |
@@ -29,9 +29,9 @@ unchanged outside courses declaring CGP's magnet mechanics.
 
 CGP up magnets additionally depend on the author's tile IDs (`$B6`, `$CCâ€“$CF`)
 and airborne/tilt logic. Those IDs are not treated as up magnets in unrelated
-packs. The retained magnet switches cannot force CGP tile semantics onto
-stock, original BS, MAX or Bower. New packs must explicitly declare compatible
-mechanics in their layout. See the [technical audit](docs/CGP_COURSE_CAPABILITIES.md).
+packs. Pack mechanics cannot force CGP tile semantics onto stock, original BS, MAX
+or Bower. New packs must explicitly declare compatible mechanics in their
+manifest or reference their own bundled mechanics modules. See the [technical audit](docs/CGP_COURSE_CAPABILITIES.md).
 
 ## Music, cars and presentation
 
@@ -43,7 +43,7 @@ mechanics in their layout. See the [technical audit](docs/CGP_COURSE_CAPABILITIE
 | CGP vehicles | One mod enables all three authored groups together. Each car retains its own artwork and parameters. In GP, its other three group members are its rivals; Practice permits any enabled rival. |
 | Original-car rebalances | One default-off opt-in changes all four original identities together on any course. Adding CGP courses alone does not enable them. |
 | Stock BS vehicles | Preserve their native behavior; this mode excludes CGP vehicles and original-car rebalances. Track choice is independent. |
-| Legend and general gameplay fixes | Opt-in globally; the CGP preset enables them. Legend's CPU changes apply after vehicle tuning. They can affect races outside CGP. |
+| Legend and general gameplay fixes | Legend is enabled by default for fresh settings; explicit saved choices are respected. General gameplay fixes remain editable options, and the CGP preset enables them. Legend's CPU changes apply after vehicle tuning. They can affect races outside CGP. |
 | Title screen override | One Presentation mod offers Original, Community Grand Prix and MAX League independently of enabled track packs. Astra uses the same title artwork as CGP; Bower and BS use Original. F-Zero 55 remains retained but hidden. The CGP preset selects its title; Vanilla and Satellaview restore Original. |
 | Ending credits ASM | Retained as attributed source only; the PC port does not install it. |
 | Engine and menus | Course imports use the shared engine, renderer, HUD/culling fixes and expanded native-style menus. They do not replace the game with the donor ROM or import every donor code patch. |

@@ -163,7 +163,7 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
   error_text[0] = 0;
   diagnostic_count = 0;
   has_deluxe = deluxe_available;
-  loader_enabled = false;
+  loader_enabled = true;
   title_enabled = false;
   FzeroTitleCatalogInit();
   strcpy(title_style, "original");
@@ -193,6 +193,8 @@ bool FzeroTracksInit(const char *root, bool deluxe_available) {
       line[strcspn(line, "\r\n")] = 0;
       if (!strcmp(line, "enabled=1"))
         loader_enabled = true;
+      else if (!strcmp(line, "enabled=0"))
+        loader_enabled = false;
       if (!strncmp(line, "title=", 6))
         FzeroTracksSetTitleStyle(line + 6);
       if (!strcmp(line, "title_enabled=1"))

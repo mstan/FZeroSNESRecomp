@@ -13,10 +13,11 @@
 
 static void viewport_tests(void) {
   FzeroVideoSettings settings;
-  FzeroVideoDefaults(&settings); /* shipped defaults: every mod on, Fit, Auto rate */
+  FzeroVideoDefaults(&settings); /* Fit, Auto rate, BS cars and Legend; diagnostics off. */
   CHECK(settings.enhanced && settings.aspect == FZERO_ASPECT_FIT && settings.fps == 0 &&
         settings.fps_enabled && settings.bs_deluxe);
   CHECK(!settings.hd_mode7 && settings.hd_scale == 2 && !settings.diagnostics);
+  CHECK(settings.gameplay.enabled == FZERO_RULE_DEFAULT_MASK);
   FzeroVideoStock(&settings);
   CHECK(!settings.enhanced && settings.aspect == FZERO_ASPECT_STOCK && !settings.fps_enabled && !settings.bs_deluxe);
   FzeroViewport v = FzeroCalculateViewport(&settings, 5120, 1440);
@@ -132,7 +133,7 @@ static void config_tests(void) {
   CHECK(!FzeroVideoLoad(&b, "test-video.ini"));
   CHECK(!b.enhanced && !b.bs_deluxe);
   CHECK(b.aspect == FZERO_ASPECT_FIT && b.fps == 0 && !b.fps_enabled);
-  CHECK(!b.bs_tracks && !b.gameplay.enabled);
+  CHECK(!b.bs_tracks && b.gameplay.enabled==FZERO_RULE_DEFAULT_MASK);
   f = fopen("test-video.ini", "w"); CHECK(f);
   fputs("BSDeluxe=1\n", f); fclose(f);
   CHECK(FzeroVideoLoad(&b, "test-video.ini") && b.bs_deluxe && b.bs_tracks);
@@ -167,8 +168,8 @@ static void config_tests(void) {
   }
   remove("test-video.ini");
   CHECK(FzeroVideoLoad(&b, "test-video.ini"));
-  CHECK(b.enhanced && b.fps_enabled && b.bs_deluxe && b.aspect == FZERO_ASPECT_FIT); /* first run: all mods on */
-  CHECK(!b.bs_tracks && !b.gameplay.enabled); /* corrected BS comes from CGP; rules opt-in */
+  CHECK(b.enhanced && b.fps_enabled && b.bs_deluxe && b.aspect == FZERO_ASPECT_FIT);
+  CHECK(!b.bs_tracks && b.gameplay.enabled==FZERO_RULE_DEFAULT_MASK); /* Legend is offered by default; native BS tracks stay off. */
   CHECK(!FzeroValidFps(61));
   FzeroAspect aspect;
   CHECK(FzeroParseAspect("32:9", &aspect) && aspect == FZERO_ASPECT_32_9);

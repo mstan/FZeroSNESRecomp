@@ -1,7 +1,8 @@
 # F-Zero Forever packs (format 1)
 
-Put a pack folder or ZIP in `mods/packs`, then restart the game. Enable **Track
-Pack Loader** to add every valid installed course pack. There are no individual
+Put a pack folder or ZIP in `mods/packs`, then restart the game. **Track Pack
+Loader** is enabled by default and adds every valid installed course pack.
+An explicitly saved off setting stays off. There are no individual
 pack switches. Remove a folder/ZIP to uninstall it. The original 15 courses
 remain available. BS Satellaview Tracks and the loader exclude each other;
 vehicle options remain separate. Invalid packs appear in the Mods diagnostics.
@@ -52,6 +53,40 @@ and `rainbow-road`. These apply to this course, not every installed track.
 Unknown capabilities reject the pack. This is not an ASM execution interface.
 New data can load without a game update; a genuinely new mechanic requires
 an engine implementation first. See MODS.md for the existing mechanic details.
+
+### Pack-owned mechanics modules
+
+Required terrain behavior is part of the pack, with no global Mods checkbox.
+Put reusable module files inside the pack and reference them with `mechanics`:
+
+```json
+"mechanics": ["mechanics/terrain.json"]
+```
+
+At the top level this applies to every course in that pack. The same field on
+one course adds behavior only to that course. Paths are relative to the pack
+root, even when the course's FZM lives in a subdirectory. A module looks like:
+
+```json
+{
+  "format": 1,
+  "id": "cgp-magnets",
+  "engine": "fzero-course-v1",
+  "requires": ["grip-magnets", "up-magnets"]
+}
+```
+
+CGP and Astra exports include a shared terrain module. CGP Rainbow Road adds
+its own `rainbow-road` module on that course only. Multiple modules combine;
+a course's `requires` cannot turn off its pack's mandatory mechanics. Required
+modules are validated before the pack is registered; missing files, unknown
+formats/engines, and unsupported requirements reject the pack with a diagnostic.
+
+These files bundle declarations of reviewed ASM behavior. The native adapters
+that implement that behavior remain in the engine; raw `.asm` is not assembled
+or executed at launch. New packs may reuse supported mechanics without an EXE
+update. New ASM behavior still needs a reviewed adapter. Developer distributions
+retain the original ASM sources for that work.
 
 For reviewed ROM hacks without editor source, `tools/export_runtime_packs.py`
 applies the known patches privately, extracts resources, writes manifests and

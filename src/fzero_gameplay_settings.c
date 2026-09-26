@@ -28,7 +28,7 @@ const FzeroRuleInfo fzero_rules[FZERO_RULE_COUNT] = {
     {"cgp-rotation", "Lateral collision direction fix",
      "Turn away from the other vehicle after a lateral collision."},
     {"cgp-legend", "Legend difficulty",
-     "Add Legend above Master, with revised CPU speeds, acceleration and "
+     "Enabled by default. Add Legend above Master, with revised CPU speeds, acceleration and "
      "starting lives. Its CPU difficulty tables take precedence over CGP "
      "vehicle tuning."},
     {"cgp-dmag", "CGP grip magnets",

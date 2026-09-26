@@ -156,7 +156,7 @@ static bool magnet_damage_probe(void) {
           cases, authored, cgp ? "course-declared" : "native");
   return true;
 }
-bool FzeroRulesProbe(void) {
+static bool rules_probe(void) {
   static const DispatchEntry empty[1] = {{0}};
   cpu_select_program(empty, 0, NULL, 0);
   interp_bridge_set_pre_opcode_hook(0, NULL);
@@ -340,7 +340,7 @@ bool FzeroRulesProbe(void) {
     /* Every damage-mask input is compared with the independently assembled
      * source. Keeping the damage bit clear must not mask a genuine pit. */
     static const unsigned masks[] = {0x0098b1,0x0098bc,0x0098ce,0x0098f1,0x0098f9};
-    if (FzeroRuleEnabled(FZERO_RULE_DMAG))
+    if (probe_rule(FZERO_RULE_DMAG))
       for (unsigned site = 0; site < sizeof(masks)/sizeof(*masks); ++site)
         for (unsigned flags = 0; flags < 256; ++flags) {
           CpuState actual = state(0x30), original = state(0x30);
@@ -393,7 +393,7 @@ bool FzeroRulesProbe(void) {
               word(0x14, 0x18);
               g_ram[0xb10] = (uint8_t)(tilt * 4);
               CHECK(fragment(&c, 0x009c6b, 0x009c71, 0, false));
-              if (FzeroRuleEnabled(FZERO_RULE_UP_MAGNET)) {
+              if (probe_rule(FZERO_RULE_UP_MAGNET)) {
                 /* The independently assembled author ASM is our oracle.
                  * Required-only runs use the same host hook without copying
                  * the global patch over unrelated native courses. */
@@ -409,7 +409,7 @@ bool FzeroRulesProbe(void) {
               ++cases;
             }
     fprintf(stderr, "rules-probe: up-magnet cases=%u%s PASS\n", cases,
-            FzeroRuleEnabled(FZERO_RULE_UP_MAGNET) ? " ASM parity" : " course-required");
+            " ASM parity");
   } else {
     /* CGP-specific tile IDs must still pull downward on unrelated courses,
      * even when both magnet switches were enabled by the CGP preset. */
@@ -515,6 +515,30 @@ bool FzeroRulesProbe(void) {
   fprintf(stderr, "rules-probe: PASS (guest instructions, native return "
                   "stacks, conditional effects)\n");
   return true;
+}
+
+bool FzeroRulesProbe(void) {
+  /* Oracle snippets use spare banks even when all optional rules are off.
+   * Only this terminal probe gets a mirrored scratch image; real gameplay
+   * retains its original cartridge and no global terrain ASM is installed. */
+  Cart *cart = g_snes->cart;
+  uint8_t *original = cart->rom;
+  uint32_t size = cart->romSize;
+  if (size >= 0x400000) return rules_probe();
+  CHECK(size && cart->type == CART_LOROM);
+  uint8_t *scratch = malloc(0x400000);
+  CHECK(scratch);
+  for (unsigned i = 0; i < 0x400000; ++i) scratch[i] = original[i % size];
+  const uint8_t *previous_rom = g_rom;
+  cart->rom = scratch;
+  cart->romSize = 0x400000;
+  g_rom = scratch;
+  bool ok = rules_probe();
+  cart->rom = original;
+  cart->romSize = size;
+  g_rom = previous_rom;
+  free(scratch);
+  return ok;
 }
 
 bool FzeroPracticeProbe(const char *path) {

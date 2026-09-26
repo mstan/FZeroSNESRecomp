@@ -17,7 +17,8 @@ static const char *const aspect_names[] = {"4:3", "16:9", "21:9", "32:9", "Fit"}
 void FzeroVideoDefaults(FzeroVideoSettings *s) {
   *s = (FzeroVideoSettings){.enhanced = true, .aspect = FZERO_ASPECT_FIT,
                             .fps = 0, .fps_enabled = true, .bs_deluxe = true,
-                            .hd_scale = 2, .gameplay = {.tuning=2, .boost=2, .exhaust=2}};
+                            .hd_scale = 2, .diagnostics = false,
+                            .gameplay = {.enabled=FZERO_RULE_DEFAULT_MASK, .tuning=2, .boost=2, .exhaust=2}};
 }
 
 void FzeroVideoStock(FzeroVideoSettings *s) {

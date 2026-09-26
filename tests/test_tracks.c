@@ -62,7 +62,13 @@ int main(void) {
   CHECK(FzeroTracksInit("test-pack-discovery/settings", true));
   const CpPack *one = cp_catalog_find(FzeroTracksCatalog(), "one");
   CHECK(one);
+  CHECK(FzeroTrackLoaderEnabled() && FzeroTracksAvailable(one));
+  FzeroTrackLoaderEnable(false);
   CHECK(!FzeroTracksAvailable(one));
+  CHECK(FzeroTracksSave());
+  CHECK(FzeroTracksInit("test-pack-discovery/settings", true));
+  one = cp_catalog_find(FzeroTracksCatalog(), "one");
+  CHECK(!FzeroTrackLoaderEnabled() && !FzeroTracksAvailable(one));
   FzeroTrackLoaderEnable(true);
   CHECK(FzeroTracksAvailable(one));
   CHECK(FzeroTracksSave());
@@ -71,6 +77,27 @@ int main(void) {
   FzeroCourse copy;
   CHECK(FzeroPacksLoadCourse("one", 0, &copy, error, sizeof(error)));
   CHECK(FzeroCourseValidate(&copy, error, sizeof(error)));
+  /* A pack-wide module and a course-only module compose without making an
+   * undeclared course in another pack inherit those terrain semantics. */
+  const char *scoped =
+    "{\"format\":1,\"id\":\"scoped\",\"name\":\"Scoped\",\"author\":\"Test\","
+    "\"mechanics\":[\"grip.json\"],\"cups\":[{\"id\":\"cup\",\"name\":\"Cup\",\"courses\":[\"a\",\"b\"]}],"
+    "\"courses\":[{\"id\":\"a\",\"name\":\"A\",\"source\":\"course.fzc\",\"mechanics\":[\"rainbow.json\"]},"
+    "{\"id\":\"b\",\"name\":\"B\",\"source\":\"course.fzc\"}]}";
+  const char *grip = "{\"format\":1,\"id\":\"grip\",\"engine\":\"fzero-course-v1\",\"requires\":[\"grip-magnets\",\"up-magnets\"]}";
+  const char *rainbow = "{\"format\":1,\"id\":\"rainbow\",\"engine\":\"fzero-course-v1\",\"requires\":[\"rainbow-road\"]}";
+  write_file("test-pack-discovery/b/grip.json",grip,strlen(grip));
+  write_file("test-pack-discovery/b/rainbow.json",rainbow,strlen(rainbow));
+  CHECK(FzeroCourseFileWrite("test-pack-discovery/b/course.fzc", &c,error,sizeof(error)));
+  write_file("test-pack-discovery/b/pack.json",scoped,strlen(scoped));
+  CHECK(FzeroTracksInit("test-pack-discovery/settings",true));
+  CHECK(FzeroPacksLoadCourse("scoped",0,&copy,error,sizeof(error)) && copy.required==7);
+  CHECK(FzeroPacksLoadCourse("scoped",1,&copy,error,sizeof(error)) && copy.required==3);
+  CHECK(FzeroPacksLoadCourse("one",0,&copy,error,sizeof(error)) && copy.required==0);
+  const char *bad_module="{\"format\":2,\"id\":\"grip\",\"engine\":\"fzero-course-v1\",\"requires\":[]}";
+  write_file("test-pack-discovery/b/grip.json",bad_module,strlen(bad_module));
+  CHECK(FzeroTracksInit("test-pack-discovery/settings",true));
+  CHECK(!cp_catalog_find(FzeroTracksCatalog(),"scoped") && FzeroTracksDiagnosticCount());
   CHECK(FzeroCourseFileWrite("test-pack-discovery/b/course.fzc", &c, error,
                              sizeof(error)));
   write_file("test-pack-discovery/b/pack.json", manifest, strlen(manifest));

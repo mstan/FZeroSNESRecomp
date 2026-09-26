@@ -12,7 +12,7 @@ int main(void) {
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
   const CpCatalog *catalog = FzeroTracksCatalog();
-  CHECK(p->package_count(NULL) == 5 + FZERO_RULE_COUNT && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 2 + FZERO_RULE_COUNT && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -20,7 +20,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 4 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 1 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -37,16 +37,25 @@ int main(void) {
     CHECK(p->feature_get(NULL, i, &pack) && pack.enabled);
     CHECK(!s.enhanced && !s.bs_deluxe && !s.hd_mode7 && !s.fps_enabled);
   }
-  for (int i=3;i<FZERO_RULE_COUNT;++i) {
-    if (i == FZERO_RULE_MSU || i == FZERO_RULE_CREDITS) continue;
+  unsigned seen_rules = 0;
+  for (int index=6;index<p->feature_count(NULL);++index) {
     RecompLauncherCModFeature rule;
-    CHECK(p->feature_get(NULL,3+i-(i>FZERO_RULE_MSU),&rule) && !rule.enabled);
+    CHECK(p->feature_get(NULL,index,&rule));
+    if (strcmp(rule.id,"rules")) continue;
+    CHECK(!rule.enabled);
+    unsigned i=0; while(i<FZERO_RULE_COUNT && strcmp(rule.package_id,fzero_rules[i].id)) ++i;
+    CHECK(i<FZERO_RULE_COUNT && ((1u<<i)&FZERO_RULE_SELECTABLE_MASK));
+    seen_rules |= 1u<<i;
     CHECK(p->feature_resource_count(NULL,rule.package_id,rule.id)==0);
     CHECK(p->feature_enable(NULL,rule.package_id,rule.id,1));
     CHECK((s.gameplay.enabled & (1u<<i))!=0);
     CHECK(p->feature_enable(NULL,rule.package_id,rule.id,0));
     CHECK(!rule.option_count);
   }
+  CHECK(seen_rules == (FZERO_RULE_SELECTABLE_MASK & ~(1u << FZERO_RULE_MSU)));
+  CHECK(!p->feature_enable(NULL,"cgp-dmag","rules",1));
+  CHECK(!p->feature_enable(NULL,"cgp-up-magnet","rules",1));
+  CHECK(!p->feature_enable(NULL,"cgp-rainbow","rules",1));
   CHECK(!s.gameplay.enabled);
   CHECK(!p->feature_enable(NULL,"cgp-credits","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-tuning","rules",1));
@@ -161,7 +170,7 @@ int main(void) {
   CHECK(!s.bs_deluxe && s.enhanced && !s.fps_enabled);
   /* One global title feature; no per-pack dropdowns or file pickers. */
   RecompLauncherCModFeature title;
-  CHECK(p->feature_get(NULL, 3+FZERO_RULE_COUNT, &title));
+  CHECK(p->feature_get(NULL, FZERO_RULE_COUNT, &title));
   CHECK(!strcmp(title.package_id,"fzero-title") && !strcmp(title.group,"Presentation"));
   CHECK(title.option_count==1 && !title.enabled);
   CHECK(p->feature_resource_count(NULL,"fzero-title","title-screen")==0);

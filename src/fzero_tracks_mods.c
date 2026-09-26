@@ -28,7 +28,7 @@ static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
       courses += c->packs[i]->track_count;
     }
   snprintf(out->description, sizeof(out->description),
-           "Loads every installed course pack from mods/packs. %u extra cups, "
+           "Enabled by default. Loads every installed course pack from mods/packs. %u extra cups, "
            "%u course entries installed; the original 15 remain available. Add "
            "or remove folders/ZIPs to change content. Mutually exclusive with "
            "BS Satellaview Tracks. Music is optional.",

@@ -204,6 +204,53 @@ fs::path unpack(const fs::path &zip, const fs::path &cache) {
           "ZIP needs one pack.json at its root or one enclosing directory");
   return roots[0];
 }
+unsigned requiredFeatures(const Value &features) {
+  require(features.IsArray(), "requires must be an array");
+  unsigned bits = 0;
+  for (auto &feature : features.GetArray()) {
+    require(feature.IsString(), "Invalid required feature");
+    std::string name(feature.GetString(), feature.GetStringLength());
+    if (name == "grip-magnets")
+      bits |= FZERO_COURSE_GRIP_MAGNETS;
+    else if (name == "up-magnets")
+      bits |= FZERO_COURSE_UP_MAGNETS;
+    else if (name == "rainbow-road")
+      bits |= FZERO_COURSE_RAINBOW;
+    else
+      require(false, "Unsupported required mechanic: " + name);
+  }
+  return bits;
+}
+unsigned mechanics(const fs::path &root, const Value &owner) {
+  unsigned bits = 0;
+  if (!owner.HasMember("mechanics"))
+    return bits;
+  require(owner["mechanics"].IsArray(),
+          "mechanics must be an array of module paths");
+  for (auto &entry : owner["mechanics"].GetArray()) {
+    require(entry.IsString(), "Expected mechanics module path");
+    auto file =
+        inside(root, std::string(entry.GetString(), entry.GetStringLength()));
+    auto bytes = read(file, 16384);
+    rapidjson::Document module;
+    module.Parse<rapidjson::kParseIterativeFlag |
+                 rapidjson::kParseValidateEncodingFlag>(bytes.data(),
+                                                        bytes.size());
+    require(!module.HasParseError() && module.IsObject(),
+            "Invalid mechanics module");
+    validateJson(module);
+    require(module.HasMember("format") && module["format"].IsInt() &&
+                module["format"].GetInt() == 1,
+            "Unsupported mechanics module format");
+    ident(str(module, "id"));
+    require(str(module, "engine") == "fzero-course-v1",
+            "Unsupported mechanics engine");
+    require(module.HasMember("requires"),
+            "Mechanics module has no requirements");
+    bits |= requiredFeatures(module["requires"]);
+  }
+  return bits;
+}
 Pack parse(const fs::path &root, std::vector<Sound> &audio,
            std::string &newPrimary) {
   rapidjson::Document d;
@@ -271,6 +318,7 @@ Pack parse(const fs::path &root, std::vector<Sound> &audio,
               d["cups"].Size() <= CP_CUPS,
           "Invalid cups");
   std::map<std::string, const Value *> definitions;
+  unsigned packMechanics = mechanics(root, d);
   for (auto &c : d["courses"].GetArray()) {
     auto cid = str(c, "id");
     ident(cid);
@@ -312,22 +360,9 @@ Pack parse(const fs::path &root, std::vector<Sound> &audio,
       else
         snprintf(error, sizeof(error), "Expected .fzm or .fzc source");
       require(ok, str(c, "id") + ": " + error);
-      if (c.HasMember("requires")) {
-        require(c["requires"].IsArray(), "requires must be an array");
-        decoded.required = 0;
-        for (auto &feature : c["requires"].GetArray()) {
-          require(feature.IsString(), "Invalid required feature");
-          std::string name = feature.GetString();
-          if (name == "grip-magnets")
-            decoded.required |= FZERO_COURSE_GRIP_MAGNETS;
-          else if (name == "up-magnets")
-            decoded.required |= FZERO_COURSE_UP_MAGNETS;
-          else if (name == "rainbow-road")
-            decoded.required |= FZERO_COURSE_RAINBOW;
-          else
-            require(false, "Unsupported required mechanic: " + name);
-        }
-      }
+      if (c.HasMember("requires"))
+        decoded.required = uint8_t(requiredFeatures(c["requires"]));
+      decoded.required |= uint8_t(packMechanics | mechanics(root, c));
       if (c.HasMember("music")) {
         auto &m = c["music"];
         require(m.IsObject(), "Invalid music mapping");

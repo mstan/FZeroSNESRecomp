@@ -26,8 +26,10 @@ typedef enum FzeroRule {
   FZERO_RULE_COUNT
 } FzeroRule;
 /* Credits are source attribution only; never install their SNES ending patch. */
-#define FZERO_RULE_ACTIVE_MASK (((1u << FZERO_RULE_COUNT) - 1u) & ~(1u << FZERO_RULE_CREDITS))
+#define FZERO_RULE_COURSE_MASK ((1u << FZERO_RULE_DMAG) | (1u << FZERO_RULE_UP_MAGNET) | (1u << FZERO_RULE_RAINBOW))
+#define FZERO_RULE_ACTIVE_MASK (((1u << FZERO_RULE_COUNT) - 1u) & ~((1u << FZERO_RULE_CREDITS) | FZERO_RULE_COURSE_MASK))
 #define FZERO_RULE_SELECTABLE_MASK (FZERO_RULE_ACTIVE_MASK & ~7u)
+#define FZERO_RULE_DEFAULT_MASK (1u << FZERO_RULE_LEGEND)
 typedef struct FzeroGameplaySettings {
   uint32_t enabled;
   unsigned tuning, boost, exhaust; /* 0=P1, 1=P2, 2=P3. Retained while off. */

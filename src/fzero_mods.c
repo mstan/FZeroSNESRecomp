@@ -24,15 +24,19 @@ static const char *const descriptions[] = {
   "Record hardware, active video settings and frame timings in the diagnostics folder beside the game (beside the AppImage on Linux). Off by default. Enable, play through a slowdown, then attach the newest performance JSONL file to your report. Logs stay on your machine; no ROM or save data is included.",
   "Add the ten original BS courses in two leagues. Enabling this turns off Community Grand Prix, which includes corrected versions of these courses. BS vehicles have their own switch."
 };
-enum { VEHICLE_COUNT=2, VEHICLE_START=6+FZERO_RULE_COUNT-5, TITLE_INDEX=VEHICLE_START+VEHICLE_COUNT,
+static const FzeroRule menu_rules[] = {
+  FZERO_RULE_ANIMATION, FZERO_RULE_DASH, FZERO_RULE_SPIN, FZERO_RULE_BOUNCE,
+  FZERO_RULE_CPU_SPIN, FZERO_RULE_ROTATION, FZERO_RULE_LEGEND, FZERO_RULE_LAPS,
+  FZERO_RULE_RED_BUMPER, FZERO_RULE_HITBOX, FZERO_RULE_FOG
+};
+enum { VEHICLE_COUNT=2, VEHICLE_START=6+sizeof(menu_rules)/sizeof(*menu_rules), TITLE_INDEX=VEHICLE_START+VEHICLE_COUNT,
        TRACK_START=TITLE_INDEX+1, TITLE_KIND=200 };
 static const char title_description[] =
   "Choose imported title artwork independently of enabled track packs. "
   "Original keeps the stock screen. Community Grand Prix is also the title used by Astra Front. "
   "This does not change courses, cars, music or records.";
 static unsigned visible_rule(unsigned index) {
-  unsigned rule = index - 3;
-  return rule >= FZERO_RULE_MSU ? rule + 1 : rule;
+  return menu_rules[index - 6];
 }
 static const char *const vehicle_ids[]={"cgp-cars", "cgp-stock-rebalance"};
 static const char *const vehicle_names[]={"CGP vehicles", "CGP original-car rebalances"};
@@ -48,7 +52,8 @@ static int identity(const char *package, const char *feature) {
   if (package && feature) for (int i = 0; i < 6; ++i)
     if (!strcmp(package, packages[i]) && !strcmp(feature, features[i])) return i + 1;
   if (package && feature && !strcmp(feature,"rules"))
-    for (int i=3;i<FZERO_RULE_COUNT;++i) if (i != FZERO_RULE_MSU && i != FZERO_RULE_CREDITS && !strcmp(package,fzero_rules[i].id)) return 7+i;
+    for (unsigned i=0;i<sizeof(menu_rules)/sizeof(*menu_rules);++i)
+      if (!strcmp(package,fzero_rules[menu_rules[i]].id)) return 7+menu_rules[i];
   if (package && feature && !strcmp(feature,"vehicles"))
     for (int i=0;i<VEHICLE_COUNT;++i) if (!strcmp(package,vehicle_ids[i])) return 100+i;
   return 0;

@@ -171,10 +171,12 @@ if developer:
 (stage/"README.txt").write_text(
     f"F-Zero Forever {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own F-Zero (USA) ROM.\n"
-    "Mods > Track Pack Loader loads every folder/ZIP in mods/packs. Restart after installing packs.\n"
+    "Mods > Track Pack Loader defaults on and loads every folder/ZIP in mods/packs. Restart after installing packs.\n"
     "The original 15 courses remain available. Loader and BS Satellaview Tracks exclude each other.\n"
     "The included CGP, Astra, Bower and MAX packs add 15 cups / 75 course versions.\n"
     "Vehicle packs, rules and screen override remain separate options. CGP preset enables the full experience.\n\n"
+    "Required course mechanics load automatically with their pack and have no separate switches.\n"
+    "Legend difficulty defaults on; diagnostics and MSU-1 default off. Saved choices are respected.\n\n"
     + ("CGP audio is included as mods/packs/cgp-audio.\n" if bundled_music else "Audio is not included; you can add music packs separately.\n") +
     "Enable MSU-1 in Settings > Audio; Installed pack music uses discovered recordings.\n"
     "Custom selects loose MSU files. Missing songs use their course's native SNES music.\n"

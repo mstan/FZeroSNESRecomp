@@ -42,9 +42,14 @@ enablement. Original, Community Grand Prix and MAX League are available;
 Astra shares the CGP artwork. A later manual choice makes the recipe Custom.
 
 Legend adds its difficulty choice; the player still chooses a race difficulty.
+It is enabled by default for fresh settings, while an explicitly saved choice
+is respected. Vanilla and Satellaview presets disable it for stock behavior.
 Required course mechanics continue to accompany their courses independently.
-No preset is automatically applied when starting the launcher. Existing
-fresh installations leave Track Pack Loader and music off.
+Grip/up magnets and Rainbow Road rules have no global mod switches; installed
+packs supply their mandatory mechanics modules.
+No preset is automatically applied when starting the launcher. Fresh
+installations enable Track Pack Loader and Legend; music and diagnostics stay
+off. Explicit saved settings remain respected.
 The label becomes **Custom** when an owned option differs. Unrelated changes
 do not change the label. Settings persist on Play and on closing the launcher.
 

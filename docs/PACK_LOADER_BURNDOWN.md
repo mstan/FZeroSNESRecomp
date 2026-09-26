@@ -47,3 +47,23 @@ No Astra recordings were provided; only synthetic audio can be tested today.
   Packaged desktop booted for 180 frames with only bundled DLLs on PATH and
   discovered all four course packs (`captures/release-smoke-030.log`).
   Final bundles live under `release-stage/0.3.0-ready`.
+
+## Required mechanics and defaults (2026-09-25)
+
+Owning issue: `beads-8wg.5.67`.
+
+- [x] Remove grip magnets, up magnets and Rainbow Road from the Mods list.
+- [x] Scope their required behavior to course/pack mechanics modules; reject
+  unsupported or missing modules before registering a pack.
+- [x] Export CGP/Astra terrain modules and a course-only Rainbow Road module.
+- [x] Default Track Pack Loader and Legend on; diagnostics remain default off.
+  Preserve explicit saved choices and the Vanilla/Satellaview presets.
+- [x] Document all 29 ASM sources and distinguish compiled adapters from pack
+  declarations. General gameplay options remain editable across packs.
+- [x] Validate all 75 course/record hashes remain unchanged; 14 headless cases
+  check scoped mechanics with stock/BS cars, native/MAX/Bower isolation, and
+  CGP mechanics with Legend disabled (`captures/pack-mechanics-qa-03`).
+- [x] Tracks, Mods and video configuration tests pass; rebuilt launcher opened.
+
+Developer pack payloads are in `captures/pack-mechanics-payloads`. This update
+has not replaced the existing 0.3.0 tester ZIPs; it is in the local build only.

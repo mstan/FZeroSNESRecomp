@@ -98,16 +98,11 @@ static unsigned feature_for_rule(FzeroRule rule) {
 }
 static bool effective_rule(FzeroRule rule) {
   const FzeroCourse *course = FzeroTracksCurrentCourse();
-  /* These change the meaning of authored terrain/tile IDs. A preset switch
-   * must never reinterpret another pack's or a native course's magnets. */
-  if (rule == FZERO_RULE_DMAG || rule == FZERO_RULE_UP_MAGNET)
-    return course && (course->required & feature_for_rule(rule));
-  return FzeroRuleEnabled(rule) ||
-         (course && (course->required & feature_for_rule(rule)));
+  /* Authored terrain semantics are mandatory only on the declaring course. */
+  return course && (course->required & feature_for_rule(rule));
 }
 static bool available_rule(FzeroRule rule) {
-  return FzeroRuleEnabled(rule) ||
-         (FzeroTracksRequiredFeatures() & feature_for_rule(rule));
+  return (FzeroTracksRequiredFeatures() & feature_for_rule(rule)) != 0;
 }
 static void up_magnet(CpuState *cpu) {
   unsigned actor = cpu->X & 255, tile = r16(0xcd0 + actor);
@@ -212,12 +207,10 @@ bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
     /* Complete native adapters below supply these at course boundaries.
      * Installing their donor ASM globally would bypass scoping when a hook
      * declines to run on an unrelated course. */
-    if (rule == FZERO_RULE_DMAG || rule == FZERO_RULE_UP_MAGNET)
+    if (FZERO_RULE_COURSE_MASK & (1u << rule))
       continue;
     unsigned patch = rule + 6 + (rule > FZERO_RULE_RAINBOW);
     apply(grown, patch);
-    if (rule == FZERO_RULE_RAINBOW)
-      apply(grown, 19);
   }
   /* Legend's higher speeds need the common extended movement range, even
    * without selecting a vehicle rebalance. This is the independent CGP
@@ -237,10 +230,6 @@ bool FzeroGameplayPrepare(uint8_t **rom, size_t *size) {
       settings.enabled, settings.tuning + 1, settings.boost + 1,
       settings.exhaust + 1, cars, tracks);
   return true;
-}
-static bool rainbow(void) {
-  const FzeroCourse *course = FzeroTracksCurrentCourse();
-  return course && (course->required & FZERO_COURSE_RAINBOW);
 }
 static unsigned music_course(void) {
   const CpPack *pack = NULL;
@@ -288,9 +277,7 @@ static void rule_hook(CpuState *cpu, uint32_t pc) {
   }
   case 0x008976:
     if (available_rule(FZERO_RULE_RAINBOW)) {
-      const FzeroCourse *course = FzeroTracksCurrentCourse();
-      bool required = course && (course->required & FZERO_COURSE_RAINBOW);
-      g_ram[0xadf] = required || (FzeroRuleEnabled(FZERO_RULE_RAINBOW) && rainbow()) ? 255 : 0;
+      g_ram[0xadf] = effective_rule(FZERO_RULE_RAINBOW) ? 255 : 0;
       if (g_ram[0xadf])
         g_ram[0x1075] = 0;
     }

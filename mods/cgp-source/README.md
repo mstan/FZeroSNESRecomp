@@ -6,14 +6,15 @@ original attribution, including Fennor Virastar and the CGP contributors;
 the MSU source credits Conn, Khilendel and Catador. No additional license is
 inferred from receiving the source.
 
-All gameplay options are **off by default** in Mods. General options work independently
+Legend is **enabled by default** for fresh settings. Other general gameplay
+options remain editable. General options work independently
 of the course pack; required terrain mechanics follow the declaring course.
 The CGP preset enables the available options, including Legend. P1, P2 and P3 are coherent vehicle sets, enabled together through one
-CGP vehicles mod plus four separate retail-identity rebalances.
+CGP vehicles mod plus one original-car rebalance option.
 Artwork-only IPS deltas live in `assets/vehicle-packs`; no ROM is bundled.
 The CGP soundtrack and source clearance are documented in `assets/music/README.md`.
 
-| Mods option | Source files |
+| Feature | Source files |
 | --- | --- |
 | Per-identity CGP handling | `CGP/{1,2,3}/CGP.asm` |
 | Per-identity CGP energy boost | `CGP/{1,2,3}/CGP_Boost.asm` |
@@ -38,9 +39,14 @@ The CGP soundtrack and source clearance are documented in `assets/music/README.m
 `CGP_Credits.asm` is retained for attribution but is not assembled or installed.
 Its saved rule bit is reserved; older configurations cannot reactivate it.
 
+The 29 source files break down into 11 general gameplay rules/fixes, 9 vehicle
+sources (handling, boost and exhaust for each of three sets), 4 required terrain
+sources, 1 MSU adapter, 1 retired credits patch, and 3 duplicate vehicle sources.
 The three top-level `CGP*.asm` tuning/boost/exhaust files duplicate P3.
-Illusion and gravity share one switch because they describe the same Rainbow
-Road behavior. The other fixes have individual switches.
+All 11 remaining general rule/fix checkboxes originate in these sources.
+The four terrain sources are exposed only as three required pack capabilities:
+grip magnets, up magnets, and combined Rainbow illusion/gravity. They have no
+Mods entries. Vehicle settings and music have their own controls.
 
 ## Adaptation and build
 
@@ -79,13 +85,12 @@ Adaptations are explicit in the generator and `src/fzero_gameplay.c`:
   retained before those tables are overwritten. Course resources keep their
   own frequency values. Lives are 7/6/5/4/3 from Beginner through Legend.
 - Required magnet and Rainbow capabilities are declared by course layouts and
-  apply without changing global mod switches. CGP magnet semantics stay scoped
-  even when their optional switches are enabled: the runtime uses shared hooks,
+  have no global mod switches. CGP magnet semantics stay scoped: the runtime uses shared hooks,
   never global copies of the two magnet patches. Downpull gives grip; the
   separate MAGNET property controls damage. Grip magnets take precedence over turning/strafe lookup only on grounded
   magnet tiles; elsewhere the active stock/BS/tuning tables are used.
-- Rainbow Road behavior uses the stable `cgp/rainbow-road` course ID, not
-  the donor's absolute cup number. Other courses are unaffected by this mod.
+- Rainbow Road behavior follows the course's required mechanics module,
+  never the donor cup number or a global switch. Other courses are unaffected.
 - Optional MSU music maps stable cup/course positions to the author's track
   numbers. Unknown packs and missing audio fall back to SPC. Music still
   uses the cleared bundle or a custom folder under Audio settings.
@@ -108,10 +113,9 @@ grip, course gravity, class lives, native Practice availability and exhaust
 sprite equivalence across engines. Captures and ROM-derived files stay private.
 
 These checks do not replace driving full laps through every collision,
-shortcut, terrain and audio transition. Imported Practice courses and a
-combined record browser remain separate work; imported courses currently
-appear in Grand Prix. Original BS Practice courses are unavailable while
-their track mod is off.
+shortcut, terrain and audio transition. Imported courses are available in
+Grand Prix, Practice and the records browser. Original BS Practice courses
+are unavailable while their track mod is off.
 
 Snapshots include the active course catalog, enabled rules, assembled image
 digest and adapter version. Changed rules use a separate records/save root,
