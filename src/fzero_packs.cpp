@@ -270,8 +270,8 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
           require(project.decoded.size() == 1,
                   "A course ZIP must contain exactly one course");
           decoded = project.decoded.front();
-          // Music follows the actual .fzm/.fzc filename, never the ZIP name.
-          p.courses.back() = project.courses.front();
+          // Keep the public source name: huckmine.zip uses music/huckmine.pcm,
+          // irrespective of the author's filenames inside the archive.
           ok = true;
           break;
         }

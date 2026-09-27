@@ -109,10 +109,12 @@ static const char *scroll_label(const char *label, unsigned width, bool selected
 }
 static unsigned read_word(const uint8_t *p) { return p[0] | (unsigned)p[1] << 8; }
 static uint32_t record_color(unsigned rgb) {
-  return 0xff000000u | ((rgb & 31) * 255 / 31 << 16) |
-      (((rgb >> 5) & 31) * 255 / 31 << 8) | (((rgb >> 10) & 31) * 255 / 31);
+  unsigned r = rgb & 31, g = rgb >> 5 & 31, b = rgb >> 10 & 31;
+  return 0xff000000u | ((r << 3 | r >> 2) << 16) |
+      ((g << 3 | g >> 2) << 8) | (b << 3 | b >> 2);
 }
-static unsigned horizon_pixel(const FzeroCourse *course, const uint8_t *map, unsigned x, unsigned y) {
+static unsigned horizon_pixel(const FzeroCourse *course, const uint8_t *map,
+                              unsigned x, unsigned y, unsigned layer) {
   unsigned tile = read_word(map + ((x / 256) * 224 + (y / 8) * 32 + x / 8 % 32) * 2);
   if ((tile & 1023) >= 256) return 0;
   unsigned px = x % 8, py = y % 8;
@@ -123,20 +125,25 @@ static unsigned horizon_pixel(const FzeroCourse *course, const uint8_t *map, uns
   for (unsigned bit = 0; bit < 4; ++bit)
     color |= ((graphic[bit / 2 * 16 + bit % 2] >> (7 - px)) & 1) << bit;
   unsigned palette = (tile >> 10) & 7;
-  return color && palette >= 1 ? palette * 16 + color : 0;
+  /* Mode 1: BG1 high, BG2 high, BG1 low, BG2 low. Zero is transparent,
+   * including palette 6/7 zero; it must never become that palette's color 0. */
+  unsigned priority = (tile & 0x2000 ? 4 : 2) - layer;
+  return color && palette >= 1 ? (priority << 8) | palette * 16 | color : 0;
 }
 static void records_art(Canvas canvas, const FzeroRecordsView *view, unsigned cup, unsigned order) {
   const FzeroCourse *course = FzeroTracksCourseAt(cup, order);
   if (course) {
-    /* Keep the native 256x40 venue strip. Use the actual course's two horizon
+    /* Keep the native 256x56 venue strip. Use the actual course's two horizon
      * layers and palette, rather than tinting a retail venue illustration. */
-    for (unsigned y = 0; y < 40; ++y)
+    for (unsigned y = 0; y < 56; ++y)
       for (unsigned x = 0; x < 256; ++x) {
-        unsigned color = horizon_pixel(course, course->sky_back, x, y + 16);
-        if (!color) color = horizon_pixel(course, course->sky_front, x, y + 16);
-        if (!color) color = 96;
-        box(canvas, (int)x, 16 + (int)y, 1, 1,
-            record_color(read_word(course->palette + (color - 16) * 2)));
+        unsigned main = horizon_pixel(course, course->sky_back, x, y, 0);
+        unsigned behind = horizon_pixel(course, course->sky_front, x, y, 1);
+        unsigned color = (main > behind ? main : behind) & 255;
+        /* The native menu backdrop is black, not horizon palette entry 96.
+         * Using that unused entry made rectangles around transparent stars. */
+        box(canvas, (int)x, (int)y, 1, 1,
+            color ? record_color(read_word(course->palette + (color - 16) * 2)) : 0xff000000);
       }
   }
   uint32_t icon[16 * 16];
@@ -163,9 +170,6 @@ void FzeroRecordsOverlay(uint32_t *pixels, unsigned width, unsigned height, size
   Canvas c = {pixels, pitch, height / 224, (width / (height / 224) - 256) / 2,
               brightness & 128 ? 0 : brightness & 15};
   char label[80];
-  snprintf(label, sizeof(label), "%s / %s", FzeroVehicleRecordName(v->vehicle), v->practice ? "PRACTICE" : "GP");
-  box(c, 0, 0, 256, 16, 0xff000000);
-  record_text(c, (256 - (int)strlen(label) * 8) / 2, 4, label, 32, 0xffb8e8ff);
   if (detail) {
     unsigned index = v->page * 3 + v->display_selected / 5, order = v->display_selected % 5;
     records_art(c, v, index, order);

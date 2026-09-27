@@ -34,6 +34,19 @@ Exiting restores the original SRAM and WRAM mirror. Missing/bad files stay
 untouched. The snapshot trailer retains its original size; browser state fits
 in the unused key field while viewing, so rewind and existing states still load.
 
+0.7.2 restores the full native 256x56 scenery strip and removes the added car/mode
+heading. Transparent horizon pixels now use the black menu backdrop instead of
+unused palette entry 96, which caused U Zero's gray star/planet rectangles.
+Mode 1 layer priority and native RGB expansion are respected. Per-frame fades,
+navigation and snapshot restoration pass for retail, BS, imported and widescreen
+menus. Music tests also cover the public Huckmine ZIP name independently of its
+internal `hm.fzm` filename.
+
+The separate cropped Metal Fort skyline with the BEST race HUD has not reproduced
+as corruption; the visible buildings correspond to the imported course artwork.
+Keep that report and the earlier intermittent scattered result digits open in
+`beads-8wg.5.71`; the Records banner fix is not evidence that either is resolved.
+
 Two additional defects surfaced in validation and are fixed:
 
 - A fresh stock-engine/track-pack session did not create its base save directory

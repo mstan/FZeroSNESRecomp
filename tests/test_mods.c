@@ -260,14 +260,14 @@ int main(void) {
     }
   }
   /* The same executable also ships without PCM files. CGP keeps SNES audio
-   * until custom music is supplied, then uses that path without replacing it. */
+   * when recordings are missing; adding them later needs no source selection. */
   p = FzeroModsProvider(&s, "test-mods.ini", false);
   for (unsigned custom=0; custom<2; ++custom) {
     RecompLauncherCSettings io={0};
     if (custom) snprintf(io.msu1_dir,sizeof(io.msu1_dir),"my external CGP music");
     CHECK(p->preset_apply(NULL,"cgp",&io));
     CHECK(!strcmp(p->preset_current(NULL,&io),"cgp"));
-    CHECK(io.msu1_enabled==(int)custom && !io.msu1_pack[0]);
+    CHECK(io.msu1_enabled && !io.msu1_pack[0]);
     CHECK(!strcmp(io.msu1_dir,custom ? "my external CGP music" : ""));
     CHECK(s.gameplay.vehicle_packs==7 && s.gameplay.stock_rebalance==15);
     CHECK(s.gameplay.enabled & (1u<<FZERO_RULE_LEGEND));

@@ -1,5 +1,17 @@
 ﻿# Changelog
 
+## 0.7.2 - Pack music and Records scenery corrections
+
+- Use one MSU enable switch in both bundles, without a source/file picker.
+  Course music matches the visible ZIP filename, including
+  `huckmine.zip` with `music/huckmine.pcm`.
+- Keep pack music discovery enabled by the CGP preset even when recordings
+  have not been added yet; missing recordings retain SNES music.
+- Remove the added vehicle/mode heading from Records and restore the full
+  native-height scenery strip. Fix gray boxes behind transparent stars and
+  honor the native skyline layer priority.
+- Retain prebuilt course caches in both bundles.
+
 ## 0.7.1 - Ready-to-use course caches
 
 - Ship prebuilt course and source-extraction caches in every bundle, so

@@ -29,11 +29,12 @@ Use the plain version without a `fzero-55-preview` label.
 
 ## Current release
 
-The current local tester bundles are **0.7.1**: prebuilt portable course caches,
-plus 0.7.0's Records testing option, Astra first-lap notification fix, and
-Records transition/lettering fixes. Both Windows variants share this version.
-Prior bundles remain unchanged. Next fixes are 0.7.2; new features are 0.8.0.
-Tracked by `beads-8wg.5.79`.
+The current local tester bundles are **0.7.2**: consistent per-pack MSU music
+and native-height Records scenery with transparent stars and no added heading.
+Both variants retain prebuilt portable course caches and the earlier Records
+and first-lap fixes. Prior bundles remain unchanged.
+Next fixes are 0.7.3; new features are 0.8.0.
+Tracked by `beads-8wg.5.80` and `beads-8wg.5.71`.
 
 ## Preparing a release
 

@@ -32,7 +32,7 @@ static int feature_get(void *ctx, int index, RecompLauncherCModFeature *out) {
     COPY(out->package_version, "1");
     COPY(out->author, "Installed soundtrack authors");
     COPY(out->group, "Audio");
-    COPY(out->description, "Music for the title, menus, countdown, racers ready, lost life and ending. Prefilled from the selected pack; Change file replaces one song, and Clear selection restores its pack default. Enable MSU-1 with Installed pack music in Settings > Audio. Missing songs use SNES audio.");
+    COPY(out->description, "Music for the title, menus, countdown, racers ready, lost life and ending. Prefilled from the selected pack; Change file replaces one song, and Clear selection restores its pack default. Enable MSU-1 in Settings > Audio. Missing songs use SNES audio.");
     out->enabled = FzeroMenuMusicEnabled();
     out->option_count = 1;
     COPY(out->status, out->enabled ? "Pack defaults with optional replacements" : "SNES menu and event audio");

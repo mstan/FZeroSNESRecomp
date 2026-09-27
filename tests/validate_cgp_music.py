@@ -66,6 +66,7 @@ def main():
               dict(name="front",cup="astra-front/front",track=115,rewind=True),
               dict(name="astra-missing",cup="astra-front/front",ordinal=4,fallback=True)]
     cases += [dict(name="course-astra",cup="astra-front/astra",track=110,course_files=True,rewind=True),
+              dict(name="course-huckmine",cup="cgp/cgp-4",track=50,course_files=True),
               dict(name="course-bower",cup="bower-league/bower",track=210,course_files=True),
               dict(name="course-missing",cup="astra-front/astra",fallback=True,course_files=True),
               dict(name="course-practice",cup="cgp/cgp-1",practice=True,track=35,course_files=True)]

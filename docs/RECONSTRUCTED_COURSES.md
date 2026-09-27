@@ -50,7 +50,7 @@ Course hashes and IDs are unchanged. The records key derives from pack ID,
 cup ID, course IDs/hashes and vehicle/mode; renaming source files therefore
 does not reset existing records. Huckmine retains its already-established
 0.5.0 source-project identity. Music filenames remain unchanged, including
-the original Huckmine project's `hm.pcm`.
+the original Huckmine project's `huckmine.pcm` (matching `huckmine.zip`).
 
 Run the corpus check with `tests/validate_reconstructed_projects.py --build
 <build> --packs <new packs> --baseline <previous runtime dumps> --out <fresh

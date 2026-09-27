@@ -12,7 +12,7 @@ lap/results screen appears after a race.
 
 ## Choosing menu music
 
-Open **Settings > Audio**, enable **MSU-1**, and choose **Installed pack music**.
+Open **Settings > Audio** and enable **MSU-1**. There is no source to browse for.
 Then open **Mods > Menu and event music**. The existing CGP songs are already
 filled in; the music bundle is ready to play them. In the smaller download,
 the same paths show where to put the recordings.
@@ -37,8 +37,8 @@ the supplied default. A pack can provide some events and leave the rest as
 SNES audio. Changing the default soundtrack keeps your individual replacements.
 
 For **course music**, place the recording in that pack's `music` folder and
-match the course filename: `courses/moon.zip` uses `music/moon.pcm`
-(the project inside is `moon.fzm`).
+match the course filename: `courses/moon.zip` uses `music/moon.pcm`. The filenames inside a ZIP do not
+change this rule.
 The music bundle includes the ten supplied Astra recordings in
 `mods/packs/astra-front/music`. You can add those same files to the smaller
 download without changing any JSON. Astra's course music does not replace
@@ -75,8 +75,8 @@ cache automatically. You can delete the cache; it rebuilds on launch.
 Keep backups outside `mods/packs`, and do not install this same example a
 second time as a separate pack.
 
-For optional music, use `mods/packs/cgp/music/hm.pcm`: the name follows
-`hm.fzm`, not the ZIP's name. Enable MSU-1 and select **Installed pack music**
+For optional music, use `mods/packs/cgp/music/huckmine.pcm`: it matches
+`huckmine.zip`, regardless of the filenames inside. Enable MSU-1
 in Audio settings. Without that recording, Huckmine uses its SNES music.
 
 The `.fzm` file is the starting point; the other files hold the track, sky,

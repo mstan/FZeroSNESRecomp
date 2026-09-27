@@ -25,12 +25,12 @@ The canonical extracted set is `music/cgp`. Excluded and superseded recordings
 are physically removed after checking their hashes; Git ignores are only a
 secondary guard. No ROM or unrelated archive contents are extracted.
 
-Select **Settings > Audio > Enable MSU-1 music**, leaving the source on
-**Installed pack music**, or apply the CGP preset in Mods. Music starts off on
-a fresh installation. Custom music remains available from **Custom...**.
+Select **Settings > Audio > Enable MSU-1 music**, or apply the CGP preset in
+Mods. Music starts off on a fresh installation. Recordings are discovered
+from each installed pack's `music/` folder; there is no source picker.
 The smaller **without-msu** download omits the soundtrack while retaining MSU
 support. Add recordings matching course filenames to each pack's `music/`
-folder and restart, then enable Installed pack music. Missing songs use SNES audio.
+folder and restart, then enable MSU-1. Missing songs use SNES audio.
 
 ## Building from source
 

@@ -53,10 +53,10 @@ off. Explicit saved settings remain respected.
 The label becomes **Custom** when an owned option differs. Unrelated changes
 do not change the label. Settings persist on Play and on closing the launcher.
 
-Settings > Audio offers **Installed pack music** when recordings are present,
-alongside **Custom...**, with MSU disabled initially. Custom opens a
-`.msu` file picker and retains the previous custom path when switching back
-to installed music. Course recordings use `music/<course source basename>.pcm`
+Settings > Audio offers an **Enable MSU-1 music** checkbox in both bundles,
+with MSU disabled initially. No file or source picker is needed. Applying
+the CGP preset enables it even before recordings are added. Course recordings
+use `music/<course ZIP (or FZM/FZC) basename>.pcm`
 inside their own pack; no filename prefix or song map is required.
 Turning music off restores SNES audio without removing any track pack.
 
@@ -69,9 +69,9 @@ produce no picker and no default recipes. F-Zero owns these three definitions
 and their conflict handling. Reusable API documentation lives in recomp-ui's
 `docs/OPTIONAL_PRESETS.md`.
 
-Bundled music choices are separately optional through GameInfo's `msu1_packs`
-and `num_msu1_packs`. Hosts that omit them retain the existing MSU folder UI.
-The shared UI stores a selected ID; each game resolves it to its own assets.
+F-Zero opts into GameInfo's `msu1_managed` capability: the shared UI shows
+only the MSU checkbox and help, while the game discovers pack music. Other
+hosts retain their existing MSU folder/custom soundtrack interface by default.
 
 ## Soundtrack and runtime
 

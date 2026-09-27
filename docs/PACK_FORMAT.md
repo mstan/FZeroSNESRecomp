@@ -70,7 +70,7 @@ A course may also reference a single-course pack ZIP, for example
 FZM or FZC; nested ZIP chains are rejected. Its required mechanics are retained
 and combined with the enclosing pack. The enclosing pack supplies the league
 position, course identity and optional music overrides. Audio filenames follow
-the inner project (`HM/hm.fzm` means `music/hm.pcm` in the enclosing pack).
+the ZIP filename (`huckmine.zip` means `music/huckmine.pcm` in the enclosing pack).
 
 The Huckmine example preserves the supplied twelve files byte-for-byte. The
 maintainer helper `tools/package_fzedit_course.py` adds descriptors and credits
@@ -196,20 +196,21 @@ include the Windows DLL dependencies; end users do not install FZEdit or Python.
 
 ## Music
 
-Music is optional and independently enabled in Audio settings. **Installed pack
-music** uses the discovered audio; **Custom** uses a selected loose MSU source.
+Music is optional and independently enabled in Audio settings. The game
+automatically discovers recordings in the installed packs; no source picker is needed.
 Use one naming rule: **the PCM matches the course source filename**, in that
-pack's `music/` folder. Drop it in, restart, enable MSU-1, and select Installed
-pack music. Create `music/` if it is absent.
+pack's `music/` folder. Drop it in, restart, and enable MSU-1.
+Create `music/` if it is absent.
 
 ```text
 mods/packs/astra-front/
-    courses/u-zero-1.fzc
+    courses/u-zero-1.zip
     music/u-zero-1.pcm
 ```
 
 For raw FZEdit input, `courses/coast/Coast.fzm` uses `music/Coast.pcm`.
-Match the filename exactly, including case, without the `.fzc`/`.fzm` extension.
+Match the filename exactly, including case, without the `.zip`/`.fzc`/`.fzm` extension.
+For ZIPs, use the archive name, not the filenames inside.
 No MSU number, soundtrack prefix, JSON music mapping, or `.msu` file is needed.
 The course display name and ID do not select the recording. Two source files
 with the same basename in one pack share its PCM; different packs stay separate.
@@ -218,8 +219,8 @@ Missing recordings use SNES music. Adding music does not change course records.
 CGP recordings now ship in `mods/packs/cgp/music`, following the same rule for
 race songs. There is no separate `cgp-audio` folder in new bundles. Shared menu
 cues retain the existing adapter filenames in that folder. Original numbered
-MSU packs remain supported through the existing custom-source adapter, but are
-not required for course-file matching. No Astra recordings are bundled yet.
+MSU packs can be renamed to match the course ZIPs. The music bundle includes
+all ten supplied Astra recordings; the smaller download uses the same paths.
 
 This convention requires 0.4.0 or newer. The older 0.3.0 tester ZIPs still need
 their original prefixed recordings.

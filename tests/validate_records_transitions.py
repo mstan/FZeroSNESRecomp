@@ -69,6 +69,12 @@ def main():
                       re.findall(r'scene (\d+) .*brightness=([0-9a-f]+)', log)}
         images = [Image.open(frames/f'{i:06}.ppm').convert('RGB') for i in range(350)]
         extra = (images[0].width-256)//2
+        if imported:
+            # U Zero's transparent star field uses the native black backdrop,
+            # never unused gray palette zero or an invented blue car heading.
+            colors = set(images[99].crop((extra, 0, extra+256, 56)).getdata())
+            assert (123, 123, 140) not in colors, 'Palette-zero blocks behind stars'
+            assert (184, 232, 255) not in colors, 'Unwanted vehicle/mode heading'
         region = (extra+8, 76, extra+128, 114)
         crops = [im.crop(region) for im in images]
         first_switch = next(i for i in range(100, 180) if brightness[i] & 15 == 0)
@@ -79,7 +85,7 @@ def main():
             level = 0 if brightness[i] & 128 else brightness[i] & 15
             expected = crops[ref].point([n*level//15 for n in range(256)]*3)
             assert crops[i].tobytes() == expected.tobytes(), (name, 'labels flashed', i)
-            strip = (extra, 16, extra+256, 56)
+            strip = (extra, 0, extra+256, 56)
             expected = images[ref].crop(strip).point([n*level//15 for n in range(256)]*3)
             assert images[i].crop(strip).tobytes() == expected.tobytes(), (name, 'skyline changed early', i)
         # Entering/backing out must fade the complete labels/art too, rather

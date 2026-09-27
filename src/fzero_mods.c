@@ -283,7 +283,7 @@ static int preset_get(void *ctx, int i, RecompLauncherCModPreset *out) {
   if (i < 0 || i >= 3 || !out) return 0;
   *out = presets[i];
   if (i == 2 && !has_bundled_music)
-    COPY(out->description, "All installed course packs, all twelve CGP cars and their rebalances, every CGP rule including Legend, and Community Grand Prix title. Uses your selected custom music, or SNES audio until music is supplied. Disables conflicting BS content; keeps unrelated choices.");
+    COPY(out->description, "All installed course packs, all twelve CGP cars and their rebalances, every CGP rule including Legend, and Community Grand Prix title. Enables pack music; uses SNES audio until recordings are supplied. Disables conflicting BS content; keeps unrelated choices.");
   return 1;
 }
 static const char *preset_current(void *ctx, const RecompLauncherCSettings *s) {
@@ -292,9 +292,7 @@ static const char *preset_current(void *ctx, const RecompLauncherCSettings *s) {
   const CpPack *cgp = cp_catalog_find(FzeroTracksCatalog(), "cgp");
   unsigned rules = video->gameplay.enabled & ~(1u << FZERO_RULE_MSU);
   unsigned all = FZERO_RULE_SELECTABLE_MASK & ~(1u << FZERO_RULE_MSU);
-  bool cgp_music = has_bundled_music ?
-      s->msu1_enabled && !strcmp(s->msu1_pack,"installed") :
-      s->msu1_enabled == (s->msu1_dir[0] != 0) && !s->msu1_pack[0];
+  bool cgp_music = s->msu1_enabled != 0;
   if (FzeroTracksEnabled(cgp) && FzeroTracksTitleEnabled() && !strcmp(FzeroTracksTitleStyle(), "cgp") &&
       !video->bs_deluxe && !video->bs_tracks && video->gameplay.vehicle_packs == 7 &&
       video->gameplay.stock_rebalance == 15 && rules == all && cgp_music) return "cgp";
@@ -323,8 +321,7 @@ static int preset_apply(void *ctx, const char *id, RecompLauncherCSettings *s) {
   video->gameplay.vehicle_packs = index == 2 ? 7 : 0;
   video->gameplay.stock_rebalance = index == 2 ? 15 : 0;
   video->gameplay.enabled = index == 2 ? FZERO_RULE_SELECTABLE_MASK : 0;
-  s->msu1_enabled = index == 2 && (has_bundled_music || s->msu1_dir[0]);
-  if (index == 2) COPY(s->msu1_pack,has_bundled_music ? "installed" : "");
+  s->msu1_enabled = index == 2;
   if (!s->msu1_enabled) video->gameplay.enabled &= ~(1u << FZERO_RULE_MSU);
   error_text[0] = 0;
   return 1;

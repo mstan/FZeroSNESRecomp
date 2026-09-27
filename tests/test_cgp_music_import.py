@@ -89,6 +89,18 @@ class MusicExclusionTests(unittest.TestCase):
         self.assertEqual({p.name for p in (pack/'music').iterdir()},{'map.pcm','cgp-4.pcm'})
         self.assertEqual((pack/'music/map.pcm').read_bytes(),self.keep)
 
+    def test_course_zip_music_matches_archive_not_internal_project(self):
+        src = self.folder('source')
+        pack = self.root / 'pack'
+        pack.mkdir()
+        (pack/'courses.json').write_text(json.dumps(dict(courses=[
+            dict(id='huckmine', source='huckmine.zip', music=dict(track=4))])))
+        with zipfile.ZipFile(pack/'huckmine.zip', 'w') as archive:
+            archive.writestr('HM/hm.fzm', '<project/>')
+        music.stage_course_music(src, pack)
+        self.assertEqual((pack/'music/huckmine.pcm').read_bytes(), self.keep)
+        self.assertFalse((pack/'music/hm.pcm').exists())
+
 
 if __name__ == '__main__':
     unittest.main()
