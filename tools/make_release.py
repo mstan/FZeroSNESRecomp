@@ -187,6 +187,7 @@ shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
     "Vehicle packs, rules and screen override remain separate options. CGP preset enables the full experience.\n\n"
     "Required course mechanics load automatically with their pack and have no separate switches.\n"
     "Legend difficulty defaults on; diagnostics and MSU-1 default off. Saved choices are respected.\n\n"
+    "Mods > Always show Records defaults on, making Records available before setting a time.\n\n"
     + ("CGP and Astra audio are included in their mods/packs/<pack>/music folders.\n" if bundled_music else "Audio is not included; you can add it to each pack's music folder.\n") +
     "Course ZIPs contain editable projects; example.zip contains example.fzm and uses music/example.pcm.\n"
     "Compiled FZC files are generated in mods/packs/.cache/courses on launch.\n"

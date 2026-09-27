@@ -1,5 +1,16 @@
 ﻿# Changelog
 
+## 0.7.0 - Records testing and presentation fixes
+
+- Add the default-on Always show Records mod so testers can open Records
+  from the title menu before setting a time, without changing saved records.
+- Fix Astra's stray Z at the first-lap notification by restoring native
+  race glyphs after the course introduction.
+- Keep course names and venue art together through Records transitions;
+  prevent brief donor-name flashes and premature graphic replacement.
+- Match stock and imported course details to the original tall lettering,
+  colors and underline, with native fades and saved-state restoration.
+
 ## 0.6.0 - Editable source archives for every bundled course
 
 - Ship all 75 course versions as editor ZIPs with their existing course filenames.

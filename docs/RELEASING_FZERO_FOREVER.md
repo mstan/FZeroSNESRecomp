@@ -29,10 +29,11 @@ Use the plain version without a `fzero-55-preview` label.
 
 ## Current release
 
-The current local tester bundles are **0.4.0**: course-filename music,
-pack-owned mandatory mechanics and updated defaults. Both Windows variants
-share this version. Prior bundles remain unchanged. Next fixes are 0.4.1;
-new features are 0.5.0. Tracked by `beads-8wg.5.69`.
+The current local tester bundles are **0.7.0**: the default-on Records testing
+option, Astra first-lap notification fix, and Records transition/lettering
+fixes. Both Windows variants share this version. Prior bundles remain
+unchanged. Next fixes are 0.7.1; new features are 0.8.0.
+Tracked by `beads-8wg.5.78`.
 
 ## Preparing a release
 
@@ -54,8 +55,10 @@ Keep developer staging folders separate from the shareable tester directory.
 
 3. Build and perform checks appropriate to the actual changes, then commit.
 4. Package both music variants with `tools/make_release.py`, omitting
-   `--label`, and passing `--packs captures/pack-mechanics-payloads` after running
-   `tools/export_runtime_packs.py --stock <stock.sfc> --out captures/pack-mechanics-payloads`. Its version checks require the cache, executable and `VERSION`
+   `--label`, and passing the reviewed editable course set with
+   `--packs captures/reconstructed-projects-03/packs`. Keep its extraction
+   manifests for the pack parity check; do not package the installed cache.
+   Its version checks require the cache, executable and `VERSION`
    to agree. A fix release produces filenames such as
    `FZeroSNESRecomp-0.1.11-windows-x64-with-msu.zip` and
    `FZeroSNESRecomp-0.1.11-windows-x64-without-msu.zip`.
