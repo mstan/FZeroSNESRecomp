@@ -4,7 +4,9 @@
 #include "fzero_vehicles.h"
 #include "fzero_deluxe.h"
 #include "fzero_records.h"
+#include "fzero_native_font.h"
 #include "snes/cart.h"
+#include "snes/ppu.h"
 extern Snes *g_snes;
 #include "common_rtl.h"
 #include <ctype.h>
@@ -15,9 +17,12 @@ extern Snes *g_snes;
 typedef struct Canvas {
   uint32_t *pixels;
   size_t pitch;
-  unsigned scale, extra;
+  unsigned scale, extra, brightness;
 } Canvas;
 static void box(Canvas c, int x, int y, int w, int h, uint32_t color) {
+  if (c.brightness < 15)
+    color = (color & 0xff000000u) | (((color >> 16 & 255) * c.brightness / 15) << 16) |
+        (((color >> 8 & 255) * c.brightness / 15) << 8) | ((color & 255) * c.brightness / 15);
   x += (int)c.extra;
   for (int yy = y * (int)c.scale; yy < (y + h) * (int)c.scale; ++yy) {
     uint32_t *row = (uint32_t *)((uint8_t *)c.pixels + yy * c.pitch);
@@ -53,6 +58,46 @@ static void record_text(Canvas c, int x, int y, const char *s, unsigned limit, u
     }
   }
 }
+static void record_course_name(Canvas c, const FzeroCourse *course, const char *s) {
+  static const uint8_t alphabet[] = {
+    0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x8e,
+    0x6c, 0x6e, 0x6f, 0x8a, 0x8b, 0x8c, 0x8d, 0x6d, 0x8f,
+    0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa6, 0xa5, 0xa7};
+  static const uint32_t colors[] = {0, 0xff000000, 0xffffffff, 0xff4aff4a};
+  unsigned length = 0;
+  for (; s[length] && length < 14; ++length) {
+    unsigned ch = (unsigned)toupper((unsigned char)s[length]);
+    if (ch == ' ') continue;
+    unsigned code = ch >= 'A' && ch <= 'Z' ? alphabet[ch - 'A'] :
+                    ch >= '0' && ch <= '9' ? 0x80 + ch - '0' : 0;
+    const uint8_t *halves[2] = {NULL, NULL};
+    if (course)
+      for (unsigned g = 0; g < course->intro_glyph_count; ++g)
+        if (code && course->intro_glyphs[g].code == code) {
+          halves[0] = course->intro_glyphs[g].pixels;
+          halves[1] = halves[0] + 16;
+          break;
+        }
+    /* Unused native letter slots contain other sprites. Packs may supply
+     * their own glyphs; otherwise use readable small-font lettering below. */
+    if (!halves[0] && code && ch != 'J' && ch != 'Q' && ch != 'X' && ch != 'Z')
+      for (unsigned h = 0; h < 2; ++h)
+        halves[h] = FzeroNativeLetterTile(g_snes->cart->rom, g_snes->cart->romSize, code + h * 16);
+    int x = 16 + (int)length * 8;
+    if (halves[0] && halves[1]) {
+      for (unsigned y = 0; y < 16; ++y)
+        for (unsigned px = 0; px < 8; ++px) {
+          const uint8_t *row = halves[y / 8] + y % 8 * 2;
+          unsigned color = (row[0] >> (7 - px) & 1) | (row[1] >> (7 - px) & 1) << 1;
+          if (color) box(c, x + (int)px, 79 + (int)y, 1, 1, colors[color]);
+        }
+    } else {
+      char glyph[] = {(char)ch, 0};
+      record_text(c, x, 84, glyph, 1, colors[3]);
+    }
+  }
+  box(c, 16, 98, (int)length * 8, 1, 0xffffffff);
+}
 static const char *scroll_label(const char *label, unsigned width, bool selected) {
   size_t n = strlen(label);
   if (selected && n > width) {
@@ -80,9 +125,8 @@ static unsigned horizon_pixel(const FzeroCourse *course, const uint8_t *map, uns
   unsigned palette = (tile >> 10) & 7;
   return color && palette >= 1 ? palette * 16 + color : 0;
 }
-static void records_art(Canvas canvas, const FzeroRecordsView *view) {
-  FzeroTracksRefreshCourse();
-  const FzeroCourse *course = FzeroTracksCurrentCourse();
+static void records_art(Canvas canvas, const FzeroRecordsView *view, unsigned cup, unsigned order) {
+  const FzeroCourse *course = FzeroTracksCourseAt(cup, order);
   if (course) {
     /* Keep the native 256x40 venue strip. Use the actual course's two horizon
      * layers and palette, rather than tinting a retail venue illustration. */
@@ -113,21 +157,24 @@ static void records_art(Canvas canvas, const FzeroRecordsView *view) {
 void FzeroRecordsOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch) {
   FzeroRecordsView *v = FzeroRecordsViewState();
   if (!v || !pixels || height < 224 || height % 224 || width / (height / 224) < 256) return;
-  bool detail = FzeroRecordsDetail();
-  if (g_ram[0x54] || g_ram[0x55] != (FzeroDeluxeActive() ? 3 : detail ? 5 : 3)) return;
-  if (FzeroDeluxeActive() && g_ram[0x56] != (detail ? 4 : 0)) return;
-  Canvas c = {pixels, pitch, height / 224, (width / (height / 224) - 256) / 2};
+  if (g_ram[0x54] || g_ram[0x55] < 2 || g_ram[0x55] > (FzeroDeluxeActive() ? 3 : 5)) return;
+  bool detail = v->display_detail != 0;
+  unsigned brightness = g_snes->ppu->inidisp;
+  Canvas c = {pixels, pitch, height / 224, (width / (height / 224) - 256) / 2,
+              brightness & 128 ? 0 : brightness & 15};
   char label[80];
   snprintf(label, sizeof(label), "%s / %s", FzeroVehicleRecordName(v->vehicle), v->practice ? "PRACTICE" : "GP");
   box(c, 0, 0, 256, 16, 0xff000000);
   record_text(c, (256 - (int)strlen(label) * 8) / 2, 4, label, 32, 0xffb8e8ff);
   if (detail) {
-    records_art(c, v);
-    const CpCup *cup = FzeroTracksRuntimeCup(FzeroRecordsCup(), NULL);
-    const CpTrack *track = FzeroTracksRuntimeTrack(FzeroRecordsCup(), FzeroRecordsOrder());
+    unsigned index = v->page * 3 + v->display_selected / 5, order = v->display_selected % 5;
+    records_art(c, v, index, order);
+    const CpCup *cup = FzeroTracksRuntimeCup(index, NULL);
+    const CpTrack *track = FzeroTracksRuntimeTrack(index, order);
+    if (!cup || !track) return;
     box(c, 8, 76, 120, 38, 0xff000000);
-    record_text(c, 16, 82, scroll_label(track->name, 14, true), 14, 0xffffffff);
-    record_text(c, 16, 104, scroll_label(cup->name, 14, true), 14, 0xffb8e8ff);
+    record_course_name(c, FzeroTracksCourseAt(index, order), scroll_label(track->name, 14, true));
+    record_text(c, 16, 102, scroll_label(cup->name, 14, true), 14, 0xffffffff);
     return;
   }
   static const uint32_t colors[] = {0xffb8fff0, 0xffffffa0, 0xffffc8e0};
@@ -177,7 +224,7 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
   unsigned scale = height / 224;
   if (width / scale < 256)
     return;
-  Canvas c = {pixels, pitch, scale, (width / scale - 256) / 2};
+  Canvas c = {pixels, pitch, scale, (width / scale - 256) / 2, 15};
   unsigned count = FzeroTracksRuntimeCount(), selected = FzeroTracksMenuIndex();
   bool practice = g_ram[0x58] != 0;
   bool choosing_class = !practice && FzeroTracksClassSelected();

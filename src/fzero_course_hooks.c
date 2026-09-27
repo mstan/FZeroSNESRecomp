@@ -2,6 +2,7 @@
 #include "fzero_tracks.h"
 #include "fzero_deluxe.h"
 #include "fzero_title.h"
+#include "fzero_native_font.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "snes/cart.h"
@@ -40,22 +41,16 @@ static void restore_intro_tiles(const FzeroCourse *c) {
    * letter tiles overridden for this intro need restoring. Read from ROM,
    * not a host-side VRAM backup, so loading a state during the intro works. */
   const Cart *cart = g_snes->cart;
-  const unsigned sizes[] = {32, 8, 16, 24};
-  for (size_t pos = 0x78000; pos + 2 <= cart->romSize;) {
-    unsigned header = cart->rom[pos++], first = cart->rom[pos++];
-    unsigned count = header & 63, mode = header >> 6, size = sizes[mode];
-    if (!count || first + count > 256 || pos + count * size > cart->romSize) return;
-    for (unsigned i = 0; mode == 2 && i < c->intro_glyph_count; ++i)
-      for (unsigned half = 0; half < 2; ++half) {
-        unsigned tile = c->intro_glyphs[i].code + half * 16;
-        if (tile >= first && tile < first + count) {
-          unsigned word = 0x5000 + tile * 16;
-          vram(word, cart->rom + pos + (tile - first) * size, 16);
-          memset(g_ppu->vram + word + 8, 0, 16);
-        }
+  for (unsigned i = 0; i < c->intro_glyph_count; ++i)
+    for (unsigned half = 0; half < 2; ++half) {
+      unsigned tile = c->intro_glyphs[i].code + half * 16;
+      const uint8_t *pixels = FzeroNativeLetterTile(cart->rom, cart->romSize, tile);
+      if (pixels) {
+        unsigned word = 0x5000 + tile * 16;
+        vram(word, pixels, 16);
+        memset(g_ppu->vram + word + 8, 0, 16);
       }
-    pos += count * size;
-  }
+    }
 }
 static void terrain(CpuState *cpu, const FzeroCourse *c) {
   unsigned x = cpu->X & 255, tile = g_ram[0xcd0 + x];

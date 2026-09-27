@@ -26,8 +26,8 @@ Page/car changes retain the menu frame without replaying its fade or music.
 Unplayed courses remain accessible and show empty times.
 
 The native detail screen uses the selected cup/course's names and minimap.
-Imported Deluxe courses reuse a native venue illustration matching their
-setting, colored from their decoded palette. Native total-time and best-lap
+Imported courses display their decoded horizon layers and palette in the
+original venue strip. Native total-time and best-lap
 rendering remains in use. Browsing assembles a read-only SRAM view from stable
 cup/vehicle keys; it never installs that view as a writable record context.
 Exiting restores the original SRAM and WRAM mirror. Missing/bad files stay
@@ -42,6 +42,39 @@ Two additional defects surfaced in validation and are fixed:
   at `$00`, shifting every high byte of later detail DMAs by one VRAM word.
   Restoring the native records-mode `$80` latch fixes labels, venue and minimap.
   Fresh-boot and loaded-state captures now agree on the native DMA tilemap.
+
+## Transition and lettering follow-up (2026-09-27)
+
+`beads-8wg.5.77`: left/right detail navigation briefly exposed a native donor
+name (often Port Town I) and could replace the venue graphics before fading.
+
+- [x] Keep the displayed course and overview/detail layout until the native
+      loader finishes the next page. Store this presentation in the browser
+      snapshot, separate from the course requested by input.
+- [x] Retain course labels, car icons and imported scenery throughout the fade,
+      using actual PPU brightness. Freeze long-name scrolling during fades.
+- [x] Restore retail's native fade-out command (`$038471`, `$60 = 2`) before
+      entering detail reload state 4. Deluxe already issues its own fade.
+- [x] Use the original tall green/white course lettering, underline and white
+      cup lettering for both stock and imported details. Read native glyphs
+      from ROM and use a course's explicit glyph resources where provided.
+      Unsupported characters fall back to the readable small font.
+- [x] Verify every transition frame: enter detail, both navigation directions,
+      return to overview, scenery and labels, mid-fade snapshot restoration,
+      and preservation of persistent records.
+
+`tests/validate_records_transitions.py` covers retail, original BS, standalone
+Astra with CGP vehicles/rules, and the same imported configuration in widescreen.
+All four pass; private captures are in `captures/records-transitions-04/`.
+The restored **MUTE CITY** lettering also matches the exposed original native
+lettering pixel for pixel. The existing 13 CTests pass.
+
+```powershell
+python tests/validate_records_transitions.py --build build-shared-packs --stock <stock-ROM> --packs <pack-directory> --out captures/records/new-transitions
+```
+
+This covers the Records browser. The separate report of scattered lap/rank
+digits on the postrace results screen remains tracked in `beads-8wg.5.71`.
 
 At the audited baseline, the adapter already gave imported cups separate
 native SRAM images keyed by stable cup/course identity, with per-vehicle

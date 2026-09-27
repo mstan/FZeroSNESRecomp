@@ -7,8 +7,9 @@
  * This keeps the existing snapshot/rewind trailer layout compatible. */
 typedef struct FzeroRecordsView {
   uint16_t page, previous_cup, input, hold;
-  uint8_t vehicle, practice, selected, reserved;
+  uint8_t vehicle, practice, selected, display_selected;
   uint16_t label_tick;
+  uint8_t display_detail; /* Last loaded page, retained through native fades. */
 } FzeroRecordsView;
 FzeroRecordsView *FzeroRecordsViewState(void);
 bool FzeroRecordsViewBegin(void);

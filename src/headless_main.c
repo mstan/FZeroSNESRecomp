@@ -636,6 +636,14 @@ int main(int argc, char **argv) {
     stats.logic_hash = next_logic;
 
     FzeroDrawPpuFrame();
+    /* Private UI regressions need the final composed frame, including host
+     * course/records labels which are absent from the raw PPU captures. */
+    const char *frame_dir = getenv("FZERO_TEST_FRAME_DIR");
+    if (frame_dir && *frame_dir) {
+      char path[1024];
+      if (snprintf(path, sizeof(path), "%s/%06ld.ppm", frame_dir, frame) >= (int)sizeof(path) ||
+          !write_ppm(path, pixels, frame_width)) return 10;
+    }
     collect_video(&stats, pixels, frame, frame_width);
 
     audio_accumulator += 32040.0 / 60.098811862;

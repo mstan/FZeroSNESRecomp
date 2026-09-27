@@ -93,6 +93,18 @@ void FzeroRecordsTick(void) {
       if (!strcmp(id, FzeroVehicleRecordIdentity(i))) v->vehicle = (uint8_t)i;
     page_records();
   }
+  /* Input selects the next course before the native fade/DMA completes.
+   * Keep presentation on the loaded page until the next one is ready. This
+   * lives in the records snapshot so a mid-transition load behaves the same. */
+  bool detail_ready = FzeroDeluxeActive() ? g_ram[0x55] == 3 && g_ram[0x56] == 4
+                                         : g_ram[0x55] == 5;
+  bool overview_ready = g_ram[0x55] == 3 && (!FzeroDeluxeActive() || !g_ram[0x56]);
+  if (detail_ready || overview_ready) {
+    if (v->display_selected != v->selected || v->display_detail != detail_ready)
+      v->label_tick = 0;
+    v->display_selected = v->selected;
+    v->display_detail = detail_ready;
+  }
 }
 static bool overview(void) {
   return scene() && g_ram[0x55] == 3 && (!FzeroDeluxeActive() || !g_ram[0x56]);
@@ -113,8 +125,14 @@ uint16_t FzeroRecordsInput(uint16_t input) {
   if (direction && direction == (v->input & 0xf0) && ++v->hold >= 24 && v->hold % 6 == 0)
     edge |= direction;
   if (direction != (v->input & 0xf0)) v->hold = 0;
-  if (edge) v->label_tick = 0;
-  else ++v->label_tick;
+  bool detail_ready = FzeroRecordsDetail() &&
+      (FzeroDeluxeActive() ? g_ram[0x56] == 4 : g_ram[0x55] == 5);
+  if (overview()) {
+    if (edge) v->label_tick = 0;
+    else ++v->label_tick;
+  } else if (detail_ready && !(edge & 0xf0)) {
+    ++v->label_tick;
+  }
   v->input = input;
   if (overview()) {
     if (edge & (1024 | 2048 | 512 | 2 | 4)) {
@@ -144,15 +162,18 @@ uint16_t FzeroRecordsInput(uint16_t input) {
     return input & (8 | 256);
   }
   if (FzeroRecordsDetail()) {
-    bool ready = FzeroDeluxeActive() ? g_ram[0x56] == 4 : g_ram[0x55] == 5;
-    if (ready && (edge & 0xf0)) {
+    if (detail_ready && (edge & 0xf0)) {
       unsigned candidate = v->selected;
       do { candidate = (candidate + ((edge & (16 | 64)) ? 14 : 1)) % 15; }
       while (!valid(candidate));
       v->selected = (uint8_t)candidate;
       select_native();
       if (FzeroDeluxeActive()) g_ram[0x56] = 3;
-      else g_ram[0x55] = 4;
+      else {
+        /* Match native $038471: fade before state 4 replaces graphics. */
+        g_ram[0x60] = 2;
+        g_ram[0x55] = 4;
+      }
     }
     /* Deletion operates on native slots. This browser is a read-only view;
      * don't expose a delete command which could target a different context. */

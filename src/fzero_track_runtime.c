@@ -154,29 +154,31 @@ unsigned FzeroTracksCurrentCupSize(void) {
     count += !strcmp(active_pack->tracks[i].cup, active_cup->id);
   return count;
 }
-static void current_course(void) {
-  course = NULL;
-  const CpPack *p = active_pack;
-  const CpCup *cup = active_cup;
-  unsigned order = g_ram[0x53];
-  if (FzeroRecordsDetail()) {
-    cup = FzeroTracksRuntimeCup(FzeroRecordsCup(), &p);
-    order = FzeroRecordsOrder();
-  } else if (g_ram[0x54] == 0) return;
+static const FzeroCourse *imported_course(const CpPack *p, const CpCup *cup, unsigned order) {
   if (!cup || !imported_pack(p))
-    return;
-  const char *test = getenv("FZERO_TEST_COURSE");
-  if (test && !FzeroRecordsDetail())
-    order = (unsigned)strtoul(test, NULL, 10);
+    return NULL;
   for (unsigned i = 0; i < imported_count; ++i)
     if (imported[i].pack == p)
       for (unsigned t = 0; t < p->track_count; ++t)
         if (!strcmp(p->tracks[t].cup, cup->id)) {
-          if (!order--) {
-            course = &imported[i].courses[t];
-            return;
-          }
+          if (!order--) return &imported[i].courses[t];
         }
+  return NULL;
+}
+const FzeroCourse *FzeroTracksCourseAt(unsigned index, unsigned order) {
+  const CpPack *pack = NULL;
+  const CpCup *cup = FzeroTracksRuntimeCup(index, &pack);
+  return imported_course(pack, cup, order);
+}
+static void current_course(void) {
+  course = NULL;
+  if (FzeroRecordsDetail()) {
+    course = FzeroTracksCourseAt(FzeroRecordsCup(), FzeroRecordsOrder());
+  } else if (g_ram[0x54]) {
+    const char *test = getenv("FZERO_TEST_COURSE");
+    unsigned order = test ? (unsigned)strtoul(test, NULL, 10) : g_ram[0x53];
+    course = imported_course(active_pack, active_cup, order);
+  }
 }
 bool FzeroTracksPrepare(uint8_t **rom, size_t *size, bool deluxe, const char *deluxe_path) {
   for (unsigned i = 0; i < imported_count; ++i)
