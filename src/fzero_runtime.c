@@ -21,6 +21,7 @@
 #include "fzero_renderer.h"
 #include "fzero_deluxe.h"
 #include "fzero_tracks.h"
+#include "fzero_title.h"
 #include "fzero_course_runtime.h"
 #include "fzero_records.h"
 #include "fzero_hdma.h"
@@ -887,7 +888,8 @@ static const RtlGameInfo kFzeroGameInfo = {
 
 const RtlGameInfo *FzeroGameInfo(void) {
   static RtlGameInfo deluxe;
-  if (FzeroTracksStateActive()) {
+  /* Records visibility alone must retain the existing save-slot prefix. */
+  if (FzeroTracksActive() || FzeroTitleHash()) {
     deluxe = kFzeroGameInfo;
     deluxe.title = FzeroTracksActiveId(); deluxe.save_name_prefix = "fzero-library";
     return &deluxe;

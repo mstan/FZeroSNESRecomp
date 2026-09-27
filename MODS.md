@@ -1,5 +1,15 @@
 # Mods and differences from the source games
 
+## Opening Records for testing
+
+**Mods > Always show Records** is on by default. It keeps **RECORDS** on the
+title menu, including on a new save, so you can check courses and vehicles
+without finishing a race first. Empty courses stay empty; no scores are added.
+
+Turn it off to restore the original unlock behavior. Your choice is saved,
+and changing a preset leaves it alone. This option does not change when the
+lap/results screen appears after a race.
+
 ## Choosing menu music
 
 Open **Settings > Audio**, enable **MSU-1**, and choose **Installed pack music**.

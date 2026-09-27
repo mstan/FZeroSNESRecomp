@@ -4,10 +4,12 @@
 #include "fzero_title.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
+#include "snes/cart.h"
 #include "snes/interp_bridge.h"
 #include "snes/ppu.h"
 #include <stdio.h>
 #include <string.h>
+extern Snes *g_snes;
 
 static unsigned r16(unsigned a) {
   return g_ram[a] | (unsigned)g_ram[a + 1] << 8;
@@ -31,6 +33,29 @@ static void width8(CpuState *cpu) {
 static void vram(unsigned word, const uint8_t *p, size_t n) {
   for (size_t i = 0; i < n / 2; ++i)
     g_ppu->vram[(word + i) & 0x7fff] = p[i * 2] | (uint16_t)p[i * 2 + 1] << 8;
+}
+static void restore_intro_tiles(const FzeroCourse *c) {
+  if (!c->intro_glyph_count) return;
+  /* Decode the active engine's native $0F:8000 OBJ stream. Only the 2bpp
+   * letter tiles overridden for this intro need restoring. Read from ROM,
+   * not a host-side VRAM backup, so loading a state during the intro works. */
+  const Cart *cart = g_snes->cart;
+  const unsigned sizes[] = {32, 8, 16, 24};
+  for (size_t pos = 0x78000; pos + 2 <= cart->romSize;) {
+    unsigned header = cart->rom[pos++], first = cart->rom[pos++];
+    unsigned count = header & 63, mode = header >> 6, size = sizes[mode];
+    if (!count || first + count > 256 || pos + count * size > cart->romSize) return;
+    for (unsigned i = 0; mode == 2 && i < c->intro_glyph_count; ++i)
+      for (unsigned half = 0; half < 2; ++half) {
+        unsigned tile = c->intro_glyphs[i].code + half * 16;
+        if (tile >= first && tile < first + count) {
+          unsigned word = 0x5000 + tile * 16;
+          vram(word, cart->rom + pos + (tile - first) * size, 16);
+          memset(g_ppu->vram + word + 8, 0, 16);
+        }
+      }
+    pos += count * size;
+  }
 }
 static void terrain(CpuState *cpu, const FzeroCourse *c) {
   unsigned x = cpu->X & 255, tile = g_ram[0xcd0 + x];
@@ -95,13 +120,18 @@ static void course_hook(CpuState *cpu, uint32_t pc) {
   case 0x0088d3:
     /* Both native engines just uploaded their stock OBJ atlas. Restore only
      * the imported intro's reviewed letter tiles, never the donor HUD/cars.
-     * The next course's normal atlas upload restores the original letters. */
+     * These tiles are shared with race messages; release them at countdown. */
     for (unsigned i = 0; i < c->intro_glyph_count; ++i)
       for (unsigned half = 0; half < 2; ++half) {
         unsigned word = 0x5000 + (c->intro_glyphs[i].code + half * 16) * 16;
         vram(word, c->intro_glyphs[i].pixels + half * 16, 16);
         memset(g_ppu->vram + word + 8, 0, 16);
       }
+    break;
+  case 0x008bb4:
+    /* Course text has finished in both GP and Practice. In particular, the
+     * imported Z occupies A7/B7, also used by the native S OK! notification. */
+    restore_intro_tiles(c);
     break;
   case 0x00f7e6:
     if (c->has_music) {
@@ -265,7 +295,7 @@ void FzeroTracksInstallHooks(void) {
     return;
   const uint32_t sites[] = {0x009f08, 0x009f1b, 0x009f28, 0x009f4c, 0x00a0b0, 0x00a10d, 0x00a11d,
                             0x00a127, 0x00a4ab, 0x00a4d1, 0x00a51f, 0x008895, 0x00abd3, 0x00d609,
-                            0x00a30d, 0x008e36, 0x009c9a, 0x00eb90, 0x00da04, 0x0088d3,
+                            0x00a30d, 0x008e36, 0x009c9a, 0x00eb90, 0x00da04, 0x0088d3, 0x008bb4,
                             0x00cba5, 0x009a6b, 0x00b4a9, 0x00c1cf, 0x00f7e6};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], course_hook);

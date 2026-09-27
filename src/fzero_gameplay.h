@@ -35,6 +35,7 @@ typedef struct FzeroGameplaySettings {
   unsigned tuning, boost, exhaust; /* 0=P1, 1=P2, 2=P3. Retained while off. */
   unsigned vehicle_packs; /* CGP P1/P2/P3 bits; launcher/config enables all (7) or none. */
   unsigned stock_rebalance; /* Explicit BF/WG/GF/FS identity bits. */
+  bool always_records; /* Testing: expose the title's records browser on empty saves. */
 } FzeroGameplaySettings;
 typedef struct FzeroRuleInfo {
   const char *id, *name, *description;

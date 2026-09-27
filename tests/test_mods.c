@@ -12,7 +12,7 @@ int main(void) {
   RecompLauncherCModFeature w, f;
   RecompLauncherCModOption option;
   const CpCatalog *catalog = FzeroTracksCatalog();
-  CHECK(p->package_count(NULL) == 3 + FZERO_RULE_COUNT && p->feature_count(NULL) == p->package_count(NULL));
+  CHECK(p->package_count(NULL) == 4 + FZERO_RULE_COUNT && p->feature_count(NULL) == p->package_count(NULL));
   CHECK(!p->feature_enable(NULL, "track-library", "cups", 1));
   const CpPack *max = cp_catalog_find(catalog,"max-league");
   if (max && FzeroTracksHidden(max)) {
@@ -20,7 +20,7 @@ int main(void) {
     CHECK(!p->feature_enable(NULL,"max-league","tracks",1));
     CHECK(p->feature_resource_count(NULL,"max-league","tracks") == 0);
   }
-  for (int i = 1 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
+  for (int i = 2 + FZERO_RULE_COUNT; i < p->feature_count(NULL); ++i) {
     RecompLauncherCModFeature pack;
     RecompLauncherCModPackage package;
     CHECK(p->feature_get(NULL, i, &pack) && p->package_get(NULL, i, &package));
@@ -75,6 +75,11 @@ int main(void) {
   CHECK(!p->feature_enable(NULL,"cgp-up-magnet","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-rainbow","rules",1));
   CHECK(!s.gameplay.enabled);
+  CHECK(p->feature_enable(NULL,"fzero-always-records","always-records",1));
+  CHECK(s.gameplay.always_records);
+  CHECK(p->commit(NULL,NULL) && FzeroVideoLoad(&loaded,"test-mods.ini") && loaded.gameplay.always_records);
+  CHECK(p->feature_enable(NULL,"fzero-always-records","always-records",0));
+  CHECK(p->commit(NULL,NULL) && FzeroVideoLoad(&loaded,"test-mods.ini") && !loaded.gameplay.always_records);
   CHECK(!p->feature_enable(NULL,"cgp-credits","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-tuning","rules",1));
   CHECK(!p->feature_enable(NULL,"cgp-boost","rules",1));
@@ -218,6 +223,7 @@ int main(void) {
   cgp=cp_catalog_find(FzeroTracksCatalog(),"cgp");
   CHECK(p->preset_count(NULL)==3);
   for (unsigned extra=0; extra<4; ++extra) {
+    s.gameplay.always_records=(extra&1)!=0;
     if (max) CHECK(FzeroTracksEnable(max,(extra&1)!=0));
     if (bower) CHECK(FzeroTracksEnable(bower,(extra&2)!=0));
     s.enhanced=true;s.fps_enabled=true;s.fps=144;s.hd_mode7=true;s.hd_scale=3;s.diagnostics=true;
@@ -237,6 +243,7 @@ int main(void) {
       CHECK(s.gameplay.vehicle_packs==(pick==2?7u:0u));
       CHECK(s.gameplay.stock_rebalance==(pick==2?15u:0u));
       CHECK(s.gameplay.enabled==(pick==2?FZERO_RULE_SELECTABLE_MASK:0u));
+      CHECK(s.gameplay.always_records==((extra&1)!=0));
       CHECK(io.msu1_enabled==(pick==2));
       CHECK(FzeroTracksEnabled(cgp)==(pick==2));
       CHECK(FzeroTracksTitleEnabled()==(pick==2));

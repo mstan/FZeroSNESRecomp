@@ -1,5 +1,31 @@
 # Source projects and tester feedback - September 26
 
+## September 27 follow-up (`beads-8wg.5.76`)
+
+- [x] Default-on **Always show Records** testing mod: both title-menu gates
+  allow empty-save browsing. Disabling it restores the native unlock checks.
+  Presets retain this choice; gameplay signatures and record keys are unchanged.
+- [x] Reproduce the Astra Practice lap-one "Z" with Dragon Bird. Astra's
+  intro glyph at OBJ A7/B7 overwrote the exclamation in the **S OK!** message.
+- [x] Restore only overridden intro tiles from the active engine's atlas at
+  countdown, after GP/Practice course text. No course resources are changed.
+- [x] Validate Dragon Bird and Red Gazelle: original Astra intro lettering,
+  native first-lap crossing/message and saved-state reload. Evidence:
+  `captures/practice-lap-glyph-02`; script `tests/validate_practice_lap_glyphs.py`.
+- [x] Check empty-save Records on/off and exit on retail and expanded engines;
+  confirm SRAM is unchanged. Evidence: `captures/records-title-gate-04`;
+  script `tests/validate_records_gate.py`.
+
+The distributed FZEdit `F-Zero_Final.asm` edits the same two branches at
+`$03:80FE` and `$03:8151`, but its supplied NOPs **disable** Records. Our mod
+takes the available-record path at those gates. This is an adaptation, not
+an unmodified import of that disabling patch.
+
+The separate scattered post-race lap/rank digits report remains open under
+`beads-8wg.5.71`; the reproduced Astra glyph fix does not establish its cause.
+
+## September 26 baseline
+
 Branch: `f-zero-forever`. Next local test build: 0.5.0.
 
 - [x] `beads-8wg.5.70`: Import the original Huckmine FZEdit ZIP. Preserve all

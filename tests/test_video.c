@@ -137,6 +137,7 @@ static void config_tests(void) {
   f = fopen("test-video.ini", "w"); CHECK(f);
   fputs("BSDeluxe=1\n", f); fclose(f);
   CHECK(FzeroVideoLoad(&b, "test-video.ini") && b.bs_deluxe && b.bs_tracks);
+  CHECK(b.gameplay.always_records); /* Older config without the testing key. */
   f = fopen("test-video.ini", "w"); CHECK(f);
   fputs("BSVehicles=0\nBSTracks=1\nBSDeluxe=1\n", f); fclose(f);
   CHECK(FzeroVideoLoad(&b, "test-video.ini") && !b.bs_deluxe && b.bs_tracks);
@@ -169,6 +170,10 @@ static void config_tests(void) {
   remove("test-video.ini");
   CHECK(FzeroVideoLoad(&b, "test-video.ini"));
   CHECK(b.enhanced && b.fps_enabled && b.bs_deluxe && b.aspect == FZERO_ASPECT_FIT);
+  CHECK(b.gameplay.always_records); /* Missing key defaults on, including old configs. */
+  b.gameplay.always_records=false;
+  CHECK(FzeroVideoSave(&b,"test-video.ini") && FzeroVideoLoad(&a,"test-video.ini") && !a.gameplay.always_records);
+  remove("test-video.ini");
   CHECK(!b.bs_tracks && b.gameplay.enabled==FZERO_RULE_DEFAULT_MASK); /* Legend is offered by default; native BS tracks stay off. */
   CHECK(!FzeroValidFps(61));
   FzeroAspect aspect;

@@ -31,7 +31,8 @@ bool FzeroTracksActive(void) {
   return imported_count != 0 || FzeroGameplayActive();
 }
 bool FzeroTracksStateActive(void) {
-  return FzeroTracksActive() || FzeroTitleHash();
+  /* Empty-save browsing needs snapshot state, without enabling cup overlays. */
+  return FzeroTracksActive() || FzeroTitleHash() || FzeroGameplaySettingsCurrent()->always_records;
 }
 const uint8_t *FzeroTracksActiveHash(void) {
   return identity;

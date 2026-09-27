@@ -79,7 +79,7 @@ void FzeroRecordsTick(void) {
     if (v) FzeroRecordsViewEnd();
     return;
   }
-  if (!FzeroTracksActive()) return;
+  if (!FzeroTracksActive() && !FzeroGameplaySettingsCurrent()->always_records) return;
   if (!v) {
     if (!FzeroRecordsViewBegin()) return;
     v = FzeroRecordsViewState();
@@ -161,6 +161,14 @@ uint16_t FzeroRecordsInput(uint16_t input) {
   return 0;
 }
 static void record_hook(CpuState *cpu, uint32_t pc) {
+  if (pc == 0x0380fe || pc == 0x038151) {
+    /* FZEdit's F-Zero_Final.asm controls title visibility/selectability at
+     * these two branches. Take the available-record path without inventing
+     * a record or changing SRAM. Both native engines retain these sites. */
+    if (FzeroGameplaySettingsCurrent()->always_records)
+      interp_bridge_pre_opcode_redirect(pc == 0x0380fe ? 0x03810a : 0x038154);
+    return;
+  }
   FzeroRecordsTick();
   FzeroRecordsView *v = FzeroRecordsViewState();
   if (!v) {
@@ -242,7 +250,11 @@ static void record_hook(CpuState *cpu, uint32_t pc) {
   }
 }
 void FzeroRecordsInstallHooks(void) {
-  if (!FzeroTracksActive()) return;
+  if (FzeroGameplaySettingsCurrent()->always_records) {
+    interp_bridge_set_pre_opcode_hook(0x0380fe, record_hook);
+    interp_bridge_set_pre_opcode_hook(0x038151, record_hook);
+  }
+  if (!FzeroTracksActive() && !FzeroGameplaySettingsCurrent()->always_records) return;
   const uint32_t stock[] = {0x03822e, 0x038271};
   const uint32_t deluxe[] = {0x1eef87, 0x1eefe7, 0x1ef024, 0x1eb805, 0x1eeb1a, 0x1eec0b, 0x1ee826};
   const uint32_t *sites = FzeroDeluxeActive() ? deluxe : stock;

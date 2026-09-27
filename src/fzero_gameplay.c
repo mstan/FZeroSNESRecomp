@@ -51,6 +51,7 @@ void FzeroGameplayConfigure(const FzeroGameplaySettings *s, bool vehicles,
 void FzeroGameplayHeadless(bool deluxe) {
   FzeroGameplaySettings s = {.tuning = 2, .boost = 2, .exhaust = 2};
   const char *env = getenv("FZERO_RULES");
+  s.always_records = getenv("FZERO_ALWAYS_RECORDS") && atoi(getenv("FZERO_ALWAYS_RECORDS")) != 0;
   char copy[1024];
   snprintf(copy, sizeof(copy), "%s", env ? env : "");
   for (char *part = strtok(copy, ","); part; part = strtok(NULL, ",")) {

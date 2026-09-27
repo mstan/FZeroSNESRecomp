@@ -18,7 +18,7 @@ void FzeroVideoDefaults(FzeroVideoSettings *s) {
   *s = (FzeroVideoSettings){.enhanced = true, .aspect = FZERO_ASPECT_FIT,
                             .fps = 0, .fps_enabled = true, .bs_deluxe = true,
                             .hd_scale = 2, .diagnostics = false,
-                            .gameplay = {.enabled=FZERO_RULE_DEFAULT_MASK, .tuning=2, .boost=2, .exhaust=2}};
+                            .gameplay = {.enabled=FZERO_RULE_DEFAULT_MASK, .tuning=2, .boost=2, .exhaust=2, .always_records=true}};
 }
 
 void FzeroVideoStock(FzeroVideoSettings *s) {
@@ -143,6 +143,9 @@ bool FzeroVideoLoad(FzeroVideoSettings *s, const char *path) {
         if(maximum==7)s->gameplay.vehicle_packs=bits;
         else s->gameplay.stock_rebalance=bits;
       } else valid=false;
+    } else if (!strcmp(key,"AlwaysShowRecords")) {
+      if (!strcmp(value,"0") || !strcmp(value,"1")) s->gameplay.always_records=value[0]=='1';
+      else valid=false;
     } else if (!strcmp(key,"CGPRules")) {
       unsigned bits;
       if (sscanf(value,"%u%c",&bits,&tail)==1 && !(bits >> FZERO_RULE_COUNT)) s->gameplay.enabled=bits;
@@ -196,6 +199,7 @@ bool FzeroVideoSave(const FzeroVideoSettings *s, const char *path) {
                     s->gameplay.tuning, s->gameplay.boost, s->gameplay.exhaust,
                     s->gameplay.vehicle_packs ? 7u : 0u,s->gameplay.stock_rebalance ? 15u : 0u,
                     s->hd_mode7, FzeroValidHdScale(s->hd_scale) ? s->hd_scale : 2u, s->diagnostics) > 0;
+  if (fprintf(f, "AlwaysShowRecords=%d\n", s->gameplay.always_records) < 0) ok = false;
   if (fclose(f)) ok = false;
   if (ok) {
 #ifdef _WIN32
