@@ -92,19 +92,32 @@ shutil.copy2(exe, stage / "FZeroSNESRecomp.exe")
 shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns(
     "shaders", "music", "track-packs", *([] if developer else ["README.md"])))
 shutil.copytree(ROOT / "assets/shaders", stage / "assets/shaders")
-# Release inputs are explicit: do not package the user's installation/cache.
+# Release inputs are explicit: never copy a user's installation or stale cache.
 pack_root = a.packs.resolve()
-inspection = subprocess.check_output([str(build.resolve() / "FZeroInspectPacks.exe"), str(pack_root)], text=True)
+expected_courses = {}
 for ident in ("astra-front","bower-league","cgp","max-league"):
     source=pack_root/ident
     descriptor=json.loads((source/"pack.json").read_text(encoding="utf-8"))
     if descriptor["id"]!=ident: raise SystemExit("Pack identity mismatch")
     extraction = json.loads((source / "extraction.json").read_text())
     for course, digest in extraction["record_hashes"].items():
-        if f"{ident}/{course} {digest}" not in inspection:
-            raise SystemExit(f"Course parity mismatch: {ident}/{course}")
+        expected_courses[f"{ident}/{course}"] = digest
     shutil.copytree(source,stage/"mods/packs"/ident,ignore=shutil.ignore_patterns(
         ".cache","*.pcm","*.msu", *([] if developer else ["extraction.json"])))
+# Use the real loader in the clean staging installation. Its content-keyed
+# source extraction and compiled-course caches travel with the ZIP, avoiding
+# conversion on first launch while retaining ordinary edit invalidation.
+inspection = subprocess.check_output(
+    [str(build.resolve() / "FZeroInspectPacks.exe"), "mods/packs"], cwd=stage, text=True)
+decoded_courses = dict(re.findall(r"^([^\s]+/[^\s]+) ([0-9a-f]{64})$", inspection, re.MULTILINE))
+if decoded_courses != expected_courses:
+    raise SystemExit("Staged course records do not match reviewed extraction manifests")
+course_cache = stage / "mods/packs/.cache"
+compiled_courses = list((course_cache / "courses").glob("*.fzc"))
+extracted_sources = list((course_cache / "sources").glob("*.ready"))
+if not compiled_courses or not extracted_sources:
+    raise SystemExit("Missing prebuilt course cache; every release must ship ready to play")
+print(f"Prebuilt {len(compiled_courses)} courses and {len(extracted_sources)} source archives", flush=True)
 # Only the hidden future F-Zero 55 artwork remains in the internal registry.
 (stage/"assets/track-packs/presentation").mkdir(parents=True)
 for filename in ("screens.txt","fzero-55.ips"):
@@ -190,7 +203,8 @@ shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
     "Mods > Always show Records defaults on, making Records available before setting a time.\n\n"
     + ("CGP and Astra audio are included in their mods/packs/<pack>/music folders.\n" if bundled_music else "Audio is not included; you can add it to each pack's music folder.\n") +
     "Course ZIPs contain editable projects; example.zip contains example.fzm and uses music/example.pcm.\n"
-    "Compiled FZC files are generated in mods/packs/.cache/courses on launch.\n"
+    "Bundled courses include a ready-to-use cache in mods/packs/.cache.\n"
+    "Changed or newly added courses rebuild their cache automatically on launch.\n"
     "Enable MSU-1 in Settings > Audio; Installed pack music uses discovered recordings.\n"
     "Custom selects loose MSU files. Missing songs use their course's native SNES music.\n"
     "Mods > Menu and event music shows the supplied CGP menu songs and lets you replace them.\n"
@@ -263,7 +277,9 @@ for name, pin in pins.items():
     if len(recorded) < 3 or recorded[2] != pin:
         raise SystemExit(f"Build dependency {name} does not match committed submodule pin")
 manifest = {"version": version, "label": a.label, "music": a.music,
-            "commit": commit, "dependencies": pins, "profile": a.profile, "files": {}}
+            "commit": commit, "dependencies": pins, "profile": a.profile,
+            "course_cache": {"compiled_courses": len(compiled_courses),
+                             "extracted_sources": len(extracted_sources)}, "files": {}}
 for path in sorted(stage.rglob("*")):
     if path.is_file():
         if not developer and (path.suffix.lower() in (".asm", ".cpp", ".cc", ".h", ".py", ".ps1")

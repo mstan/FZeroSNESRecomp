@@ -29,11 +29,11 @@ Use the plain version without a `fzero-55-preview` label.
 
 ## Current release
 
-The current local tester bundles are **0.7.0**: the default-on Records testing
-option, Astra first-lap notification fix, and Records transition/lettering
-fixes. Both Windows variants share this version. Prior bundles remain
-unchanged. Next fixes are 0.7.1; new features are 0.8.0.
-Tracked by `beads-8wg.5.78`.
+The current local tester bundles are **0.7.1**: prebuilt portable course caches,
+plus 0.7.0's Records testing option, Astra first-lap notification fix, and
+Records transition/lettering fixes. Both Windows variants share this version.
+Prior bundles remain unchanged. Next fixes are 0.7.2; new features are 0.8.0.
+Tracked by `beads-8wg.5.79`.
 
 ## Preparing a release
 
@@ -42,6 +42,15 @@ launch instructions, credits and licenses only. Integrity manifests remain
 beside the ZIPs. Use `--profile developer` for a separate `-dev` bundle with
 ASM sources, extraction reports, authoring documentation and reference images.
 Keep developer staging folders separate from the shareable tester directory.
+
+**Every bundle ships with a prebuilt cache.** The packager copies the reviewed
+course sources into a fresh staging directory, then runs the real loader there
+to populate both `mods/packs/.cache/courses` and `.cache/sources`. It checks
+the resulting courses against their extraction manifests. Never copy caches
+from a user's installation or a developer build. Include these generated caches
+in the archive and integrity manifest; keep the editable course ZIPs as well.
+Unchanged projects must reuse the shipped cache after extraction to another
+directory. Changed/new projects still rebuild automatically.
 
 1. Update `VERSION`, add the matching changelog entry and refresh tester notes.
 2. Reconfigure the existing build so `SNESRECOMP_BUILD_VERSION` matches
@@ -62,6 +71,10 @@ Keep developer staging folders separate from the shareable tester directory.
    to agree. A fix release produces filenames such as
    `FZeroSNESRecomp-0.1.11-windows-x64-with-msu.zip` and
    `FZeroSNESRecomp-0.1.11-windows-x64-without-msu.zip`.
+
+5. Check a relocated player ZIP with `tests/validate_release_cache.py --build
+   build --bundle <without-msu.zip> --out <fresh-validation-directory>`. This
+   verifies first-launch cache reuse and invalidation after editing a project.
 
 The Linux build script also reads `VERSION`; do not override it with an old
 preview version. Keep all already distributed bundles unchanged.

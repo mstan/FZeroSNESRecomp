@@ -127,8 +127,12 @@ retain the original ASM sources for that work.
 For reviewed ROM hacks without editor source, `tools/export_runtime_packs.py`
 applies the known patches privately, extracts resources and uses
 `tools/reconstruct_fzedit_course.py` to recover a single-course editor ZIP for
-each resource. All 75 shipped entries reference ZIPs; `.fzc` files are generated
-only in `mods/packs/.cache/courses/` on launch. The result
+each resource. All 75 shipped entries reference ZIPs. Releases include compiled
+`.fzc` files in `mods/packs/.cache/courses/` and extracted projects in
+`mods/packs/.cache/sources/`, generated from those exact ZIPs during packaging.
+These content-keyed caches remain valid when the install moves. Edited or
+new projects rebuild automatically; source ZIPs remain the editable originals.
+The result
 contains no ROM or executable donor code. `extraction.json` identifies the
 source revision and record hashes. It is reconstructed data, not the original
 author's FZEdit project or editing history. Unchanged projects are checked

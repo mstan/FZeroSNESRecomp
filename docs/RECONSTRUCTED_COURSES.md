@@ -24,7 +24,10 @@ here; the warm scan took 2.88 seconds. All 13 CTest checks passed.
 
 Implementation commit: `b2a7d88da7f1fb799510a0316a5557800ab79e53`.
 Both player bundles are in `release-stage/0.6.0/`, with full file hashes and
-ZIP CRCs checked. Each includes 75 source ZIPs and no compiled FZC/cache files.
+ZIP CRCs checked. Those original 0.6.0 bundles included 75 source ZIPs without
+compiled caches. **Superseded by the 0.7.1 release policy:** every bundle now
+includes freshly generated course and source-extraction caches, retaining the
+same editable source ZIPs. See `RELEASING_FZERO_FOREVER.md` and `beads-8wg.5.79`.
 The no-music bundle is 17.7 MiB; the 39-recording bundle is 862.5 MiB.
 `build-shared-packs` retains the developer build with generated course caches.
 Obsolete installed FZC sources were backed up under

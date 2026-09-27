@@ -68,9 +68,10 @@ To edit and try this example:
    Replace the installed `mods/packs/cgp/courses/huckmine.zip` with that ZIP.
 5. Restart F-Zero Forever and choose Huckmine again.
 
-You do **not** need to make an `.fzc` file. The game reads the project and
-builds its own cache under `mods/packs/.cache/courses/`. Editing the project
-makes a new cache automatically. You can delete that cache; it rebuilds on launch.
+You do **not** need to make an `.fzc` file. Bundled courses come with a
+ready-to-use cache in `mods/packs/.cache/`, so they don't need to be converted
+on your first launch. Editing a project or adding a new course makes a new
+cache automatically. You can delete the cache; it rebuilds on launch.
 Keep backups outside `mods/packs`, and do not install this same example a
 second time as a separate pack.
 

@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## 0.7.1 - Ready-to-use course caches
+
+- Ship prebuilt course and source-extraction caches in every bundle, so
+  unchanged bundled tracks do not extract or compile on first launch.
+- Build caches from the exact release inputs. Keep the editable course ZIPs
+  and automatically rebuild caches when projects change or new ones are added.
+
 ## 0.7.0 - Records testing and presentation fixes
 
 - Add the default-on Always show Records mod so testers can open Records
