@@ -42,6 +42,27 @@ void FzeroTracksReport(const char *s) {
   fprintf(stderr, "%s\n", s);
 }
 int main(void) {
+  uint8_t unified[0x400], previous[0x400], merged[0x400];
+  for (unsigned i = 0; i < sizeof(unified); ++i) unified[i] = previous[i] = 0;
+  for (unsigned i = 0; i < 55; ++i) {
+    memcpy(unified + 5 + i * 3, "\x09\x59\x99", 3);
+    memcpy(previous + 5 + i * 3, "\x09\x59\x99", 3);
+  }
+  memcpy(unified + 5, "\x81\x30\x32", 3);
+  memcpy(previous + 5, "\x81\x20\x15", 3);
+  memcpy(previous + 8, "\x81\x30\x32", 3); /* Existing time is not duplicated. */
+  memcpy(unified + 35, "\x80\x20\x52", 3);
+  memcpy(previous + 35, "\x80\x19\x32", 3);
+  FzeroRecordsMergeCup(unified, previous, 0);
+  CHECK(!memcmp(unified + 5, "\x81\x20\x15\x81\x30\x32\x09\x59\x99", 9));
+  CHECK(!memcmp(unified + 35, "\x80\x19\x32", 3));
+  CHECK(!memcmp(unified + 0xac, previous + 0xac, 0x400 - 0xac));
+  unsigned checksum = 0;
+  for (unsigned i = 5; i < 0xaa; ++i) checksum += unified[i];
+  CHECK(unified[0xaa] == (uint8_t)checksum && unified[0xab] == checksum >> 8);
+  memcpy(merged, unified, sizeof(merged));
+  FzeroRecordsMergeCup(unified, previous, 0);
+  CHECK(!memcmp(merged, unified, sizeof(merged)));
   uint8_t a[32] = {1}, b[32] = {2}, original[0x800], mirror[0x200];
   MKDIR(root);
   FzeroTracksSavesInit();

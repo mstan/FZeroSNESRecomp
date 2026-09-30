@@ -193,6 +193,38 @@ bool FzeroRecordsRead(const uint8_t *key, uint8_t records[0x400]) {
   else FzeroTracksReport("Records file failed validation; displaying empty records without modifying it");
   return ok;
 }
+static unsigned time_value(const uint8_t *time) {
+  return ((unsigned)(time[0] & 15) << 16) | ((unsigned)time[1] << 8) | time[2];
+}
+void FzeroRecordsMergeCup(uint8_t records[0x400], const uint8_t previous[0x400], unsigned cup) {
+  static const unsigned starts[] = {5, 0xac, 0x153, 0x205, 0x2ac};
+  if (cup >= 5) return;
+  unsigned start = starts[cup];
+  for (unsigned course = 0; course < 5; ++course) {
+    uint8_t *dest = records + start + course * 33;
+    const uint8_t *old = previous + start + course * 33;
+    for (unsigned row = 0; row < 10; ++row) {
+      const uint8_t *candidate = old + row * 3;
+      if ((candidate[0] & 15) >= 9) continue;
+      bool duplicate = false;
+      for (unsigned i = 0; i < 10; ++i)
+        if (!memcmp(dest + i * 3, candidate, 3)) duplicate = true;
+      if (duplicate) continue;
+      for (unsigned i = 0; i < 10; ++i) {
+        if (time_value(candidate) < time_value(dest + i * 3)) {
+          memmove(dest + (i + 1) * 3, dest + i * 3, (9 - i) * 3);
+          memcpy(dest + i * 3, candidate, 3);
+          break;
+        }
+      }
+    }
+    if (time_value(old + 30) < time_value(dest + 30)) memcpy(dest + 30, old + 30, 3);
+  }
+  unsigned sum = 0;
+  for (unsigned i = 0; i < 165; ++i) sum += records[start + i];
+  records[start + 165] = (uint8_t)sum;
+  records[start + 166] = (uint8_t)(sum >> 8);
+}
 size_t FzeroTracksSaveStateSize(void) {
   return sizeof(state);
 }

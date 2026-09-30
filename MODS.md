@@ -154,6 +154,9 @@ manifest or reference their own bundled mechanics modules. See the [technical au
 Same-named courses in different packs can be different revisions. They retain
 separate identities and records; names alone are not used to deduplicate them.
 The records browser supports enabled cups and individual vehicle records.
+Grand Prix and Practice share one set of times for each course and car.
+There is no mode switch in Records. Better Practice times saved by earlier
+test builds are included automatically; existing GP times remain available.
 Imported courses show their own scenery, and individual records use that car's
 icon. Newly saved CGP Practice ghosts retain their selected car. Existing ghosts
 saved by older builds may retain the old donor identity; record a new ghost to

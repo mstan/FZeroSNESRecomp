@@ -108,8 +108,8 @@ def main():
     assert 'vehicle=MOON SHADOW' in log
     # Moon Shadow's original guest slot sets the same BCD valid flag as Falcon.
     assert totals(sram) == [BEST]*5
-    _, sram, _ = run('native-car-practice-empty', '60-66:4', state='native-car.sav')
-    assert totals(sram) == [EMPTY]*5
+    _, sram, _ = run('native-car-select-keeps-records', '60-66:4', state='native-car.sav')
+    assert totals(sram) == [BEST]*5
     _, sram, _ = run('native-car-gp-return', '60-66:4,120-126:4', state='native-car.sav')
     assert totals(sram) == [BEST]*5
     assert len(files()) == len(before)+1
@@ -132,7 +132,7 @@ def main():
     # Empty native courses are selectable as well; no fake record is inserted.
     ram, sram, _ = run('max-native-empty', '60-66:1024,120-126:8')
     assert ram[0x54:0x57] == b'\0\5\0' and totals(sram) == [EMPTY]*5
-    print('PASS: navigation, every car/page, detail/back, GP/Practice contexts, rewind, snapshots and save preservation')
+    print('PASS: navigation, every car/page, detail/back, unified records, rewind, snapshots and save preservation')
 
 
 if __name__ == '__main__':

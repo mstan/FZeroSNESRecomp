@@ -214,7 +214,6 @@ void FzeroRecordsOverlay(uint32_t *pixels, unsigned width, unsigned height, size
   snprintf(label, sizeof(label), "L/R CUPS %u/%u", v->page + 1, (FzeroTracksRuntimeCount() + 2) / 3);
   record_text(c, 144, 192, label, 14, 0xffb8e8ff);
   record_text(c, 144, 204, FzeroVehicleCount() ? "X/Y CAR" : "SHARED TIMES", 14, 0xffb8e8ff);
-  if (FzeroVehicleCount() || FzeroBsTracks()) record_text(c, 144, 216, "SELECT GP/PR", 14, 0xffb8e8ff);
 }
 void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_t pitch) {
   FzeroRecordsOverlay(pixels, width, height, pitch);
@@ -228,7 +227,9 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
   unsigned scale = height / 224;
   if (width / scale < 256)
     return;
-  Canvas c = {pixels, pitch, scale, (width / scale - 256) / 2, 15};
+  unsigned brightness = g_snes->ppu->inidisp;
+  Canvas c = {pixels, pitch, scale, (width / scale - 256) / 2,
+              brightness & 128 ? 0 : brightness & 15};
   unsigned count = FzeroTracksRuntimeCount(), selected = FzeroTracksMenuIndex();
   bool practice = g_ram[0x58] != 0;
   bool choosing_class = !practice && FzeroTracksClassSelected();

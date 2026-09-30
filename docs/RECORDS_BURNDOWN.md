@@ -19,8 +19,8 @@ Reported: blank/broken records-menu rows after completing a league.
 ## Implemented browser
 
 The native three-cup overview now pages over the enabled catalog. L/R shoulder
-buttons change cup pages, X/Y change vehicle context, and Select changes
-GP/Practice context. Arrows select courses, A/Start opens native detail, and B
+buttons change cup pages and X/Y change vehicle context. GP and Practice now
+share each course/car's records. Arrows select courses, A/Start opens native detail, and B
 returns/exits. The selected/completed cup and car provide the initial focus.
 Page/car changes retain the menu frame without replaying its fade or music.
 Unplayed courses remain accessible and show empty times.
@@ -44,8 +44,8 @@ internal `hm.fzm` filename.
 
 The separate cropped Metal Fort skyline with the BEST race HUD has not reproduced
 as corruption; the visible buildings correspond to the imported course artwork.
-Keep that report and the earlier intermittent scattered result digits open in
-`beads-8wg.5.71`; the Records banner fix is not evidence that either is resolved.
+That cropped report remains unconfirmed in `beads-8wg.5.71`. The separate
+scattered result digits were reproduced and fixed on September 30 (below).
 
 Two additional defects surfaced in validation and are fixed:
 
@@ -86,8 +86,39 @@ lettering pixel for pixel. The existing 13 CTests pass.
 python tests/validate_records_transitions.py --build build-shared-packs --stock <stock-ROM> --packs <pack-directory> --out captures/records/new-transitions
 ```
 
-This covers the Records browser. The separate report of scattered lap/rank
-digits on the postrace results screen remains tracked in `beads-8wg.5.71`.
+This earlier coverage tested the Records browser; it did not cover the live
+end-of-league lap recap described below.
+
+## Shared times and live GP recap (2026-09-30)
+
+`beads-8wg.5.81`: remove the GP/Practice dimension from native course/car keys
+and the Records UI. Imported cups already shared their keys. Read better times
+from the old native Practice files, merge each cup's top ten and best lap,
+and write only the unified context. Existing GP keys remain unchanged.
+
+`tests/validate_unified_records.py` completes a native Knight and imported
+Astra GP, enters Practice with those times, crosses the real finish line with
+a faster time, and restarts GP to check persistence. The visible Records page
+must contain both times. Its 16:9 center must exactly match the native 4:3
+layout, and browsing must leave persistent records unchanged.
+
+The scattered lap digits finally reproduced when the completion fixture was
+allowed to retain the final fly-away animation. This recap remains in live
+race scene 2 (`$C3=$11`, `$0975` active), reusing OBJ slots 0..63 for the table.
+The renderer was anchoring some of those digits as racing HUD elements. Keep
+the table centered while retaining the live race projection and BG HUD.
+The times themselves were intact.
+
+The former fixture skipped exactly this sequence. Set both
+`FZERO_TEST_RECORDS_CUP=1` and `FZERO_TEST_KEEP_FINISH_ANIMATION=1` to reproduce
+it with the `ROUTE` from `tests/validate_records.py`. The private Zenith run
+completed 10,000 frames; frame 6000 reproduced the tester's corruption before
+the fix. All five tables now align. Renderer tests cover the reused slots,
+including rank-like tiles, at all supported aspects and HD off/2x/4x.
+
+Private evidence: `captures/feedback-0930/gp-full-finish/`, `recap-fixed/`,
+`unified-03/` and `records-fades/`. The latter repeats every Records transition
+for retail, BS, imported courses and widescreen, including snapshot reload.
 
 At the audited baseline, the adapter already gave imported cups separate
 native SRAM images keyed by stable cup/course identity, with per-vehicle

@@ -832,11 +832,13 @@ static void menu_hook(CpuState *cpu, uint32_t pc) {
         : stock_image + 0x18901 + slot * 6;
     memcpy(g_ram + 0x532, colors, 6);
     memcpy(g_ram + 0x544, colors, 6);
-  } else if (pc == 0x00c163) {
+  } else if (pc == 0x00a1ac || pc == 0x00c163) {
     /* Exhaust animation alternates $0760/$0860 into the HUD palette. Those
      * legacy tables can contain a retail or another donor car's marker.
      * Resolve only that color by identity in both phases, retaining every
-     * exhaust color and the original animation/copy routine. */
+     * exhaust color and the original animation/copy routine. Apply it after
+     * the initial palette load too: the course intro is already visible
+     * before the first exhaust update, and shares these text colors. */
     static const unsigned hud_row[] = {3, 0, 2, 1};
     for (unsigned slot = 0; slot < 4; ++slot) {
       unsigned id = g_snes->cart->rom[0xf00ff + slot * 256];
@@ -976,7 +978,7 @@ void FzeroVehiclesInstallHooks(void) {
     return;
   const unsigned sites[] = {0x1edd01, 0x1ec76e, 0x1ed90a, 0x1edb0c, 0x1ec81b,
                             0x1ed04f, 0x1ec831, 0x00d54c, 0x00c163, 0x1ec4da,
-                            0x1eb4e7, 0x1eb24f, 0x1eb3f3};
+                            0x1eb4e7, 0x1eb24f, 0x1eb3f3, 0x00a1ac};
   for (unsigned i = 0; i < sizeof(sites) / sizeof(*sites); ++i)
     interp_bridge_set_pre_opcode_hook(sites[i], menu_hook);
 }

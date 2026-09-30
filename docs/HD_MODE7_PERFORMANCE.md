@@ -1,5 +1,39 @@
 # HD Mode 7 performance
 
+## Forever follow-up (2026-09-30)
+
+Against Forever 0.7.2 (`ac92240`), the HD sampler now precomputes subpixel
+offsets and checks the affine row's coordinate bounds once at its endpoints.
+Ordinary rows then keep whole texels as integers through course/tile lookup,
+avoiding repeated floating-point bounds checks and conversions per sample.
+Unusual transforms retain the general sampler. Resolution, affine arithmetic,
+interpolation and image quality are unchanged.
+
+Windows Release (`gcc -O3`), Ryzen 7 9800X3D, CGP Huckmine race captures
+1780/1781 at alpha 0.5. Both executables use the same flags. Runs alternate
+baseline/optimized/optimized/baseline with no headless simulation running;
+each entry averages two medians of three batches of 30 presentations.
+
+| Aspect | HD scale | 0.7.2 | Updated | Less render time |
+| --- | --- | ---: | ---: | ---: |
+| 4:3 | 4x | 5.36 ms | 3.48 ms | 35% |
+| 16:9 | 2x | 3.74 ms | 3.13 ms | 16% |
+| 16:9 | 4x | 11.06 ms | 5.36 ms | 52% |
+| 21:9 | 4x | 14.15 ms | 9.43 ms | 33% |
+| 32:9 | 4x | 21.20 ms | 14.07 ms | 34% |
+
+Native and HD output hashes match for all four aspects, native/2x/4x and
+alpha 1/0.5 on those consecutive frames. Additional live frames from all
+five Zenith courses also match. Private CSVs and captures are under
+`captures/feedback-0930/` (`perf-*.csv`, `parity-*.csv`, `performance.json`).
+
+These measure CPU rendering, excluding emulation, texture upload, GPU work
+and frame pacing. They do not establish GTX 1060 performance or a comparison
+against bsnes on the tester's machine. The tester still needs to check the
+updated build at the same HD scale, aspect and presentation rate.
+
+## Earlier optimization
+
 The v1.8.0 implementation did unnecessary CPU work when HD Mode 7 and
 Widescreen were enabled together. Widescreen also exposes more track samples,
 and Presentation FPS repeats that work at the requested rate. Disabling
@@ -19,12 +53,12 @@ The optimized implementation:
   texel. Every requested subpixel still uses the original affine coordinate;
   resolution, interpolation and image quality are unchanged.
 
-## Renderer measurements
+## Earlier renderer measurements
 
 Windows Release (`gcc -O3`), AMD Ryzen 7 9800X3D, recorded BS Deluxe race
 frames 1600/1601, interpolation alpha 0.5. Each entry is the median of three
 batches of 30 presentations after warmup. The baseline is v1.8.0 (`fa53884`);
-the optimized result is this revision. Runs are sequential on the same
+the optimized result is the earlier combined-renderer implementation. Runs are sequential on the same
 machine. These are renderer-only milliseconds, excluding emulation, audio,
 texture upload, display work, pacing and capture-file I/O.
 

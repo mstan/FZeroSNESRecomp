@@ -538,9 +538,15 @@ uint16_t FzeroGameplayMenuInput(uint16_t input, const uint8_t *ram) {
     if (direction != (class_last_input & 0x34))
       class_hold = 0;
     unsigned address = FzeroDeluxeActive() ? 0x57 : 0x5a;
-    if (step)
-      g_ram[address] =
-          (uint8_t)((g_ram[address] + ((direction & 16) ? 4 : 1)) % 5);
+    if (step) {
+      unsigned level = g_ram[address];
+      /* Retail $038817..$03882f: Select cycles, Up/Down stop at the ends.
+       * Extend that same behavior to Legend instead of wrapping the D-pad. */
+      if (direction & 4) level = (level + 1) % 5;
+      else if ((direction & 16) && level) --level;
+      else if ((direction & 32) && level < 4) ++level;
+      g_ram[address] = (uint8_t)level;
+    }
     class_last_input = input;
     return input & ~0x34;
   }

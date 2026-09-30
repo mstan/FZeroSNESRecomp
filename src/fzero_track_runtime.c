@@ -101,7 +101,7 @@ const CpTrack *FzeroTracksRuntimeTrack(unsigned n, unsigned order) {
         return &p->tracks[i];
   return NULL;
 }
-bool FzeroTracksRecordKey(unsigned n, const char *vehicle, bool practice, uint8_t result[32]) {
+bool FzeroTracksRecordKey(unsigned n, const char *vehicle, uint8_t result[32]) {
   const CpPack *p = NULL;
   const CpCup *cup = FzeroTracksRuntimeCup(n, &p);
   if (!cup)
@@ -126,15 +126,33 @@ bool FzeroTracksRecordKey(unsigned n, const char *vehicle, bool practice, uint8_
   if (vehicle) {
     uint8_t data[32 + 3 * CP_ID] = {0};
     memcpy(data, result, 32);
-    bool native_practice = practice && !imported_pack(p);
-    const char *pack_id = native_practice ? (FzeroDeluxeActive() ? "bs-deluxe" : "retail") : p->id;
-    const char *cup_id = native_practice ? "practice" : cup->id;
-    memcpy(data + 32, pack_id, strlen(pack_id));
-    memcpy(data + 32 + CP_ID, cup_id, strlen(cup_id));
+    memcpy(data + 32, p->id, strlen(p->id));
+    memcpy(data + 32 + CP_ID, cup->id, strlen(cup->id));
     memcpy(data + 32 + 2 * CP_ID, vehicle, strlen(vehicle));
     sha256_compute(data, sizeof(data), result);
   }
   return imported_pack(p) || vehicle;
+}
+/* Old test builds split native Practice records across a second file. Read
+ * those times into the unified view, but never create or write that namespace.
+ * Existing GP and imported-cup keys remain unchanged. */
+static bool previous_practice(unsigned n, const char *vehicle, uint8_t records[0x400]) {
+  const CpPack *p = NULL;
+  if (!vehicle || !FzeroTracksRuntimeCup(n, &p) || imported_pack(p)) return false;
+  uint8_t data[32 + 3 * CP_ID] = {0}, key[32];
+  const char *pack = FzeroDeluxeActive() ? "bs-deluxe" : "retail";
+  memcpy(data + 32, pack, strlen(pack));
+  memcpy(data + 32 + CP_ID, "practice", 8);
+  memcpy(data + 32 + 2 * CP_ID, vehicle, strlen(vehicle));
+  sha256_compute(data, sizeof(data), key);
+  return FzeroRecordsRead(key, records);
+}
+void FzeroTracksReadRecords(unsigned n, const char *vehicle, uint8_t records[0x400]) {
+  uint8_t key[32], previous[0x400];
+  FzeroRecordsRead(FzeroTracksRecordKey(n, vehicle, key) ? key : NULL, records);
+  const CpCup *cup = FzeroTracksRuntimeCup(n, NULL);
+  if (cup && previous_practice(n, vehicle, previous))
+    FzeroRecordsMergeCup(records, previous, cup->slot);
 }
 bool FzeroTracksRuntimeSelect(unsigned n) {
   const CpPack *p;
@@ -428,19 +446,28 @@ unsigned FzeroTracksMenuIndex(void) {
 }
 bool FzeroTracksMenuVisible(void) {
   return FzeroTracksActive() && g_ram[0x54] == 1 &&
-         (FzeroDeluxeActive() ? g_ram[0x55] == 1 && g_ram[0x56] == (g_ram[0x58] ? 4 : 2)
-                              : !g_ram[0x58] && (g_ram[0x55] == 5 || g_ram[0x55] == 6));
+         (FzeroDeluxeActive() ? (g_ram[0x55] == 1 || (!g_ram[0x58] && g_ram[0x55] == 7)) &&
+                                  g_ram[0x56] == (g_ram[0x58] ? 4 : 2)
+                              : !g_ram[0x58] && g_ram[0x55] >= 5 && g_ram[0x55] <= 7);
 }
 bool FzeroTracksClassSelected(void) {
-  return FzeroDeluxeActive() ? g_ram[0x14c98] != 0 : g_ram[0x55] == 6;
+  return FzeroDeluxeActive() ? g_ram[0x14c98] != 0 : g_ram[0x55] >= 6;
 }
 void FzeroTracksRefreshCourse(void) {
   current_course();
   if (FzeroRecordsViewState()) return;
   uint8_t digest[32];
   const uint8_t *key = NULL;
-  if (g_ram[0x54] && FzeroTracksRecordKey(menu_index, FzeroVehicleIdentity(), g_ram[0x58] != 0, digest))
+  if (g_ram[0x54] && FzeroTracksRecordKey(menu_index, FzeroVehicleIdentity(), digest))
     key = digest;
-  if (FzeroTracksActive() && !FzeroTracksRecordsSelect(key))
-    course = NULL;
+  if (FzeroTracksActive()) {
+    if (!FzeroTracksRecordsSelect(key)) course = NULL;
+    else if (key) {
+      uint8_t previous[0x400];
+      if (previous_practice(menu_index, FzeroVehicleIdentity(), previous)) {
+        FzeroRecordsMergeCup(g_sram, previous, active_cup->slot);
+        memcpy(g_ram + 0x14800, g_sram, 0x200);
+      }
+    }
+  }
 }

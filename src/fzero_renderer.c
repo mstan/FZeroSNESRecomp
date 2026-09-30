@@ -305,12 +305,11 @@ static FzeroCourseLine course_line(double camera_x, double camera_y,
                            (int)floor(camera_y - centre_y)};
 }
 
-static int course_sample(const FzeroCourse *course, const FzeroCourseLine *line,
-                         FzeroCourseCache *cache, FzeroMode7Texel texel) {
-  /* Written so a NaN fails the comparison rather than reaching the cast. */
-  if (!course->valid || !(fabs(texel.x) < 1e6 && fabs(texel.y) < 1e6)) return -1;
-  int world_x = ((int)texel.x + line->offset_x) & 0x1fff;
-  int world_y = ((int)texel.y + line->offset_y) & 0x0fff;
+static int course_sample_at(const FzeroCourse *course, const FzeroCourseLine *line,
+                            FzeroCourseCache *cache, int tx, int ty) {
+  if (!course->valid) return -1;
+  int world_x = (tx + line->offset_x) & 0x1fff;
+  int world_y = (ty + line->offset_y) & 0x0fff;
   if (((world_x - course->anchor_x) & 0x1fff) < 1024 &&
       ((world_y - course->anchor_y) & 0x0fff) < 1024) return -1;
   int cell_x = world_x >> 3, cell_y = world_y >> 3;
@@ -320,6 +319,37 @@ static int course_sample(const FzeroCourse *course, const FzeroCourseLine *line,
     cache->tile = (int)course_tile(course, world_x, world_y);
   }
   return cache->tile;
+}
+static int course_sample(const FzeroCourse *course, const FzeroCourseLine *line,
+                         FzeroCourseCache *cache, FzeroMode7Texel texel) {
+  if (!(fabs(texel.x) < 1e6 && fabs(texel.y) < 1e6)) return -1;
+  return course_sample_at(course, line, cache, (int)texel.x, (int)texel.y);
+}
+
+/* The guest's affine rows are bounded. Prove that once at both endpoints,
+ * then keep whole texels as integers through course/tile lookup. Unusual
+ * diagnostic transforms retain the general sampler and its finite guards. */
+static bool bounded_line(const FzeroMode7Line *line, FzeroViewport viewport) {
+  double left = -viewport.extra, right = viewport.width - viewport.extra;
+  return fabs((line->origin_x + left * line->step_x) / 256) < 999999 &&
+      fabs((line->origin_y + left * line->step_y) / 256) < 999999 &&
+      fabs((line->origin_x + right * line->step_x) / 256) < 999999 &&
+      fabs((line->origin_y + right * line->step_y) / 256) < 999999;
+}
+static int whole_texel(double value) {
+  int truncated = (int)value;
+  return truncated - (value < truncated);
+}
+static unsigned bounded_sample(const FzeroMode7Line *line, const uint16_t *vram,
+                                const FzeroCourse *course, const FzeroCourseLine *reference,
+                                FzeroCourseCache *cache, int tx, int ty) {
+  bool outside = (unsigned)tx >= 1024 || (unsigned)ty >= 1024;
+  if (outside && (line->control & 0x80) && !(line->control & 0x40)) return 0;
+  int tile = course_sample_at(course, reference, cache, tx, ty);
+  unsigned x = tx & 1023, y = ty & 1023;
+  unsigned number = outside && (line->control & 0x80) ? 0 :
+      tile >= 0 ? (unsigned)tile & 255 : vram[(y / 8) * 128 + x / 8] & 255;
+  return vram[number * 64 + (y & 7) * 8 + (x & 7)] >> 8;
 }
 
 /* $0081DE DMA-orders six 32-byte vehicle reservations using $0AC0..$0ACA.
@@ -355,6 +385,12 @@ static void sprites(const Ppu *p, const FzeroSourceFrame *frame,
                     uint16_t *pixels) {
   const FzeroRasterLine *line = &frame->lines[y];
   const uint16_t *vram = frame->vram;
+  /* The completed-league recap runs inside the live race ($C3=$11).
+   * $039A32 uses $0975 to animate its table in the former HUD reservations.
+   * Cars and the BG power/score HUD remain live; only these OBJ slots change
+   * ownership. The separate scene-3 results screen is not involved. */
+  bool lap_review = frame->ram[0x54] == 2 && frame->ram[0xc3] == 0x11 &&
+                    frame->ram[0x975] != 0;
   static const int sizes[8][2] = {{8,16},{8,32},{8,64},{16,32},{16,64},{32,64},{16,32},{16,32}};
   memset(pixels, 0, (size_t)viewport.width * sizeof(*pixels));
   for (int slot = 127; slot >= 0; --slot) {
@@ -416,7 +452,7 @@ static void sprites(const Ppu *p, const FzeroSourceFrame *frame,
     unsigned tile_number = attr & 0x1ff;
     bool rank_digit = slot >= 48 && slot < 52 &&
         (tile_number & 0x1e0) == 0x180 && (tile_number & 15) <= 9;
-    if (race_hud && ((slot >= 20 && slot < 47) || rank_digit)) {
+    if (race_hud && !lap_review && ((slot >= 20 && slot < 47) || rank_digit)) {
       if (x < 0 || x >= 256) continue;
       x += (slot < 22 || (slot >= 24 && slot < 32) || slot >= 48) ?
           -viewport.extra : viewport.extra;
@@ -555,6 +591,9 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
   FzeroCourse course = course_open(f, (world || result_scenery) && viewport.enhanced);
   uint16_t object_pixels[FZERO_MAX_WIDTH];
   uint32_t row[FZERO_MAX_WIDTH];
+  double sample_offset[FZERO_HD_SCALE_MAX];
+  for (unsigned sample = 0; sample < scale; ++sample)
+    sample_offset[sample] = (double)sample / scale;
   for (int y = 0; y < 224; ++y) {
     const FzeroRasterLine *l = &f->lines[y];
     memcpy(&scanout, l->registers, PPU_SAVESTATE_REGS_SIZE);
@@ -729,20 +768,32 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
         subline.origin_y += affine.row_y * fraction * 256;
       }
       uint32_t *destination = out + ((size_t)y * scale + sy) * viewport.width * scale;
+      bool bounded = bounded_line(&subline, viewport);
       FzeroMode7Texel last = {NAN, NAN};
+      int last_x = 1000000, last_y = 1000000;
       unsigned index = 0;
       for (int sx = 0; sx < viewport.width; ++sx) {
         int x = sx - viewport.extra;
         const FzeroHdPixelContext *c = &contexts[sx];
         for (unsigned sample = 0; sample < scale; ++sample) {
-          FzeroMode7Texel texel = FzeroMode7Locate(&subline, x + (double)sample / scale);
+          double position = x + sample_offset[sample];
           /* Near-camera HD samples often hit the same source texel. The
            * immutable texture/course lookup is independent of screen masks
            * and sprites, so reuse its index across those column boundaries. */
-          if (texel.x != last.x || texel.y != last.y) {
-            index = FzeroMode7Fetch(&subline, f->vram, texel,
-                course_sample(&course, &reference, &cache, texel));
-            last = texel;
+          if (bounded) {
+            int tx = whole_texel((subline.origin_x + position * subline.step_x) / 256);
+            int ty = whole_texel((subline.origin_y + position * subline.step_y) / 256);
+            if (tx != last_x || ty != last_y) {
+              index = bounded_sample(&subline, f->vram, &course, &reference, &cache, tx, ty);
+              last_x = tx; last_y = ty;
+            }
+          } else {
+            FzeroMode7Texel texel = FzeroMode7Locate(&subline, position);
+            if (texel.x != last.x || texel.y != last.y) {
+              index = FzeroMode7Fetch(&subline, f->vram, texel,
+                  course_sample(&course, &reference, &cache, texel));
+              last = texel;
+            }
           }
           if (c->colors) {
             destination[sx * scale + sample] = c->colors[index];

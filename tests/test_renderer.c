@@ -225,6 +225,34 @@ static void test_loss_window(void) {
     for (int x = 1; x < v.width; ++x) CHECK(guarded[1 + y * v.width + x] == 0);
   }
 }
+static void test_league_recap(void) {
+  static uint32_t output[FZERO_MAX_WIDTH * 224 * 16];
+  /* The real final-GP recap still runs in race scene 2. It reuses HUD
+   * reservations 0..63 while the player and top power/score BG remain live. */
+  setup(); ram[0x55] = 3; ram[0xc3] = 0x11; ram[0x975] = 0x88;
+  memset(p.vram, 0, sizeof(p.vram));
+  p.screenEnabled[0] = 16; p.cgram[193] = 0x03e0;
+  for (unsigned y = 0; y < 8; ++y) p.vram[16 + y] = p.vram[0x1800 + y] = 255;
+  for (unsigned slot = 0; slot < 64; ++slot) {
+    p.oam[slot*2] = ((64 + slot / 8 * 16) << 8) | (80 + slot % 8 * 8);
+    p.oam[slot*2+1] = slot >= 48 && slot < 52 ? 0x3980 : 0x3801;
+    p.highOam[slot/4] &= ~(3 << (slot%4*2));
+  }
+  publish(1);
+  for (int aspect = FZERO_ASPECT_STOCK; aspect <= FZERO_ASPECT_FIT; ++aspect) {
+    FzeroVideoSettings s; FzeroVideoStock(&s);
+    s.enhanced = true; s.aspect = (FzeroAspect)aspect;
+    FzeroViewport v = FzeroCalculateViewport(&s, 5120, 1440);
+    for (unsigned scale = 1; scale <= 4; scale *= 2) {
+      CHECK(scale == 1 ? FzeroRendererDraw(output, v, 1) :
+          FzeroRendererDrawHd(output, sizeof(output)/sizeof(*output), v, 1, scale));
+      for (unsigned row = 0; row < 8; ++row)
+        for (unsigned x = 0; x < (unsigned)v.width; ++x)
+          CHECK(output[(64 + row*16)*scale*v.width*scale + x*scale] ==
+                (x >= 80 + (unsigned)v.extra && x < 144 + (unsigned)v.extra ? 0x00ff00 : 0));
+    }
+  }
+}
 static void test_results_fade(void) {
   static uint32_t results[FZERO_MAX_WIDTH * 224];
   for (int completed = 0; completed <= 1; ++completed)
@@ -668,6 +696,7 @@ int main(void) {
   test_intro_counter();
   test_loss_window();
   test_results_fade();
+  test_league_recap();
   test_course_streaming();
   test_player_spark();
   test_explosion_slots();

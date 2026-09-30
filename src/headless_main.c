@@ -458,7 +458,8 @@ int main(int argc, char **argv) {
     bool records_racing = records_test && g_ram[0x54] == 2 && g_ram[0x55] == 3;
     /* Skip only the final winner's fly-away animation after native record
      * writes. A teleported fixture has no physically driven approach path. */
-    if (records_racing && g_ram[0xc3] == 0x11) {
+    if (records_racing && g_ram[0xc3] == 0x11 &&
+        !getenv("FZERO_TEST_KEEP_FINISH_ANIMATION")) {
       g_ram[0x54] = 3;
       g_ram[0x55] = 1;
       g_ram[0x56] = 0;

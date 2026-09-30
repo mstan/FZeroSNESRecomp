@@ -37,24 +37,18 @@ static unsigned record_offset(unsigned slot) {
 }
 static void page_records(void) {
   FzeroRecordsView *v = FzeroRecordsViewState();
-  uint8_t data[0x400], key[32];
+  uint8_t data[0x400];
   for (unsigned column = 0; column < 3; ++column) {
     unsigned index = v->page * 3 + column;
     const CpPack *p = NULL;
     const CpCup *cup = FzeroTracksRuntimeCup(index, &p);
-    bool external = cup && FzeroTracksRecordKey(index,
-        FzeroVehicleRecordIdentity(v->vehicle), v->practice, key);
-    FzeroRecordsRead(external ? key : NULL, data);
+    FzeroTracksReadRecords(index, FzeroVehicleRecordIdentity(v->vehicle), data);
     for (unsigned row = 0; row < 5; ++row) {
       uint8_t *dest = g_sram + record_offset(column * 5 + row);
       const CpTrack *track = FzeroTracksRuntimeTrack(index, row);
       if (track) {
         bool native = strcmp(p->adapter, "fzero-course-v1") != 0;
         unsigned source = native ? cup->slot * 5 + row : row;
-        if (native && v->practice && FzeroDeluxeActive()) {
-          if (source == 16) source = 25;
-          if (source == 19) source = 26;
-        }
         memcpy(dest, data + record_offset(source), 33);
       } else {
         for (unsigned i = 0; i < 11; ++i) memcpy(dest + i * 3, "\x09\x59\x99", 3);
@@ -70,8 +64,8 @@ static void page_records(void) {
     v->selected = 0;
     while (v->selected < 15 && !valid(v->selected)) ++v->selected;
   }
-  fprintf(stderr, "[records-browser] page=%u vehicle=%s mode=%s selected=%u\n",
-      v->page, FzeroVehicleRecordName(v->vehicle), v->practice ? "practice" : "gp", v->selected);
+  fprintf(stderr, "[records-browser] page=%u vehicle=%s selected=%u\n",
+      v->page, FzeroVehicleRecordName(v->vehicle), v->selected);
 }
 void FzeroRecordsTick(void) {
   FzeroRecordsView *v = FzeroRecordsViewState();
@@ -86,7 +80,6 @@ void FzeroRecordsTick(void) {
     v->previous_cup = (uint16_t)FzeroTracksMenuIndex();
     v->page = v->previous_cup / 3;
     v->selected = (v->previous_cup % 3) * 5;
-    v->practice = g_ram[0x58] != 0;
     v->vehicle = (uint8_t)FzeroVehicleCount();
     const char *id = FzeroVehicleIdentity();
     for (unsigned i = 0; id && i < FzeroVehicleCount(); ++i)
@@ -135,13 +128,12 @@ uint16_t FzeroRecordsInput(uint16_t input) {
   }
   v->input = input;
   if (overview()) {
-    if (edge & (1024 | 2048 | 512 | 2 | 4)) {
+    if (edge & (1024 | 2048 | 512 | 2)) {
       unsigned pages = (FzeroTracksRuntimeCount() + 2) / 3, cars = FzeroVehicleCount() + 1;
       if (edge & 1024) v->page = (v->page + pages - 1) % pages;
       if (edge & 2048) v->page = (v->page + 1) % pages;
       if (edge & 2) v->vehicle = (v->vehicle + cars - 1) % cars;
       if (edge & 512) v->vehicle = (v->vehicle + 1) % cars;
-      if (edge & 4) v->practice ^= 1;
       page_records();
       /* Only the records and labels change. Keep the native frame in place
        * instead of replaying its fade/music setup on every page or car. */
@@ -236,12 +228,6 @@ static void record_hook(CpuState *cpu, uint32_t pc) {
         if ((g_snes->cart->rom[0x16129 + i] & 15) == (c->setting & 15)) { native = i; break; }
       for (unsigned i = 0; i < 15; ++i)
         if (g_snes->cart->rom[0x16129 + i] == c->setting) { native = i; break; }
-    }
-    if (v->practice) {
-      if (native == 16) native = 25;
-      else if (native == 17) native = 26;
-      else if (native == 19) native = 27;
-      else if (native == 22) native = 28;
     }
     memcpy(g_ram + 0x14c00, g_snes->cart->rom + 0xf2000 + native * 64, 64);
     g_ram[0x14c25] = g_ram[0x14c27] = g_ram[0x14c28] = v->selected;

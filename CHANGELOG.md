@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## Unreleased
+
+- Share Grand Prix and Practice records per course/car, retaining better
+  Practice times from previous test builds. Remove the mode toggle.
+- Keep all lap/rank digits together during the live end-of-league recap in
+  widescreen, including HD Mode 7.
+- Match original difficulty controls: Up/Down stop at the ends, Select cycles.
+  Keep the confirmed class visible through its fade.
+- Apply each car group's text colors before the course intro first appears,
+  fixing the brief stock-color flash for imported vehicles.
+- Reduce CPU work in HD Mode 7 sampling without reducing resolution or
+  changing interpolation or output pixels.
+
 ## 0.7.2 - Pack music and Records scenery corrections
 
 - Use one MSU enable switch in both bundles, without a source/file picker.
