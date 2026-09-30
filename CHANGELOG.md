@@ -1,6 +1,6 @@
 ﻿# Changelog
 
-## Unreleased
+## 0.7.3 - Shared renderer optimization and race-menu fixes
 
 - Share Grand Prix and Practice records per course/car, retaining better
   Practice times from previous test builds. Remove the mode toggle.
@@ -12,6 +12,8 @@
   fixing the brief stock-color flash for imported vehicles.
 - Reduce CPU work in HD Mode 7 sampling without reducing resolution or
   changing interpolation or output pixels.
+- Use the shared snesrecomp sampling helpers in both its PPU and F-Zero's
+  renderer; regenerate private ROM modules for the updated framework.
 
 ## 0.7.2 - Pack music and Records scenery corrections
 

@@ -29,12 +29,12 @@ Use the plain version without a `fzero-55-preview` label.
 
 ## Current release
 
-The current local tester bundles are **0.7.2**: consistent per-pack MSU music
-and native-height Records scenery with transparent stars and no added heading.
-Both variants retain prebuilt portable course caches and the earlier Records
-and first-lap fixes. Prior bundles remain unchanged.
-Next fixes are 0.7.3; new features are 0.8.0.
-Tracked by `beads-8wg.5.80` and `beads-8wg.5.71`.
+The current local tester bundles are **0.7.3**: shared GP/Practice records,
+correct end-of-league recap placement, native difficulty controls, stable
+vehicle intro colors and optimized HD Mode 7 using upstream snesrecomp.
+Both variants retain per-pack music and prebuilt portable course caches.
+Prior bundles remain unchanged. Next fixes are 0.7.4; new features are 0.8.0.
+Tracked by `beads-8wg.5.84` and framework issue `beads-8wg.2.94`.
 
 ## Preparing a release
 

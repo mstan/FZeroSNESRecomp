@@ -51,7 +51,7 @@ SDL_BACKEND="${SNESRECOMP_SDL_BACKEND:-SDL3}"
 SDL_CFG_DIR="$( { find /usr/lib /usr/lib64 /usr/local/lib -type d -path "*cmake/$SDL_BACKEND" 2>/dev/null || true; } | head -1 )"
 [ -n "$SDL_CFG_DIR" ] && FLAGS+=( "-D${SDL_BACKEND}_DIR=$SDL_CFG_DIR" )
 
-[ -f "$BS_GEN/deluxe_namespace.h" ] || { echo "missing BS native gen dir: $BS_GEN" >&2; exit 1; }
+[ -f "$BS_GEN/module_namespace.h" ] || { echo "missing BS native gen dir: $BS_GEN" >&2; exit 1; }
 [ -f "$BS_MODS/bs-deluxe.dat" ] || { echo "missing BS Deluxe payload to embed: $BS_MODS/bs-deluxe.dat (run tools/regen_bs_deluxe.py)" >&2; exit 1; }
 [ -f "$REPO/patches/bs-deluxe-usa.ips" ] || { echo "missing tracked BS patch: patches/bs-deluxe-usa.ips" >&2; exit 1; }
 FLAGS+=( -DFZERO_DELUXE_GEN_DIR="$BS_GEN" )

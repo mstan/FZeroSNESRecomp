@@ -40,8 +40,9 @@ cfg = a.work / "cfg"
 cfg.mkdir(exist_ok=True)
 for source in (ROOT / "recomp").glob("*.cfg"):
     shutil.copy2(source, cfg / source.name)
+shutil.copy2(ROOT / "recomp/funcs.h", cfg / "funcs.h")
 run(ROOT / "snesrecomp/tools/v2_emit.py", "--rom", oracle, "--cfg-dir", cfg,
     "--out-dir", a.work / "gen", "--cfg-roots", "--no-host-root-scan",
-    "--analysis-backend", "native")
+    "--analysis-backend", "native", "--module-id", "bs-deluxe", "--module-prefix", "deluxe")
 run(ROOT / "tools/import_bs_deluxe.py", "--archive", a.archive,
     "--stock", a.stock, "--out", a.out, "--gen", a.work / "gen")

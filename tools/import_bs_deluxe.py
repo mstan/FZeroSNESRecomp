@@ -1,12 +1,11 @@
 """Local all-or-nothing BS Deluxe conversion. Requires the user's archive/ROM.
 
-Produces a private guarded cartridge delta and native-module namespace header.
+Produces a private guarded cartridge delta and verifies its generated module.
 No installed patched ROM is required. Generated output must not be committed.
 """
 import argparse
 import json
 from pathlib import Path
-import re
 import struct
 import zipfile
 
@@ -21,16 +20,15 @@ DELUXE_SHA256 = "552159a19955e88a8337f7c473ccc53e5dcef15b87daab8e89e1894694542fe
 # Previous pin, USA 1.0 (February 10, 2024): 77bb37bcdedd3e17321727d5ed6a14792aa7a45ac04e9040b16bf564bd6dea24
 
 
-def namespace(gen):
-    symbols = set()
-    for path in gen.glob("*.c"):
-        symbols.update(re.findall(r"^(?:RecompReturn|void)\s+(\w+)\s*\(CpuState\s*\*cpu\)", path.read_text(), re.M))
-    if not symbols:
-        raise ValueError("Generate the Deluxe native sources before creating its namespace")
-    symbols.update(("g_dispatch_table", "g_dispatch_table_count", "g_ram_routine_guards", "g_ram_routine_guard_count"))
-    (gen / "deluxe_namespace.h").write_text(
-        "/* Generated compile-time namespace; definitions AND direct calls. */\n" +
-        "".join(f"#define {name} deluxe_{name}\n" for name in sorted(symbols)))
+def validate_namespace(gen):
+    # The framework owns the complete namespace, including module identity.
+    # Do not regenerate a partial game-specific list of C symbols.
+    header = gen / "module_namespace.h"
+    descriptor = gen / "module_v2.c"
+    if not header.is_file() or not descriptor.is_file() or \
+            "#define g_program_module deluxe_g_program_module" not in header.read_text() or \
+            'g_program_module.id = "bs-deluxe";' not in descriptor.read_text():
+        raise ValueError("Regenerate Deluxe with --module-id bs-deluxe --module-prefix deluxe")
 
 
 def main():
@@ -69,7 +67,7 @@ def main():
     payload += bytes.fromhex(STOCK_SHA256) + bytes.fromhex(DELUXE_SHA256)
     for offset, data in records:
         payload += struct.pack("<II", offset, len(data)) + data
-    namespace(a.gen)
+    validate_namespace(a.gen)
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / "bs-deluxe.dat").write_bytes(payload)
     (a.out / "BS-Deluxe-credits.txt").write_bytes(credits)

@@ -52,7 +52,8 @@ fi
 PROFILE_MANIFEST="recomp/tier2_coverage.json"
 emit_extra=()
 if [ -f "$PROFILE_MANIFEST" ]; then
-  emit_extra+=(--profile-manifest "$PROFILE_MANIFEST")
+  emit_extra+=(--profile-manifest "$PROFILE_MANIFEST"
+               --legacy-profile-rom-sha256 "$EXPECTED_SHA256")
   echo "regen.sh: using AOT coverage profile $PROFILE_MANIFEST"
 else
   echo "regen.sh: no AOT coverage profile yet; run the headless host to harvest one"

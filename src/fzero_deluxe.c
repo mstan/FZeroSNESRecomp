@@ -1,6 +1,7 @@
 #include "fzero_deluxe.h"
 #include "cpu_state.h"
 #include "common_rtl.h"
+#include "program_module.h"
 #include "snes/interp_bridge.h"
 #include "sha256.h"
 #include <stdio.h>
@@ -29,10 +30,7 @@ bool FzeroDeluxeSelectSaveRoot(void) {
 }
 
 #ifdef FZERO_HAS_DELUXE
-extern const DispatchEntry deluxe_g_dispatch_table[];
-extern const unsigned deluxe_g_dispatch_table_count;
-extern const RamRoutineGuard deluxe_g_ram_routine_guards[];
-extern const unsigned deluxe_g_ram_routine_guard_count;
+extern SnesProgramModule deluxe_g_program_module;
 static const uint8_t stock_hash[32] = {
   0xbf,0x16,0xc3,0xc8,0x67,0xc5,0x8e,0x2a,0xb0,0x61,0xc7,0x0d,0xe9,0x29,0x5b,0x69,
   0x30,0xd6,0x3f,0x29,0xf8,0x1c,0xc9,0x86,0xf5,0xec,0xae,0x03,0xe0,0xad,0x18,0xd2};
@@ -109,7 +107,7 @@ done:
 bool FzeroDeluxePrepare(uint8_t **rom, size_t *size, bool enabled, const char *path) {
   active = false;
   error[0] = 0;
-  cpu_select_program(NULL, 0, NULL, 0);
+  snes_program_module_select(NULL);
   interp_bridge_set_scheduler_aot_policy(-1);
   if (!enabled) return true;
 #ifndef FZERO_HAS_DELUXE
@@ -144,8 +142,7 @@ bool FzeroDeluxePrepare(uint8_t **rom, size_t *size, bool enabled, const char *p
   free(*rom);
   *rom = mapped;
   *size = 0x100000;
-  cpu_select_program(deluxe_g_dispatch_table, deluxe_g_dispatch_table_count,
-                     deluxe_g_ram_routine_guards, deluxe_g_ram_routine_guard_count);
+  snes_program_module_select(&deluxe_g_program_module);
   active = true;
   /* Loading paths need interpreter parity before further AOT promotion.
    * Keep native interrupt helpers; the main scheduler uses the faithful floor.

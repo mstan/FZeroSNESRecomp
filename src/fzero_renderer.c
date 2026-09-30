@@ -331,25 +331,11 @@ static int course_sample(const FzeroCourse *course, const FzeroCourseLine *line,
  * diagnostic transforms retain the general sampler and its finite guards. */
 static bool bounded_line(const FzeroMode7Line *line, FzeroViewport viewport) {
   double left = -viewport.extra, right = viewport.width - viewport.extra;
-  return fabs((line->origin_x + left * line->step_x) / 256) < 999999 &&
-      fabs((line->origin_y + left * line->step_y) / 256) < 999999 &&
-      fabs((line->origin_x + right * line->step_x) / 256) < 999999 &&
-      fabs((line->origin_y + right * line->step_y) / 256) < 999999;
-}
-static int whole_texel(double value) {
-  int truncated = (int)value;
-  return truncated - (value < truncated);
-}
-static unsigned bounded_sample(const FzeroMode7Line *line, const uint16_t *vram,
-                                const FzeroCourse *course, const FzeroCourseLine *reference,
-                                FzeroCourseCache *cache, int tx, int ty) {
-  bool outside = (unsigned)tx >= 1024 || (unsigned)ty >= 1024;
-  if (outside && (line->control & 0x80) && !(line->control & 0x40)) return 0;
-  int tile = course_sample_at(course, reference, cache, tx, ty);
-  unsigned x = tx & 1023, y = ty & 1023;
-  unsigned number = outside && (line->control & 0x80) ? 0 :
-      tile >= 0 ? (unsigned)tile & 255 : vram[(y / 8) * 128 + x / 8] & 255;
-  return vram[number * 64 + (y & 7) * 8 + (x & 7)] >> 8;
+  return SnesMode7HdSpanFits(
+      (line->origin_x + left * line->step_x) / 256,
+      (line->origin_y + left * line->step_y) / 256,
+      (line->origin_x + right * line->step_x) / 256,
+      (line->origin_y + right * line->step_y) / 256, 999999);
 }
 
 /* $0081DE DMA-orders six 32-byte vehicle reservations using $0AC0..$0ACA.
@@ -781,10 +767,11 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
            * immutable texture/course lookup is independent of screen masks
            * and sprites, so reuse its index across those column boundaries. */
           if (bounded) {
-            int tx = whole_texel((subline.origin_x + position * subline.step_x) / 256);
-            int ty = whole_texel((subline.origin_y + position * subline.step_y) / 256);
+            int tx = SnesMode7HdFloorInt((subline.origin_x + position * subline.step_x) / 256);
+            int ty = SnesMode7HdFloorInt((subline.origin_y + position * subline.step_y) / 256);
             if (tx != last_x || ty != last_y) {
-              index = bounded_sample(&subline, f->vram, &course, &reference, &cache, tx, ty);
+              index = SnesMode7HdFetchInt(subline.control, f->vram, tx, ty,
+                  course_sample_at(&course, &reference, &cache, tx, ty));
               last_x = tx; last_y = ty;
             }
           } else {

@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "snes/mode7_hd.h"
 
 /* Renderer-owned scanline transform, in Q8 texture coordinates. No pointers
  * into mutable guest memory: callers latch registers and VRAM at scanout. */
@@ -19,7 +20,7 @@ FzeroMode7Line FzeroMode7Transform(const int16_t matrix[8], uint8_t control,
  *
  * Both of these run once per output pixel, so they are defined here: a call
  * across the translation unit boundary costs more than the work they do. */
-typedef struct FzeroMode7Texel { double x, y; } FzeroMode7Texel;
+typedef SnesMode7HdTexel FzeroMode7Texel;
 
 static inline FzeroMode7Texel FzeroMode7Locate(const FzeroMode7Line *line, double x) {
   FzeroMode7Texel texel = {floor((line->origin_x + x * line->step_x) / 256),
@@ -33,24 +34,7 @@ static inline FzeroMode7Texel FzeroMode7Locate(const FzeroMode7Line *line, doubl
 static inline uint8_t FzeroMode7Fetch(const FzeroMode7Line *line,
                                       const uint16_t vram[0x8000],
                                       FzeroMode7Texel texel, int tile) {
-  double qx = texel.x, qy = texel.y;
-  if (!isfinite(qx) || !isfinite(qy)) return 0;
-  bool outside = qx < 0 || qx >= 1024 || qy < 0 || qy >= 1024;
-  if (outside && (line->control & 0x80) && !(line->control & 0x40)) return 0;
-  /* Locate already produces whole texels. Ordinary camera coordinates fit
-   * an int, so power-of-two wrapping needs no floating remainder per sample.
-   * Keep reduction before conversion for oversized diagnostic transforms. */
-  int tx, ty;
-  if (qx > -1073741824.0 && qx < 1073741824.0 &&
-      qy > -1073741824.0 && qy < 1073741824.0) {
-    tx = (int)qx & 1023; ty = (int)qy & 1023;
-  } else {
-    tx = ((int)fmod(qx, 1024) + 1024) & 1023;
-    ty = ((int)fmod(qy, 1024) + 1024) & 1023;
-  }
-  unsigned number = outside && (line->control & 0x80) ? 0 :
-      tile >= 0 ? (unsigned)tile & 255 : vram[(ty / 8) * 128 + tx / 8] & 255;
-  return vram[number * 64 + (ty & 7) * 8 + (tx & 7)] >> 8;
+  return SnesMode7HdFetch(line->control, vram, texel, tile);
 }
 /* Returns a palette index; zero is transparent. X is a signed logical SNES
  * coordinate and may extend beyond either stock screen edge. */

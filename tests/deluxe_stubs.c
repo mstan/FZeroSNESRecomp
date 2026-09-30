@@ -4,17 +4,12 @@
  * stand in here and the test links without the recompiled program. */
 #include "cpu_state.h"
 #include "common_rtl.h"
+#include "program_module.h"
 #include "snes/interp_bridge.h"
 
-const DispatchEntry deluxe_g_dispatch_table[1];
-const unsigned deluxe_g_dispatch_table_count = 0;
-const RamRoutineGuard deluxe_g_ram_routine_guards[1];
-const unsigned deluxe_g_ram_routine_guard_count = 0;
+SnesProgramModule deluxe_g_program_module;
 
-void cpu_select_program(const DispatchEntry *dispatch, unsigned count,
-                        const RamRoutineGuard *guards, unsigned guard_count) {
-  (void)dispatch; (void)count; (void)guards; (void)guard_count;
-}
+void snes_program_module_select(const SnesProgramModule *module) { (void)module; }
 void interp_bridge_set_scheduler_aot_policy(int enabled) { (void)enabled; }
 const char *RtlSaveRoot(void) { return "."; }
 void RtlEnsureSaveDir(void) {}
