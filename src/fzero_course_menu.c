@@ -113,6 +113,44 @@ static uint32_t record_color(unsigned rgb) {
   return 0xff000000u | ((r << 3 | r >> 2) << 16) |
       ((g << 3 | g >> 2) << 8) | (b << 3 | b >> 2);
 }
+/* The league/class panel uses shaded native menu tiles. Its font differs
+ * from both the records font and the host's diagnostic bitmap lettering.
+ * Read the same uploaded glyphs/palettes as the opening panel, including
+ * the different retail (4bpp) and Deluxe (2bpp) tile layouts. */
+typedef enum MenuInk { MENU_CYAN, MENU_GREY, MENU_YELLOW } MenuInk;
+static void menu_text(Canvas c, int x, int y, const char *s, unsigned limit, MenuInk ink) {
+  bool deluxe = FzeroDeluxeActive();
+  unsigned palette = deluxe ? (ink == MENU_CYAN ? 16 : ink == MENU_GREY ? 8 : 0)
+                            : (ink == MENU_CYAN ? 32 : ink == MENU_GREY ? 48 : 16);
+  for (unsigned i = 0; s[i] && i < limit; ++i) {
+    unsigned ch = (unsigned)toupper((unsigned char)s[i]);
+    if (ch == ' ') continue;
+    bool letter = ch >= 'A' && ch <= 'Z';
+    unsigned tile = deluxe ? 0x140 + (ch - 'A') * 2 :
+                    ch == 'A' ? 0xaf : ch == 'B' ? 0xbf :
+                    ch == 'M' ? 0xcf : ch == 'N' ? 0xce : 0xc4 + ch - 'C';
+    unsigned base = deluxe ? 0x2000 + tile * 8 : 0x3000 + tile * 16;
+    for (unsigned yy = 0; yy < 8; ++yy)
+      for (unsigned xx = 0; xx < 8; ++xx) {
+        unsigned pixel = 0;
+        if (letter) {
+          unsigned bits = g_snes->ppu->vram[base + yy];
+          pixel = (bits >> (7 - xx) & 1) | (bits >> (15 - xx) & 1) << 1;
+          if (!deluxe) {
+            bits = g_snes->ppu->vram[base + yy + 8];
+            pixel |= (bits >> (7 - xx) & 1) << 2 | (bits >> (15 - xx) & 1) << 3;
+          }
+        } else if (ch >= 32 && ch <= 126 && (FONT8X8[ch - 32][yy] & (1u << xx))) {
+          /* Retain the host's page-number/punctuation shapes, with the
+           * same shading as the native letters on this scanline. */
+          pixel = (yy < 2 || yy >= 6 ? 1 : yy < 4 ? 2 : 3) + !deluxe;
+        }
+        if (pixel)
+          box(c, x + (int)i * 8 + (int)xx, y + (int)yy, 1, 1,
+              record_color(g_snes->ppu->cgram[palette + pixel]));
+      }
+  }
+}
 static unsigned horizon_pixel(const FzeroCourse *course, const uint8_t *map,
                               unsigned x, unsigned y, unsigned layer) {
   unsigned tile = read_word(map + ((x / 256) * 224 + (y / 8) * 32 + x / 8 % 32) * 2);
@@ -237,7 +275,7 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
   box(c, 110, 68, 124, 82, 0xff000000);
   for (unsigned row = 0; row < 5 && first + row < count; ++row) {
     const CpCup *cup = FzeroTracksRuntimeCup(first + row, NULL);
-    uint32_t color = first + row == selected ? 0xffc0ffff : 0xff808080;
+    MenuInk color = first + row == selected ? MENU_CYAN : MENU_GREY;
     const char *label = cup->name;
     size_t length = strlen(label);
     if (length > 13 && first + row == selected) {
@@ -247,7 +285,7 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
         offset = (unsigned)length - 13;
       label += offset;
     }
-    text(c, 126, 72 + (int)row * 16, label, 13, color);
+    menu_text(c, 128, 71 + (int)row * 16, label, 13, color);
     if (first + row == selected && !choosing_class)
       text(c, 115, 72 + (int)row * 16, ">", 1, 0xffffff00);
   }
@@ -258,21 +296,21 @@ void FzeroTracksOverlay(uint32_t *pixels, unsigned width, unsigned height, size_
     snprintf(page, sizeof(page), "%u", selected + 1);
   /* Practice's native LEAGUE label extends below our heading. Clear the
    * entire header down to the first list row before drawing its replacement. */
-  box(c, 118, 55, 116, 17, 0xff000000);
-  text(c, 120, 55, "LEAGUE", 6, 0xffc0ffff);
-  text(c, 234 - (int)strlen(page) * 8, 55, page, 5, 0xff80c8e8);
+  box(c, 118, 55, 116, 16, 0xff000000);
+  menu_text(c, 120, 55, "LEAGUE", 6, MENU_CYAN);
+  menu_text(c, 234 - (int)strlen(page) * 8, 55, page, 5, MENU_CYAN);
   box(c, 112, 151, 122, 29, 0xff000000);
   if (practice) {
     box(c, 106, 197, 140, 8, 0xff000000);
-    text(c, 108, 197, "UP/DOWN TO SELECT", 17, 0xff80c8e8);
+    menu_text(c, 108, 197, "UP/DOWN TO SELECT", 17, MENU_CYAN);
     return;
   }
-  text(c, 120, 151, "CLASS", 5, 0xffffff00);
+  menu_text(c, 120, 151, "CLASS", 5, MENU_YELLOW);
   static const char *classes[] = {"BEGINNER", "STANDARD", "EXPERT", "MASTER", "LEGEND"};
   unsigned level=g_ram[choosing_class && !FzeroDeluxeActive() ? 0x5a : 0x57];
-  text(c, 126, 168, classes[level < 5 ? level : 0], 12, 0xffc0ffff);
+  menu_text(c, 128, 167, classes[level < 5 ? level : 0], 12, choosing_class ? MENU_CYAN : MENU_GREY);
   if (choosing_class)
     text(c, 115, 168, ">", 1, 0xffffff00);
   box(c, 106, 197, 140, 8, 0xff000000);
-  text(c, 108, 197, choosing_class ? "CHOOSE CLASS" : "UP/DOWN TO SELECT", 17, 0xff80c8e8);
+  menu_text(c, 108, 197, choosing_class ? "CHOOSE CLASS" : "UP/DOWN TO SELECT", 17, MENU_CYAN);
 }

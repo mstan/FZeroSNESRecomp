@@ -591,6 +591,39 @@ static void test_hd_mode7(void) {
   CHECK(!FzeroRendererDrawHd(hd + 1, countof(hd) - 2, v, 1, 2));
 }
 
+static void test_hd_results(void) {
+  static uint32_t race[FZERO_MAX_WIDTH * 224 * 16], results[FZERO_MAX_WIDTH * 224 * 16];
+  const FzeroViewport views[] = {{256, 0, 4.0 / 3.0, false}, {342, 43, 16.0 / 9.0, true}};
+  for (unsigned view = 0; view < countof(views); ++view) {
+    FzeroViewport v = views[view];
+    for (unsigned scale = 2; scale <= 4; scale *= 2) {
+      setup();
+      memset(p.vram, 0, sizeof(p.vram));
+      for (unsigned i = 0; i < 0x4000; ++i) p.vram[i] = 1;
+      for (unsigned i = 0; i < 64; ++i) p.vram[64 + i] |= (i + 1) << 8;
+      for (unsigned i = 0; i < 256; ++i) p.cgram[i] = (uint16_t)i;
+      p.m7matrix[0] = p.m7matrix[3] = 512;
+      publish(1);
+      size_t count = (size_t)v.width * 224 * scale * scale;
+      CHECK(FzeroRendererDrawHd(race, count, v, 1, scale));
+      /* A finish freezes this same camera/road. Entering the results scene
+       * must retain every subpixel, including the widened track margins. */
+      ram[0x54] = 3; ram[0x5f] = 0x80;
+      for (unsigned phase = 0; phase <= 5; ++phase) {
+        ram[0x55] = phase;
+        publish(phase + 2);
+        CHECK(FzeroRendererDrawHd(results, count, v, 0.5, scale));
+        CHECK(!memcmp(race, results, count * sizeof(*race)));
+      }
+      /* The first native pixel really contains distinct HD texels. Merely
+       * upscaling the frozen native framebuffer cannot satisfy this test. */
+      size_t first = (size_t)v.extra * scale;
+      CHECK(results[first] != results[first + scale / 2]);
+      CHECK(results[first] != results[first + v.width * scale * (scale / 2)]);
+    }
+  }
+}
+
 static void test_hd_composition_cache(void) {
   static uint32_t native[FZERO_MAX_WIDTH * 224 + 2];
   static uint32_t hd[FZERO_MAX_WIDTH * 224 * 16 + 2];
@@ -701,6 +734,7 @@ int main(void) {
   test_player_spark();
   test_explosion_slots();
   test_hd_mode7();
+  test_hd_results();
   test_hd_composition_cache();
   puts("F-Zero renderer: bounds, immutable frames, scene fallback, car identity, signed X, panorama wrap and HUD transitions passed");
   return 0;

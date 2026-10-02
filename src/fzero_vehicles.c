@@ -676,7 +676,7 @@ static void menu_resources(bool upload) {
 enum { PANE_TILES = 0x4000, PANE_TILE_WORDS = (12 * 15 + 1) * 16 };
 static uint16_t pane_map_backup[1024], pane_tiles_backup[PANE_TILE_WORDS];
 static uint16_t pane_obj_backup[512];
-static unsigned pane_obj_base;
+static unsigned pane_obj_base, pane_map_base;
 static const unsigned pane_sprite_x[] = {0, 16, 32, 0, 16, 32, 48, 48};
 static const unsigned pane_sprite_y[] = {0, 0, 0, 16, 16, 16, 0, 16};
 static bool pane_active;
@@ -695,11 +695,20 @@ static unsigned pane_id(const uint8_t *ram, int relative, unsigned row) {
 }
 void FzeroVehiclesBeginFrame(Ppu *ppu, const uint8_t *ram) {
   pane_active = count > 4 && ram[MENU_STATE] == 1 &&
-                ram[0x54] == 1 && ram[0x55] == 1 && ram[0x56] == 0;
+                ram[0x54] == 1 && (ram[0x55] == 1 || ram[0x55] == 7) &&
+                ram[0x56] <= (ram[0x58] ? 1 : 2);
   if (!pane_active) return;
-  memcpy(pane_map_backup, ppu->vram + 0x400, sizeof(pane_map_backup));
+  /* Opening the card switches BG2 from $0400 to $0800. That second map
+   * contains the stats panel too: adapt only its left-hand car pane and
+   * leave the native panel/window animation intact. */
+  pane_map_base = (ppu->bgXsc[1] & 0x7c) << 8;
+  memcpy(pane_map_backup, ppu->vram + pane_map_base, sizeof(pane_map_backup));
   memcpy(pane_tiles_backup, ppu->vram + PANE_TILES, sizeof(pane_tiles_backup));
-  memset(ppu->vram + 0x400, 0, sizeof(pane_map_backup));
+  if (pane_map_base == 0x400)
+    memset(ppu->vram + pane_map_base, 0, sizeof(pane_map_backup));
+  else
+    for (unsigned y = 0; y < 32; ++y)
+      memset(ppu->vram + pane_map_base + y * 32, 0, 13 * sizeof(uint16_t));
   static const unsigned source_tiles[15] = {
       0x55e0, 0x5600, 0x5620, 0x5640, 0x5660, 0x56e0, 0x5700, 0x5720,
       0x5740, 0x5760, 0x5680, 0x56a0, 0x56c0, 0x5780, 0x57a0};
@@ -713,11 +722,12 @@ void FzeroVehiclesBeginFrame(Ppu *ppu, const uint8_t *ram) {
   }
   memset(ppu->vram + PANE_TILES + 12 * 15 * 16, 0, 32);
   int offset = pane_offset(ram);
-  /* Only the six selected-car sprites own these two uploaded tile rows.
-   * Clip their pixels, not the entire OBJ layer: the text also uses OBJs. */
+  /* Only the six sliding-car sprites own these two uploaded tile rows.
+   * Clip their pixels, not the entire OBJ layer: the text also uses OBJs.
+   * The stationary info-card spin owns a different eight-piece layout. */
   pane_obj_base = (((ppu->obsel & 7) << 13) + (((ppu->obsel & 0x18) + 8) << 9) + 0xe00) & 0x7fff;
   memcpy(pane_obj_backup, ppu->vram + pane_obj_base, sizeof(pane_obj_backup));
-  for (unsigned sprite = 0; sprite < 6; ++sprite) {
+  for (unsigned sprite = 0; pane_map_base == 0x400 && sprite < 6; ++sprite) {
     unsigned attr = ppu->oam[sprite * 2 + 1];
     unsigned base = ((ppu->obsel & 7) << 13);
     if (attr & 0x100) base += (((ppu->obsel & 0x18) + 8) << 9);
@@ -745,7 +755,11 @@ void FzeroVehiclesBeginFrame(Ppu *ppu, const uint8_t *ram) {
       unsigned id = pane_id(ram, relative, row), index = 0;
       while (index < count && roster[index] != id) ++index;
       for (unsigned tile = 0; tile < 15; ++tile) {
-        unsigned word = 0x400 + (6 + row * 5 + tile / 5) * 32 +
+        int tile_x = x + (int)(tile % 5) * 8;
+        /* The open panel no longer windows off BG2's right-hand side.
+         * Do not wrap the left neighbor's clipped tiles into that panel. */
+        if (pane_map_base != 0x400 && (tile_x < 0 || tile_x >= 104)) continue;
+        unsigned word = pane_map_base + (6 + row * 5 + tile / 5) * 32 +
                         ((x / 8 + (int)(tile % 5)) & 31);
         bool blank = index == count || (!relative && row == (ram[0x14c84] & 3));
         ppu->vram[word] = (uint16_t)(palette * 0x400 + 0x200 +
@@ -757,7 +771,7 @@ void FzeroVehiclesBeginFrame(Ppu *ppu, const uint8_t *ram) {
    * facing the selected ship. It travels with that column during the slide. */
   unsigned row = ram[0x14c84] & 3;
   for (unsigned y = 0; y < 2; ++y)
-    ppu->vram[0x400 + (7 + row * 5 + y) * 32 + 2] =
+    ppu->vram[pane_map_base + (7 + row * 5 + y) * 32 + 2] =
         (uint16_t)(0x920 + column * 8 + row * 2 + y);
 }
 void FzeroVehiclesRaster(Ppu *ppu, const uint8_t *ram, unsigned line) {
@@ -765,7 +779,9 @@ void FzeroVehiclesRaster(Ppu *ppu, const uint8_t *ram, unsigned line) {
   int offset = pane_offset(ram);
   ppu->hScroll[1] = (uint16_t)-offset;
   unsigned selected_row = ram[0x14c84] & 3;
-  for (unsigned i = 0; i < 8; ++i) {
+  /* Once the card opens, native OAM already centers the rotating car and
+   * changes piece positions/sizes with its angle. Keep that authored layout. */
+  for (unsigned i = 0; pane_map_base == 0x400 && i < 8; ++i) {
     int x = 28 + (int)pane_sprite_x[i] + offset;
     unsigned y = 44 + selected_row * 40 + pane_sprite_y[i];
     ppu->oam[i * 2] = (uint16_t)((y << 8) | (x & 255));
@@ -789,7 +805,7 @@ void FzeroVehiclesRaster(Ppu *ppu, const uint8_t *ram, unsigned line) {
 }
 void FzeroVehiclesEndFrame(Ppu *ppu) {
   if (!pane_active) return;
-  memcpy(ppu->vram + 0x400, pane_map_backup, sizeof(pane_map_backup));
+  memcpy(ppu->vram + pane_map_base, pane_map_backup, sizeof(pane_map_backup));
   memcpy(ppu->vram + PANE_TILES, pane_tiles_backup, sizeof(pane_tiles_backup));
   memcpy(ppu->vram + pane_obj_base, pane_obj_backup, sizeof(pane_obj_backup));
   pane_active = false;

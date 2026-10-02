@@ -626,7 +626,9 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
               race_hud, results, object_pixels);
     else
       memset(object_pixels, 0, (size_t)viewport.width * sizeof(*object_pixels));
-    bool hd_line = scale > 1 && world && mode == 7 &&
+    /* Successful results retain the frozen course. Its spatial sampling
+     * stays HD even though actor/camera interpolation has stopped. */
+    bool hd_line = scale > 1 && (world || result_scenery) && mode == 7 &&
         !((scanout.mosaic & 1) && (scanout.mosaic >> 4)) &&
         !(scanout.setini & 0x49) && !(scanout.cgwsel & 1);
     if (!hd_line || native) {

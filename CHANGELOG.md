@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## Unreleased
+
+- Keep CGP car colors and neighboring columns stable while opening the stats
+  and league panels, preserving the native rotating-car animation.
+- Use native shaded lettering for the expanded league/class picker.
+- Keep HD Mode 7 detail on the frozen course behind race results.
+
 ## 0.7.3 - Shared renderer optimization and race-menu fixes
 
 - Share Grand Prix and Practice records per course/car, retaining better
