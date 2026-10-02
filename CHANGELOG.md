@@ -1,6 +1,6 @@
 ﻿# Changelog
 
-## Unreleased
+## 0.7.4 - Car-menu transitions and HD race results
 
 - Keep CGP car colors and neighboring columns stable while opening the stats
   and league panels, preserving the native rotating-car animation.

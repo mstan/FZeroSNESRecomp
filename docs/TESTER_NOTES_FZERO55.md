@@ -1,4 +1,4 @@
-# F-Zero Forever 0.7.3: tester notes
+# F-Zero Forever 0.7.4: tester notes
 
 Extract the whole ZIP into a new folder and run `FZeroSNESRecomp.exe`. Select
 your own original F-Zero (USA) ROM. Keep older installations and saves for
@@ -8,16 +8,15 @@ lets you add recordings later.
 
 ## Changes to test
 
-- Grand Prix and Practice share records for the same course and car. Better
-  Practice times from earlier builds are retained. There is no mode selector.
-- The end-of-league lap/rank recap keeps its digits together in widescreen,
-  including HD Mode 7.
-- Up/Down stop at the first and last difficulty; Select cycles. Confirming a
-  difficulty keeps that choice visible during the fade.
-- Imported car groups use their own course-intro text colors from the first
-  frame, without briefly showing the original group's colors.
-- HD Mode 7 does less CPU work while preserving its pixels, resolution and
-  interpolation. The reusable sampling work now lives in snesrecomp.
+- CGP cars keep their correct colors while the stats window opens, including
+  Black Bull. The native rotating-car animation is preserved.
+- Neighboring car columns remain visible through the stats and league panels.
+- The expanded league/class picker uses the original shaded lettering.
+- HD Mode 7 retains its detail on the frozen course behind race results.
+
+This includes the 0.7.3 shared-records, difficulty-control, lap-recap and
+renderer-performance fixes. See CHANGELOG.md in the source repository for
+earlier changes.
 
 ## Packs and music
 
@@ -43,16 +42,16 @@ See [MODS.md](../MODS.md) for examples and the Huckmine editor workflow.
 ## Testing notes
 
 Always show Records and Legend difficulty default on; diagnostics default off.
-Saved choices are respected. Please check GP finishes, Practice records,
-Records navigation in your chosen aspect ratio, difficulty selection and
-performance at your usual HD setting. Include the course, car, difficulty,
-aspect ratio and HD scale with any report.
+Saved choices are respected. Please check car colors and rotation while the
+stats panel opens, both neighboring columns, league/class lettering, and HD
+detail as a race enters results. Include the course, car, difficulty, aspect
+ratio and HD scale with any report.
 
-The fixes were checked with native input and controlled race finishes on
-stock and imported courses, including saving, restarting and browsing Records
-in widescreen. Renderer comparisons retain identical output across 24
-aspect/scale/interpolation combinations. Performance figures from the developer
-CPU are not a guarantee for other machines.
+The fixes were checked with native-input frame captures across all three CGP
+car groups and Dragon Bird in Practice, plus the base-game menu. Lettering
+matches the native menu pixels; widescreen panels and HD results were checked.
+All 13 automated tests pass, including HD results at stock and wide aspect
+ratios at 2x and 4x resolution.
 
 An earlier cropped report showing the Metal Fort skyline with a BEST label
 still needs a reproducible transition or capture to identify the remaining
