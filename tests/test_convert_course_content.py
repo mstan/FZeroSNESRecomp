@@ -72,6 +72,39 @@ def metadata_donor():
     return bytes(rom)
 
 
+def inferable_donor():
+    rom=bytearray(metadata_donor())
+    def put(address,value):
+        offset=((address&0x7f0000)>>1)|(address&0x7fff)
+        rom[offset:offset+len(value)]=value
+    def ptr(address,width=3): return address.to_bytes(width,'little')
+    operations=[
+        ('settings','ae 59 10 bf','5c 1f 9f 00',None,0),
+        ('palettes','ad 59 10 0a 6d 59 10 aa bf','85 00 bf','85 01 a0 de 00',1),
+        ('pools','ad 59 10 0a 6d 59 10 aa a9 00 80 8d 00 43 a9 00 24 8d 05 43 bf','8d 02 43 e2 20 bf','8d 04 43',2),
+        ('graphics','ad 59 10 0a 6d 59 10 aa bf','85 04 e2 20 bf','85 06 a9 00 22 9b 82 10',2),
+        ('paths','ad 59 10 0a 6d 59 10 aa bf','85 30 bf','85 31 64 33 5c 4e d6 00',1),
+        ('sky_graphics','ad 59 10 0a 6d 59 10 aa a9 01 18 8d 00 43 bf','8d 02 43 bf','8d 03 43 a9 00 20 8d 05 43',1),
+        ('sky_back','a9 01 18 8d 00 43 bf','85 00 8d 02 43 bf','e2 10 aa 8e 04 43 a9 00 07',2),
+        ('sky_front','a9 60 71 8d 16 21 bf','85 00 8d 02 43 bf','e2 10 aa 8e 04 43 a9 40 05',2),
+        ('terrain','8b c2 30 da 9b ad 59 10 0a 6d 59 10 aa bf','18 79 d0 0c a8 e2 20 bf','fa 48 ab e0 00 00',2),
+        ('gradients','ae 59 10 bf','85 9c 5c 22 a1 00',None,0),
+        ('shortcuts','8b e2 20 bf','48 ab c2 20 bf','aa bd 00 00 30 3f af 6d 10 00',-2),
+        ('maps','bf','85 26 bf','85 22 bf',-3)]
+    for index,(key,prefix,middle,tail,delta) in enumerate(operations):
+        address=0x109500+index*0x20
+        code=bytes.fromhex(prefix)+ptr(address)+bytes.fromhex(middle)
+        if tail: code+=ptr(address+delta)+bytes.fromhex(tail)
+        put(0x00a000+index*0x40,code)
+    put(0x00b000,bytes.fromhex('c2 30 8b 4b ab ad 59 10 0a aa bc')+ptr(0x9700,2)+bytes.fromhex('be 00 00 30 1c'))
+    put(0x108484,bytes.fromhex('a9 80 8d 15 21'))
+    put(0x00d146,bytes.fromhex('08 e2 20 c9 bb b0 31 eb 29 7f eb aa bf 50 81 10 48 bf 95 80 10 85 00 f0 03 20 93 d1 fa f0'))
+    for code in (0x6c,0x6d):
+        put(0x108095+code,bytes([code]));put(0x108150+code,bytes([code+16]))
+    put(0x02fbda,bytes(range(45)))
+    return bytes(rom)
+
+
 class ConversionBoundaries(unittest.TestCase):
     def test_ips_bps_equivalence_and_zip_pair_selection(self):
         source, target = bytes(0x8000), b'A'+bytes(0x7fff)
@@ -309,6 +342,123 @@ class ConversionBoundaries(unittest.TestCase):
         report = converter.probe_fzedit_metadata(changed)
         self.assertFalse(report['msu_selector']['recognized'])
         self.assertFalse(any('msu_track' in row for row in report['tracks']))
+
+    def test_inference_reads_consumers_and_explicit_canonical_opponents(self):
+        rom=inferable_donor(); probe=converter.probe_fzedit_metadata(rom)
+        font={code:(0x0f9000+code*16,2,bytes(16)) for code in (0x6c,0x7c,0x6d,0x7d)}
+        with patch.object(converter,'atlas',return_value=font):
+            normalized,layout,evidence=converter.infer_fzedit_layout(rom,rom,probe)
+        self.assertEqual(layout['pools'],['109540'])
+        self.assertEqual(layout['maps'],['10965d'])
+        self.assertEqual(layout['palette_cycles'],['109700'])
+        self.assertEqual(layout['opponents'],['208000'])
+        self.assertEqual(normalized[:len(rom)],rom)
+        self.assertEqual(converter.span(normalized,0x208000,6),bytes([1,16,31,0,15,30]))
+        self.assertFalse(evidence['unsupported_global_code_executed'])
+        damaged=bytearray(rom);damaged[0x2040]=0
+        with patch.object(converter,'atlas',return_value=font),self.assertRaisesRegex(ValueError,'palettes'):
+            converter.infer_fzedit_layout(damaged,rom,probe)
+        feature=bytearray(rom)
+        masks=((0x98b1,'29 04'),(0x98bc,'29 f4'),(0x98ce,'29 14'),(0x98f1,'29 f4'),(0x98f9,'89 04'))
+        for address,opcodes in masks:
+            feature[address&0x7fff:(address&0x7fff)+2]=bytes.fromhex(opcodes)
+        with patch.object(converter,'atlas',return_value=font):
+            _,declared,evidence=converter.infer_fzedit_layout(feature,rom,probe)
+        self.assertEqual(declared['require'],['all|grip-magnets'])
+        self.assertIn('five recognized',evidence['mechanics'][0])
+
+    def test_recognized_cup_menu_reads_bounded_words_and_partial_names(self):
+        rom=bytearray(metadata_donor())
+        def put(address,value):
+            offset=((address&0x7f0000)>>1)|(address&0x7fff)
+            rom[offset:offset+len(value)]=value
+        put(0x03897c,bytes.fromhex('c2 20 a9 70 05 8d 20 04 bf a0 97 10 8d 22 04 a2 10 8e 24 04 a9 1a 00 8d 26 04'))
+        put(0x1097a0,bytes.fromhex('a4 97 be 97'))
+        for address,codes in ((0x1097a4,[0xaf,0xd4,0xd5,0xd3,0xaf]),(0x1097be,[0xc7,0xd3,0xd0,0xce,0xd5])):
+            put(address,b''.join(bytes([code,8]) for code in codes+[0xff]*(13-len(codes))))
+        menu=converter.probe_cup_menu(rom)
+        self.assertEqual(menu['cup_count'],2)
+        self.assertEqual([row['name'] for row in menu['labels']],['ASTRA','FRONT'])
+        put(0x1097a0,bytes.fromhex('a5 97 be 97'))
+        self.assertIsNone(converter.probe_cup_menu(rom))
+
+    def form_fixture(self):
+        probe=dict(tracks=[dict(slot=i,name=f'Extracted course {i}',spc_index=i%10) for i in range(10)])
+        report=dict(target_sha256='a'*64,input_sha256='b'*64,input_name='source.zip')
+        return report,probe,converter.review_form(report,probe)
+
+    def test_review_form_uses_extracted_names_and_simple_cup_choices(self):
+        report,probe,form=self.form_fixture()
+        self.assertEqual(len(form['fields']),14)
+        self.assertEqual(form['fields'][2]['value'],'Cup 1')
+        assignments=[field for field in form['fields'] if field['type']=='choice']
+        self.assertEqual([field['value'] for field in assignments],['cup-1']*5+['cup-2']*5)
+        self.assertTrue(all('description' not in field for field in assignments))
+        self.assertIn('Extracted course 0',assignments[0]['label'])
+        self.assertIn('1–5',form['description'])
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'answers.json'
+            path.write_text(json.dumps(dict(target_sha256=report['target_sha256'],input_sha256=report['input_sha256'],
+                values=dict(pack_name='My courses',cup_1_name='First',cup_2_name='Second',cup_for_slot_0='cup-2',cup_for_slot_5='cup-1'))))
+            values=converter.review_values(report,form,path)
+        data=converter.inferred_manifest(report,probe,values)
+        self.assertEqual(data['cup'],['cup-1|First|0','cup-2|Second|1'])
+        self.assertEqual(data['track'][0],'course-1|Extracted course 0|cup-2|0')
+        original_identity=data['id'];values['pack_name']='Renamed'
+        self.assertEqual(converter.inferred_manifest(report,probe,values)['id'],original_identity)
+
+    def test_review_answers_reject_stale_hashes_invalid_fields_and_cup_overflow(self):
+        report,_,form=self.form_fixture()
+        valid=dict(target_sha256=report['target_sha256'],input_sha256=report['input_sha256'],values={})
+        cases=[]
+        for key in ('target_sha256','input_sha256'):
+            item=deepcopy(valid);item[key]='c'*64;cases.append(item)
+        for values in ({'arbitrary_layout':'108000'},{'pack_name':'bad\nname'},{'author':'é'*49},
+                       {'pack_name':'x'*257},{'pack_name':42},{'cup_for_slot_0':'missing'},
+                       {'cup_for_slot_0':'cup-2'}):
+            item=deepcopy(valid);item['values']=values;cases.append(item)
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'answers.json'
+            for item in cases:
+                path.write_text(json.dumps(item))
+                with self.subTest(item=item),self.assertRaises(ValueError):
+                    converter.review_values(report,form,path)
+
+    def test_inferred_review_lifecycle_and_structural_failure_are_distinct(self):
+        report,probe,_=self.form_fixture()
+        report['input_name']='new.sfc'
+        probe.update(status='recognized-resource-metadata',internal_resource_count=10,source_order_prefix=list(range(10)))
+        layout=dict(format=['fzero-course-1'],count=['10'])
+        evidence=dict(opponents_policy='Canonical opponents explicitly chosen')
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);source=root/'new.sfc';source.write_bytes(bytes(0x8000))
+            tool=root/'native.exe';tool.write_bytes(b'not executed')
+            def export(*args,**kwargs):
+                pack=Path(args[3]);pack.mkdir(parents=True);(pack/'courses.json').write_text('{}')
+                return dict(record_hashes={})
+            with patch.object(converter,'read_stock',return_value=bytes(0x8000)), \
+                 patch.object(converter,'read_submission',side_effect=lambda *args:(bytes(0x8000),deepcopy(report))), \
+                 patch.object(converter,'reviewed_profile',return_value=None), \
+                 patch.object(converter,'probe_fzedit_metadata',return_value=probe), \
+                 patch.object(converter,'infer_fzedit_layout',return_value=(bytes(0x8000),layout,evidence)), \
+                 patch.object(converter,'export_pack',side_effect=export), \
+                 patch.object(converter,'inspect_roundtrip',side_effect=lambda *args:dict(byte_exact_to_donor_courses=[],record_hashes={})):
+                self.assertEqual(converter.main([str(source),'--stock',str(source),'--out',str(root/'review'),
+                    '--exporter',str(tool),'--inspector',str(tool)]),3)
+                pending=json.loads((root/'review/conversion-report.json').read_text())
+                self.assertEqual(pending['status'],'needs-input')
+                self.assertEqual({item.name for item in (root/'review').iterdir()},{'conversion-report.json','REVIEW.txt'})
+                answers=root/'answers.json';answers.write_text(json.dumps(dict(target_sha256=report['target_sha256'],
+                    input_sha256=report['input_sha256'],values={})))
+                completed=converter.convert(source,root/'pack',stock=source,exporter=tool,inspector=tool,answers=answers)
+                self.assertEqual(completed['status'],'converted')
+                self.assertTrue((root/'pack/courses.json').is_file())
+                with patch.object(converter,'export_pack',side_effect=ValueError('Invalid checkpoint resource')):
+                    failed=converter.convert(source,root/'failed',stock=source,exporter=tool,inspector=tool)
+                self.assertEqual(failed['status'],'review-required')
+                self.assertIn('checkpoint',failed['structural_error'])
+                self.assertNotIn('review',failed)
+            self.assertEqual(source.read_bytes(),bytes(0x8000))
 
     def test_unknown_rom_is_report_only_and_exit_two(self):
         with tempfile.TemporaryDirectory() as temp:

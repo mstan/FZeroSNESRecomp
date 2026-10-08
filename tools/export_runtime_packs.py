@@ -16,12 +16,14 @@ from pack_manifest import write_index
 from reconstruct_fzedit_course import reconstruct
 from course_tool_paths import ROOT
 
-def export_pack(stock, result, base, root, exporter, priority=0, native_resources=None):
+def export_pack(stock, result, base, root, exporter, priority=0, native_resources=None,
+                credit_bytes=None, source_label='reviewed patch extraction; not original FZEdit project'):
     """Export one reviewed donor using the same identities as shipped packs."""
     base, root, exporter = Path(base), Path(root), Path(exporter).resolve()
     data = fields(base.with_suffix('.ini'))
     ident = data['id'][0]
-    _export_pack(stock, result, base, root, exporter, priority, ident, data, native_resources)
+    _export_pack(stock, result, base, root, exporter, priority, ident, data, native_resources,
+                 credit_bytes, source_label)
     return json.loads((root/'extraction.json').read_text(encoding='utf-8'))
 
 
@@ -41,7 +43,8 @@ def main():
         print(f'{ident}: {len(data["track"])} editable course ZIPs exported', flush=True)
 
 
-def _export_pack(stock, result, base, root, exporter, priority, ident, data, native_resources):
+def _export_pack(stock, result, base, root, exporter, priority, ident, data, native_resources,
+                 credit_bytes, source_label):
     (root/'courses').mkdir(parents=True, exist_ok=True)
     manifest = dict(format=1, id=ident, name=data['name'][0], author=data['author'][0],
                     order=priority*10, cups=[], courses=[])
@@ -76,6 +79,9 @@ def _export_pack(stock, result, base, root, exporter, priority, ident, data, nat
     if ident in ('cgp','astra-front'):
         prefixes = ['cgp','F-Zero CGP P1'] if ident=='cgp' else ['F-ZERO Astra Front']
         manifest['soundtracks'] = [dict(id=ident,prefix=p,directory='music',primary=ident=='cgp') for p in prefixes]
+    elif data.get('soundtrack_prefix'):
+        manifest['soundtracks'] = [dict(id=ident,prefix=p,directory='music',primary=False)
+                                  for p in data['soundtrack_prefix']]
     if ident == 'cgp':
         manifest['menu_music'] = json.loads((ROOT/'assets/music/cgp-menu.json').read_text())
     title = ROOT/'assets/track-packs/presentation'/f'{ident}.ips'
@@ -103,7 +109,8 @@ def _export_pack(stock, result, base, root, exporter, priority, ident, data, nat
     source_projects = {}
     credits={'astra-front':'Astra-Front-credits.txt','bower-league':'Bower-League-credits.txt',
              'cgp':'CGP-credits.txt','max-league':'MAX-League-credits.txt'}
-    credit_bytes = (ROOT/'assets/track-packs'/credits[ident]).read_bytes()
+    if credit_bytes is None:
+        credit_bytes = (ROOT/'assets/track-packs'/credits[ident]).read_bytes()
     extracted_huckmine = None
     if ident == 'cgp':
         example = ROOT/'examples/huckmine'
@@ -126,8 +133,8 @@ def _export_pack(stock, result, base, root, exporter, priority, ident, data, nat
             course['source'] = archive.relative_to(root).as_posix()
             source.unlink()
     write_index(root, manifest)
-    shutil.copy2(ROOT/'assets/track-packs'/credits[ident],root/'CREDITS.txt')
-    audit = dict(source='reviewed patch extraction; not original FZEdit project',
+    (root/'CREDITS.txt').write_bytes(credit_bytes)
+    audit = dict(source=source_label,
                  donor_sha256=hashlib.sha256(result).hexdigest(),record_hashes=hashes)
     if source_projects:
         audit.update(source_projects=source_projects, extracted_huckmine_hash=extracted_huckmine)

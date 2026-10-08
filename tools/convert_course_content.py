@@ -1,7 +1,8 @@
-"""Convert a reviewed IPS/BPS or hacked ROM to an editable course pack.
+"""Convert IPS/BPS or hacked ROM resources to an editable course pack.
 
-Exact donor digests select reviewed layouts. Unknown donors produce a ROM-free
-report and return exit code 2; they never select guessed offsets or execute ASM.
+Reviewed revisions retain their established exports. Recognized FZEdit loaders
+are validated without a digest whitelist, then request labels/cup confirmation.
+Unsupported resource layouts return a ROM-free report and exit code 2.
 Use package_fzedit_course.py when original FZEdit source is available.
 """
 import argparse
@@ -20,6 +21,7 @@ import zipfile
 import zlib
 
 from audit_track_metadata import audit_metadata, GLYPHS, SONGS, span
+from audit_intro_font import atlas
 from course_tool_paths import ROOT, native_tool
 from export_runtime_packs import export_pack
 from import_astra_front import SOURCE_SHA256 as ASTRA_SOURCE_SHA256
@@ -40,7 +42,7 @@ AUDIO_SUFFIXES = ('.pcm', '.msu', '.wav', '.flac', '.mp3', '.ogg')
 KNOWN_IDS = ('astra-front', 'bower-league', 'cgp', 'max-league')
 ID_PATTERN = re.compile(r'[a-z0-9][a-z0-9-]{0,46}\Z')
 
-REVIEW = """This revision has not been qualified. No course pack was created.
+REVIEW = """The course resources could not be decoded and validated. No pack was created.
 
 1. Keep the original submission and author's credits. Confirm its required
    stock revision and record the input/target SHA-256 from conversion-report.json.
@@ -53,9 +55,10 @@ REVIEW = """This revision has not been qualified. No course pack was created.
    grip-magnets/up-magnets/rainbow-road capabilities. New behavior needs a native
    adapter and tests. No donor executable code is installed by this converter.
 5. Follow mods/PARSE_MANIFEST.md to qualify a typed layout and exact revision.
-   Add its digest, stable IDs, attribution and validation to the reviewed
-   registry; extend the exporter profile if it is a new pack, then rerun into
-   a new output directory. Arbitrary layouts are not accepted by this command.
+   Add a supported resource decoder and tests, or a reviewed registry profile
+   when a special adapter is needed. Recognized FZEdit layouts can instead use
+   the in-game review form without a pre-registered digest. Rerun into a new
+   output directory. Arbitrary executable behavior is never imported.
 6. Test GP, Practice, every cup transition, native SPC fallback, stock/other-pack
    isolation and records/save reload. Structural extraction is not a full race.
 
@@ -319,6 +322,31 @@ def reviewed_profile(target):
     return None
 
 
+def probe_cup_menu(target):
+    """Read the recognized 13-tile native menu table, without inventing glyphs."""
+    loader = span(target,0x03897c,32)
+    prefix=bytes.fromhex('c2 20 a9 70 05 8d 20 04 bf')
+    if loader[:len(prefix)] != prefix or loader[12:21] != bytes.fromhex('8d 22 04 a2 10 8e 24 04 a9'):
+        return None
+    table=int.from_bytes(loader[9:12],'little')
+    first=(table&0xff0000)|int.from_bytes(span(target,table,2),'little')
+    distance=first-table
+    if distance%2 or not 1 <= distance//2 <= 32:
+        return None
+    labels=[]; alphabet={0xaf:'A',0xd4:'S',0xd5:'T',0xd3:'R',0xc7:'F',0xd0:'O',0xce:'N',0xff:' '}
+    for i in range(distance//2):
+        pointer=(table&0xff0000)|int.from_bytes(span(target,table+i*2,2),'little')
+        if pointer != first+i*26:
+            return None
+        encoded=span(target,pointer,26)
+        row=dict(tile_words=[f'{int.from_bytes(encoded[j:j+2],"little"):04x}' for j in range(0,26,2)])
+        if all(code in alphabet for code in encoded[::2]):
+            row['name']=''.join(alphabet[code] for code in encoded[::2]).strip()
+        labels.append(row)
+    return dict(pointer_table=f'{table:06x}',cup_count=len(labels),labels=labels,
+                evidence='Recognized 13-word transfer; adjacent pointer table and fixed-width label records')
+
+
 def probe_fzedit_metadata(target):
     """Decode recognized data consumers; this does not qualify other donor ASM."""
     result = dict(status='unrecognized-loader', executable_compatibility_verified=False,
@@ -360,8 +388,14 @@ def probe_fzedit_metadata(target):
             return result
         count = distance//3
         span(target, minimap_table, count*3); span(target, position_table, count*4)
-        source_order = list(span(target, order_table, count))
-        if len(set(source_order)) != count or any(slot >= count for slot in source_order):
+        menu=probe_cup_menu(target)
+        races=menu['cup_count']*5 if menu else count
+        if menu:
+            result['donor_cup_menu']=menu
+        if not 1 <= races <= 128:
+            return result
+        source_order = list(span(target, order_table, races))
+        if len(set(source_order)) != races or any(slot >= count for slot in source_order):
             result['order_note'] = 'Internal resource count does not establish the published GP subset.'
             return result
         music = span(target, music_table, count)
@@ -394,6 +428,7 @@ def probe_fzedit_metadata(target):
                 row['msu_track'] = msu[24]+position
             tracks.append(row)
         result.update(status='recognized-resource-metadata', internal_resource_count=count,
+            published_course_count=races,
             count_evidence='Recognized adjacent minimap/position tables, three-byte minimap stride',
             name_table=f'{name_table:06x}', source_order_prefix=source_order, tracks=tracks,
             limitations=['Published cup labels/count and font artwork need review.',
@@ -402,6 +437,259 @@ def probe_fzedit_metadata(target):
     except ValueError as error:
         result['probe_error'] = str(error)
     return result
+
+
+def infer_fzedit_layout(target, stock, probe):
+    """Recognize bounded data consumers; no donor instructions are executed."""
+    if probe.get('status') != 'recognized-resource-metadata':
+        raise ValueError('The course order/resource count could not be identified safely')
+    count = probe['internal_resource_count']
+    layout = dict(format=['fzero-course-1'], count=[str(count)],
+                  names=[probe['name_table']], music=[probe['music_table']])
+    evidence = dict(method='recognized FZEdit data consumers and native bounded extraction', tables={})
+    regions = ((0, target[:0x8000]), (0x80000, target[0x80000:0x88000]))
+    def pointer(key, prefix, middle, tail=None, delta=0, width=3, optional=False):
+        expression = re.escape(bytes.fromhex(prefix))+b'(.{'+str(width).encode()+b'})'+re.escape(bytes.fromhex(middle))
+        if tail is not None:
+            expression += b'(.{'+str(width).encode()+b'})'+re.escape(bytes.fromhex(tail))
+        matches = []
+        for base, region in regions:
+            for match in re.finditer(expression, region, re.DOTALL):
+                address = int.from_bytes(match[1], 'little')
+                if tail is not None and int.from_bytes(match[2], 'little') != address+delta:
+                    continue
+                if width == 2:
+                    address |= 0x100000
+                try:
+                    span(target, address, 1)
+                except ValueError:
+                    continue
+                matches.append((address, base+match.start()))
+        addresses = {entry[0] for entry in matches}
+        if len(addresses) != 1:
+            if optional and not addresses:
+                return None
+            raise ValueError(f'{key}: expected one recognized table consumer, found {len(addresses)}')
+        address = matches[0][0]
+        layout[key] = [f'{address:06x}']
+        evidence['tables'][key] = dict(address=f'{address:06x}',
+            consumer_file_offsets=sorted({entry[1] for entry in matches}))
+        return address
+    pointer('settings', 'ae 59 10 bf', '5c 1f 9f 00')
+    pointer('palettes', 'ad 59 10 0a 6d 59 10 aa bf', '85 00 bf', '85 01 a0 de 00', 1)
+    pointer('pools', 'ad 59 10 0a 6d 59 10 aa a9 00 80 8d 00 43 a9 00 24 8d 05 43 bf',
+            '8d 02 43 e2 20 bf', '8d 04 43', 2)
+    pointer('graphics', 'ad 59 10 0a 6d 59 10 aa bf', '85 04 e2 20 bf', '85 06 a9 00 22 9b 82 10', 2)
+    pointer('paths', 'ad 59 10 0a 6d 59 10 aa bf', '85 30 bf', '85 31 64 33 5c 4e d6 00', 1)
+    pointer('sky_graphics', 'ad 59 10 0a 6d 59 10 aa a9 01 18 8d 00 43 bf',
+            '8d 02 43 bf', '8d 03 43 a9 00 20 8d 05 43', 1)
+    pointer('sky_back', 'a9 01 18 8d 00 43 bf', '85 00 8d 02 43 bf', 'e2 10 aa 8e 04 43 a9 00 07', 2)
+    pointer('sky_front', 'a9 60 71 8d 16 21 bf', '85 00 8d 02 43 bf', 'e2 10 aa 8e 04 43 a9 40 05', 2)
+    pointer('terrain', '8b c2 30 da 9b ad 59 10 0a 6d 59 10 aa bf',
+            '18 79 d0 0c a8 e2 20 bf', 'fa 48 ab e0 00 00', 2)
+    pointer('gradients', 'ae 59 10 bf', '85 9c 5c 22 a1 00')
+    pointer('shortcuts', '8b e2 20 bf', '48 ab c2 20 bf', 'aa bd 00 00 30 3f af 6d 10 00', -2)
+    layout['shortcuts'] = [f'{int(layout["shortcuts"][0],16)-2:06x}']
+    evidence['tables']['shortcuts']['address']=layout['shortcuts'][0]
+    pointer('palette_cycles', 'c2 30 8b 4b ab ad 59 10 0a aa bc', 'be 00 00 30 1c', width=2)
+    pointer('minimaps', 'ad 59 10 0a 6d 59 10 aa 8b bf', 'a8 e2 20 bf', '48 a9 80 8d 15 21', 2)
+    pointer('map_positions', 'ad 59 10 0a 0a aa bf', '8d d9 0a bf', '8d db 0a', 2)
+    # The map loader reads grid rows at table+3 before the block pointer.
+    pointer('maps', 'bf', '85 26 bf', '85 22 bf', -3)
+    layout['maps'] = [f'{int(layout["maps"][0],16)-3:06x}']
+    evidence['tables']['maps']['address']=layout['maps'][0]
+    opponents = pointer('opponents', 'ad 59 10 0a 6d 59 10 65 02 aa bf', 'e2 30 8d 66 10 6b', optional=True)
+    normalized = target
+    if opponents is None:
+        # FZEdit projects without opponent overrides retain original GP rules.
+        # Present these as resource-slot triples for the native typed decoder.
+        data = bytearray(count*3)
+        for position, slot in enumerate(probe['source_order_prefix']):
+            for level in range(3):
+                data[slot*3+level] = span(stock, 0x02fbda+level*15+position%15, 1)[0]
+        offset = (len(target)+0x7fff) & ~0x7fff
+        address = ((offset//0x8000)<<16)|0x8000
+        normalized = target+bytes(offset-len(target))+data
+        span(normalized, address, len(data))
+        layout['opponents'] = [f'{address:06x}']
+        evidence['opponents_policy'] = ('Original engine explosive-opponent frequencies by source GP position; '
+                                        'donor global opponent changes are excluded')
+        evidence['synthesized_data'] = dict(address=f'{address:06x}', bytes=len(data), sha256=digest(data))
+    else:
+        evidence['opponents_policy'] = 'Recognized donor per-resource opponent table'
+    # Preserve changed, used intro glyph artwork through the known remapper.
+    if span(target, 0x00d146, 30) != bytes.fromhex(
+            '08 e2 20 c9 bb b0 31 eb 29 7f eb aa bf 50 81 10 48 '
+            'bf 95 80 10 85 00 f0 03 20 93 d1 fa f0'):
+        raise ValueError('The intro font resource remapper is unsupported')
+    native_font, donor_font = atlas(stock), atlas(target)
+    used = set()
+    for row in probe['tracks']:
+        address = int.from_bytes(span(target, int(layout['names'][0],16)+row['slot']*3,3),'little')
+        used.update(span(target,address,128).split(b'\0',1)[0][6:])
+    for code in sorted(used-{0xff}):
+        lookup = 0x8e if code == 0xfe else code
+        top = span(target, 0x108095+lookup,1)[0]
+        bottom = span(target, 0x108150+lookup,1)[0]
+        if any(tile not in donor_font or donor_font[tile][1] != 2 for tile in (top,bottom)):
+            raise ValueError('The donor intro font uses unsupported compression or blank/flip semantics')
+        original = native_font.get(lookup), native_font.get(lookup+16)
+        if any(item is None for item in original) or tuple(donor_font[tile][2] for tile in (top,bottom)) != tuple(item[2] for item in original):
+            layout.setdefault('intro_glyph',[]).append(f'{code:02x}|{donor_font[top][0]:06x}|{donor_font[bottom][0]:06x}')
+    evidence['intro_glyph_overrides'] = layout.get('intro_glyph',[])
+    masks = ((0x0098b1,'29 04'),(0x0098bc,'29 f4'),(0x0098ce,'29 14'),(0x0098f1,'29 f4'),(0x0098f9,'89 04'))
+    if all(span(target,address,2) == bytes.fromhex(opcodes) for address,opcodes in masks):
+        layout.setdefault('require',[]).append('all|grip-magnets')
+        evidence['mechanics'] = ['grip-magnets: five recognized native damage-mask instruction changes']
+    else:
+        evidence['mechanics'] = ['Base typed terrain resources; additional donor ASM is excluded']
+    evidence['unsupported_global_code_executed'] = False
+    return normalized, layout, evidence
+
+
+def review_form(report, probe):
+    tracks = probe['tracks']; cups = (len(tracks)+4)//5
+    stem = PurePosixPath(report.get('donor_member', report['input_name'])).stem
+    fields = [dict(id='pack_name', label='Pack name', type='text', value=stem.encode('utf-8')[:95].decode('utf-8','ignore')),
+              dict(id='author', label='Course author', type='text', value='Unknown author')]
+    options = [dict(value=f'cup-{i+1}',label=f'Cup {i+1}') for i in range(cups)]
+    for i in range(cups):
+        names = ', '.join(row.get('name', f'Course {row["slot"]+1}') for row in tracks[i*5:i*5+5])
+        donor_label=probe.get('donor_cup_menu',{}).get('labels',[])
+        donor_label=donor_label[i].get('name') if i<len(donor_label) else None
+        origin='Extracted donor menu label.' if donor_label else 'Suggested user label; source menu label not decoded.'
+        fields.append(dict(id=f'cup_{i+1}_name', label=f'Cup {i+1} name', type='text', value=donor_label or f'Cup {i+1}',
+                           description=f'{origin} Initial courses: {names}'))
+    for position,row in enumerate(tracks):
+        if 'name' not in row:
+            fields.append(dict(id=f'name_slot_{row["slot"]}', label=f'Course {position+1} name', type='text',
+                               value=f'Course {position+1}', description=row.get('name_error','Name needs review')))
+        fields.append(dict(id=f'cup_for_slot_{row["slot"]}', label=row.get('name',f'Course {position+1}')+' cup',
+                           type='choice', value=f'cup-{position//5+1}', options=options))
+    return dict(fields=fields, courses=tracks, target_sha256=report['target_sha256'], input_sha256=report['input_sha256'],
+                description='Confirm the pack labels and cup assignments. Each cup needs 1–5 courses; '
+                'source race order is kept within each cup. Courses use supported course rules; '
+                'donor vehicles, global gameplay changes, menus and executable code are excluded. '
+                'Extraction does not certify complete race playability.')
+
+
+def read_review_answers(report, answers):
+    data = json.loads(read_bounded(answers, 128*1024).decode('utf-8'))
+    if (not isinstance(data,dict) or data.get('target_sha256') != report.get('target_sha256')
+            or data.get('input_sha256') != report.get('input_sha256') or 'target_sha256' not in report):
+        raise ValueError('Review answers belong to a different source or target; select the source again')
+    return data
+
+
+def review_values(report, form, answers):
+    values = {field['id']: field['value'] for field in form['fields']}
+    if answers is not None:
+        data = read_review_answers(report,answers)
+        provided = data.get('values')
+        if not isinstance(provided,dict) or any(key not in values for key in provided):
+            raise ValueError('Review answers contain unknown fields')
+        if any(not isinstance(value,str) or len(value)>256 for value in provided.values()):
+            raise ValueError('Review answers must be strings of at most 256 characters')
+        values.update(provided)
+    for field in form['fields']:
+        value = values[field['id']]
+        if field['type'] == 'choice':
+            if value not in {option['value'] for option in field['options']}:
+                raise ValueError(f'Invalid choice for {field["label"]}')
+        elif (not value.strip() or len(value.encode('utf-8'))>95 or any(ord(char)<32 or char=='|' for char in value)):
+            raise ValueError(f'{field["label"]} needs 1–95 UTF-8 bytes of single-line text')
+        values[field['id']] = value.strip()
+    cup_ids = [option['value'] for option in next(field for field in form['fields'] if field['type']=='choice')['options']]
+    assignments = Counter(values[f'cup_for_slot_{row["slot"]}'] for row in form['courses'])
+    if any(not 1 <= assignments[cup] <= 5 for cup in cup_ids):
+        raise ValueError('Each cup must have 1–5 courses; adjust the course assignments')
+    return values
+
+
+def inferred_manifest(report, probe, values):
+    identity = 'custom-'+report['target_sha256'][:24]
+    data = dict(format=['1'],id=[identity],name=[values['pack_name']],author=[values['author']],
+                adapter=['fzero-course-v1'],source_sha256=[STOCK_SHA256],target_sha256=[report['target_sha256']],cup=[],track=[])
+    for i in range((len(probe['tracks'])+4)//5):
+        data['cup'].append(f'cup-{i+1}|{values[f"cup_{i+1}_name"]}|{i}')
+    for row in probe['tracks']:
+        slot=row['slot']; name=values.get(f'name_slot_{slot}',row.get('name',f'Course {slot+1}'))
+        data['track'].append(f'course-{slot+1}|{name}|{values[f"cup_for_slot_{slot}"]}|{slot}')
+    validate_identities(data)
+    return data
+
+
+def write_fields(path, data):
+    path.write_text(''.join(f'{key}={value}\n' for key,values in data.items() for value in values), encoding='utf-8')
+
+
+def publish_pack(pack, out):
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.fzc-publish-', dir=out.parent) as publication:
+        staged = Path(publication)/'pack'
+        shutil.copytree(pack, staged)
+        if out.exists() or out.is_symlink():
+            raise ValueError(f'Refusing to replace existing output: {out}')
+        staged.rename(out)
+
+
+def write_review_report(out, report):
+    out.mkdir(parents=True, exist_ok=False)
+    (out/'conversion-report.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
+    text = ('The editable courses passed native extraction and round-trip validation.\n'
+            'Confirm the labels and cup assignments in Custom Content to finish import.\n'
+            'Vehicles and global donor game changes are excluded. No pack was installed.\n') if report['status']=='needs-input' else REVIEW
+    (out/'REVIEW.txt').write_text(text,encoding='utf-8')
+
+
+def convert_inferred(source, out, target, stock, report, probe, exporter, inspector, answers):
+    normalized, layout, evidence = infer_fzedit_layout(target,stock,probe)
+    form = review_form(report,probe)
+    required=[row.split('|',1)[1] for row in layout.get('require',[])]
+    if required:
+        form['description'] += ' Recognized supported course mechanics: '+', '.join(required)+'.'
+    values = review_values(report,form,answers)
+    data = inferred_manifest(report,probe,values)
+    identity = data['id'][0]
+    if probe.get('msu_selector',{}).get('recognized'):
+        layout['msu_source'] = [identity]
+        layout['msu'] = [f'{row["slot"]}|{row["msu_track"]}' for row in probe['tracks']]
+        data['soundtrack_prefix'] = [PurePosixPath(report.get('donor_member',report['input_name'])).stem]
+    report.update(inferred_layout=layout, inference=evidence, review=form, required_mechanics=required,
+                  gameplay_qualification='Course data only; vehicles/global donor code excluded; full races not certified',
+                  cup_labels='User labels and confirmed assignments; not claimed as authored donor menu labels',
+                  title_policy='Original game presentation; donor title/menu changes excluded')
+    report['warnings'].append('Courses use the current engine. Donor vehicles, global gameplay changes, '
+                              'menus and executable code are excluded; test the courses before relying on complete race playability.')
+    report['warnings'].append(evidence['opponents_policy'])
+    with tempfile.TemporaryDirectory(prefix='fzc-') as temporary:
+        temp = Path(temporary); base=temp/'inferred'; pack=temp/'packs'/identity
+        baseline=temp/'native'; baseline.mkdir()
+        write_fields(base.with_suffix('.ini'),data); write_fields(base.with_suffix('.layout'),layout)
+        credits=(f'{values["pack_name"]}\nCourse author: {values["author"]}\n'
+                 f'Imported from {report["input_name"]}. Preserve the original author files and credits.\n'
+                 'Editable reconstruction from inferred FZEdit resource data; not original author project.\n').encode('utf-8')
+        extraction=export_pack(stock,normalized,base,pack,exporter,native_resources=baseline,
+                               credit_bytes=credits, source_label='recognized FZEdit extraction; user-confirmed course pack')
+        report['validation']=inspect_roundtrip(inspector,temp,pack,baseline,extraction)
+        report['validation']['byte_exact_to_extracted_courses']=report['validation'].pop('byte_exact_to_donor_courses')
+        report['validation']['basis']='Typed donor resources plus the explicit opponent policy in inference'
+        report.update(pack_id=identity,metadata=dict(tracks=probe['tracks'], source_order=probe['source_order_prefix']),
+                      omissions=['donor executable patches, vehicles, menus and global game rules',
+                                 'original author editing layers/history for reconstructed courses'])
+        if answers is None:
+            report.update(status='needs-input',message=f'{len(probe["tracks"])} editable courses passed validation. '
+                          'Confirm the pack name, cup labels and course assignments to import them.')
+        else:
+            copy_archive_audio(source,report,pack)
+            report.update(status='converted',review_answers=values,
+                          message=f'{len(probe["tracks"])} editable courses imported with your labels and cup assignments.')
+            # Audio is optional; installed course data already passed byte checks.
+            (pack/'conversion-report.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
+            publish_pack(pack,out)
+    if answers is None:
+        write_review_report(out,report)
+    return report
 
 
 def copy_archive_audio(source, report, pack):
@@ -589,7 +877,7 @@ def inspect_roundtrip(inspector, temp, pack, baseline, extraction):
                 fields_checked='all serialized native course fields, including SPC and intro glyphs')
 
 
-def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_member=None):
+def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_member=None, answers=None):
     """Publish one new directory only after validation; never alter the inputs."""
     out = Path(out)
     if out.exists() or out.is_symlink():
@@ -597,6 +885,8 @@ def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_mem
     out = out.resolve()
     stock_data = read_stock(stock) if stock is not None else None
     target, report = read_submission(source, stock_data, patch_member)
+    if answers is not None:
+        read_review_answers(report,answers)
     profile = reviewed_profile(target) if target is not None else None
     report.update(format='fzero.content-conversion', version=1, source_rom_exported=False,
                   donor_code_executed=False)
@@ -609,17 +899,34 @@ def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_mem
             detected = f'Detected {count} internal course resources' if count else 'The donor needs a reviewed course layout'
             if recordings:
                 detected += f' and {recordings} PCM recordings'
-            report['reason'] = (detected+'. New course code, layout, cup labels and mechanics still need qualification. '
+            report['reason'] = (detected+'. The resource layout needs a supported decoder. '
                                 'No courses or recordings were installed; your original files are unchanged.')
+            if probe['status'] == 'recognized-resource-metadata' and stock_data is not None:
+                # Bad/stale form values are input errors, not failed extraction.
+                if answers is not None:
+                    review_values(report,review_form(report,probe),answers)
+                native_exporter=Path(exporter or native_tool('FZeroExportCourses.exe')).resolve()
+                native_inspector=Path(inspector or native_tool('FZeroInspectPacks.exe')).resolve()
+                if not native_exporter.is_file() or not native_inspector.is_file():
+                    raise ValueError('Build FZeroExportCourses/FZeroInspectPacks or supply --exporter and --inspector')
+                try:
+                    report.pop('reason',None)
+                    return convert_inferred(source,out,target,stock_data,report,probe,
+                                            native_exporter,native_inspector,answers)
+                except (ValueError,subprocess.SubprocessError) as error:
+                    detail = str(error)
+                    if isinstance(error,subprocess.CalledProcessError):
+                        detail = (error.stderr or error.stdout or detail).strip()
+                    report.pop('review',None)
+                    report.update(structural_error=detail,reason='The candidate course resources could not be extracted '
+                                  f'and round-trip validated: {detail}. No pack was installed.')
         report.update(status='review-required', qualification_document='mods/PARSE_MANIFEST.md')
         if report.get('audio_inventory', {}).get('pcm_count'):
             report['warnings'].append('Recordings were inventoried, not assigned or installed. '
                                       'They remain in your unchanged ZIP; donor MSU behavior needs review.')
         if stock_data is not None and target is not None:
             report['file_difference_evidence'] = changed_summary(stock_data, target)
-        out.mkdir(parents=True, exist_ok=False)
-        (out/'conversion-report.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
-        (out/'REVIEW.txt').write_text(REVIEW, encoding='utf-8')
+        write_review_report(out,report)
         return report
     if stock_data is None:
         raise ValueError('Known ROM export requires --stock for reviewed title resources')
@@ -659,12 +966,7 @@ def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_mem
         (pack/'conversion-report.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
         # The short workspace may be on another volume. Copy a complete,
         # validated pack beside the destination, then publish by local rename.
-        with tempfile.TemporaryDirectory(prefix='.fzc-publish-', dir=out.parent) as publication:
-            staged = Path(publication)/'pack'
-            shutil.copytree(pack, staged)
-            if out.exists() or out.is_symlink():
-                raise ValueError(f'Refusing to replace existing output: {out}')
-            staged.rename(out)
+        publish_pack(pack,out)
     return report
 
 
@@ -675,17 +977,21 @@ def main(argv=None):
     parser.add_argument('--stock', type=Path, help='private original F-Zero USA ROM')
     parser.add_argument('--exporter', type=Path)
     parser.add_argument('--inspector', type=Path)
+    parser.add_argument('--answers', type=Path, help='source-bound JSON review answers from Custom Content')
     parser.add_argument('--patch-member', '--member', dest='patch_member',
                         help='exact IPS/BPS/ROM member name in an ambiguous ZIP')
     args = parser.parse_args(argv)
     try:
         report = convert(args.source, args.out, stock=args.stock, exporter=args.exporter,
-                         inspector=args.inspector, patch_member=args.patch_member)
+                         inspector=args.inspector, patch_member=args.patch_member, answers=args.answers)
     except (ValueError, OSError, zipfile.BadZipFile, RuntimeError, subprocess.SubprocessError) as error:
         parser.exit(1, f'{error}\n')
     if report['status'] == 'review-required':
-        print(f'Unreviewed revision: {args.out}/conversion-report.json; see CONVERSION.md')
+        print(f'Unsupported course format: {args.out}/conversion-report.json; see CONVERSION.md')
         return 2
+    if report['status'] == 'needs-input':
+        print(f'Confirm course labels and cup assignments: {args.out}/conversion-report.json')
+        return 3
     print(f'{report["pack_id"]}: validated editable course pack in {args.out}')
     return 0
 
