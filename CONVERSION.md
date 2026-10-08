@@ -10,14 +10,23 @@ Import button for all of these inputs. The list also shows installed mod files.
 CGP, Astra Front, Bower and MAX are included packs. This page cannot remove or
 replace them. Huckmine belongs to CGP; it is not an additional default pack.
 
-Reviewed patch conversion runs automatically with your selected game ROM.
-You do not need Python or a command line. If a revision needs review, the
-importer explains why it cannot be installed; the sections below describe how
-an author or maintainer can qualify it.
+Patch conversion uses your selected original game ROM. You do not need Python
+or a command line. Known packs import directly. For a new supported FZEdit-based
+hack, the importer checks the courses, then opens **Review your courses**.
+Give the pack and its cups names, check the course assignments, and choose
+**Import courses**. Suggested cup names are editable labels, not claims about
+the original hack. Cancel leaves the installed collection unchanged.
+
+Course names and music choices are read from the source where possible. Cup
+dropdowns let you correct grouping without editing files. Each cup needs one
+to five courses. The imported courses use the supported game rules described
+in the review; custom vehicles and other game-wide code changes are not copied.
+If the actual course format cannot be decoded and validated, the importer
+explains what is unsupported instead of asking you for memory addresses.
 
 Keep a spare copy of the files you received. Original F-Zero Edit projects are
 the best input: they already contain the editable course. A ROM patch can also
-be converted when its exact revision has a reviewed import profile.
+be converted when its course data uses a supported layout.
 
 Conversion adds course data and supported course mechanics. Vehicle changes,
 global game rules and other donor ASM need separate adaptation. ZIPs can include
@@ -37,10 +46,11 @@ destination is unclear; the importer does not guess from the track's sound.
 
 The converter accepts `.ips`, `.bps`, a hacked `.sfc`/`.smc`/`.rom`/`.fig` image,
 or a ZIP containing these files, including downloads with MSU recordings and
-documentation. It checks the resulting ROM's SHA-256 rather than trusting a
-filename. The reviewed profiles cover Astra Front, Bower League, the current CGP
-P3test revision, and MAX League Classic/Modern. Older CGP revisions are not
-accepted. The original reviewed Astra Front ROM is also recognized.
+documentation. It checks the resulting ROM's contents rather than trusting a
+filename. Direct-import profiles cover Astra Front, Bower League, the current
+CGP P3test revision, and MAX League Classic/Modern. Other supported FZEdit-based
+revisions use the interactive review. Older revisions do not inherit a known
+pack's identity or compatibility claims.
 
 For maintainers, run this from the repository root:
 
@@ -64,20 +74,28 @@ reviewed profile. If a ZIP contains distinct packs or unknown differing targets,
 select the intended patch or ROM with `--member "folder/course.bps"`. Import
 one pack at a time; the picker does not silently choose between different hacks.
 
-Unrecognized revisions create only `conversion-report.json` and `REVIEW.txt`.
-The command returns **2** to distinguish review needed from successful conversion
-(**0**) or a malformed input/tool failure (**1**). The report records hashes and
+Structurally supported new FZEdit revisions produce a review form after native
+extraction and editable-project validation. The command returns **3** while
+waiting for the user's details, **2** for an unsupported conversion, **0** for
+success, or **1** for a malformed input/tool failure. The report records hashes and
 bounded file-difference evidence when a stock ROM is available. No patched ROM
 is included in any output.
 
-To qualify an unknown patch, ask its author for the original project first.
-Otherwise a person or agent must review its loader, data tables and ASM, establish
+For automation, pass `--answers path/to/answers.json` when resuming a review.
+The file must contain the report's `target_sha256` and `input_sha256`, plus a
+`values` object mapping each review field ID to its chosen string. This binds
+the answers to the file that was checked; a changed ZIP must be checked again.
+The launcher handles this automatically.
+
+If automatic course extraction is unsupported, ask its author for the original
+project first. Otherwise a person or agent must review its loader and data tables, establish
 the actual cup labels/order, names, SPC music, intro lettering and title layout,
 and check every course's gameplay. Follow the concrete examples in
 [the import checklist](mods/PARSE_MANIFEST.md). A new mechanic needs an implemented
-native adapter; a successful data parse does not prove a full race works. Add
-the validated exact revision to the reviewed registry and exporter profile
-before unattended conversion. Arbitrary donor code is never run.
+native adapter; a successful data parse does not prove a full race works.
+Extend the supported resource decoder, or add a validated exact revision to
+the reviewed registry and exporter profile for unattended conversion.
+Arbitrary donor code is never run.
 
 The recovered projects include the road, tile art, terrain, colors, sky, minimap,
 AI/checkpoints, shortcuts, intro lettering, opponents and supported mechanics.

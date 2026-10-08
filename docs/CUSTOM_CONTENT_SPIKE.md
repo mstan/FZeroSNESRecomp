@@ -16,10 +16,14 @@ Another game can implement that provider without inheriting F-Zero parsing.
 ## What works
 
 - Ready pack folders/ZIPs and single raw FZEdit projects/folders/ZIPs.
-- Reviewed IPS/BPS, ZIP downloads, and raw/headered SNES ROM hacks through a
+- IPS/BPS, ZIP downloads, and raw/headered SNES ROM hacks through a
   standalone Windows helper. No end-user Python installation is required.
 - Automatic recognition by verified target hash. Equivalent IPS/BPS pairs in
   a ZIP are resolved automatically; incompatible/ambiguous inputs are rejected.
+- New FZEdit-family revisions can be decoded from supported loader patterns.
+  After course validation, a review form asks for pack/cup names and shows a
+  cup dropdown for each detected course. Labels can change without changing
+  record identities. No memory addresses or manifest editing are required.
 - CGP, Astra Front, Bower and MAX conversions retain their reviewed course and
   cup IDs, names/order, SPC music, supported mechanics and title policy.
 - Display names are separate from save identities. Duplicate IDs are rejected;
@@ -29,8 +33,9 @@ Another game can implement that provider without inheriting F-Zero parsing.
   even if their data folder is missing. There is no removal control for them.
 - Imports validate in an isolated staging directory before publication. Course
   archives share bounded expansion limits; linked and escaping paths fail.
-- Unknown hacks produce an explanation and persistent report under
-  `mods/import-reports`, without installing a partial pack or donor ROM.
+- Unsupported resource layouts produce an explanation and persistent report
+  under `mods/import-reports`. Supported new layouts wait for review without
+  installing anything; cancelling leaves the installed collection unchanged.
 - `mods/CONVERSION.md` explains both input paths and how to qualify a new hack.
 
 ZIP music follows reviewed course/menu mappings or a matching course filename.
@@ -43,8 +48,11 @@ byte-for-byte, renamed one recording and reported one unresolved recording.
 This is a spike on `spike/fzero-custom-content`, using recomp-ui's
 `spike/custom-content-page`. It has not been merged into the release branch.
 
-Unknown donor ASM/layouts cannot be inferred safely from an IPS/BPS patch. They
-need a reviewed extraction profile and, for new mechanics, a native adapter.
+Supported data-loader patterns are inferred from ROM instructions rather than
+download names or a list of approved hashes. Unrecognized layouts still need a
+reviewed extraction profile. Arbitrary donor ASM is not translated or executed:
+new mechanics need a native adapter. Interactive course-only imports explain
+the exclusion of donor vehicles, menus and global game rules before import.
 Raw FZEdit projects contain no ASM declaration and use standard rules unless
 wrapped in a manifest declaring supported mechanics. Consequently bare HM.zip
 is an editor-data import; its CGP magnet declarations come from the packaged
@@ -67,17 +75,27 @@ can use the documented maintainer conversion command.
 - Shared UI: 25 checks, including NULL-provider invisibility and busy-state
   launch guard; integrated launcher build and 1100×880 visual capture. The real
   Windows file picker, edited name and successful import were exercised together.
+- Interactive review: host lifecycle check covers source-bound answers, edited
+  labels, invalid-cup correction, partial-music success and cancellation. Shared
+  UI checks preserve edits while polling/retrying and prevent Play or a second
+  import while a review is pending. All review callbacks remain opt-in.
 - Native importer: 21 integration cases using the original HM.zip, ready packs,
   display naming, duplicate imports, malformed inputs, bounded nested archives,
   uppercase extensions, included-ID protection, ZIP ROM routing, music-only
   guidance, visible conversion warnings and transactional failure. ROM-free subset is in CTest.
-- Converter: 33 ROM-free checks. All 75 converted editable course ZIPs exactly
+- Converter: ROM-free checks cover reviewed and inferred conversions, stale
+  answers, invalid assignments and unsupported resource structures. All 75 converted editable course ZIPs exactly
   match the existing shipped examples. The 74 reconstructed courses match full
   native course bytes; original Huckmine retains its existing author source.
 - Full original Astra ROM, MAX Modern, IPS/BPS, equivalent patch ZIPs and
-  headered ROM inputs passed. Unknown targets produced report-only output.
+  headered ROM inputs passed. Unsupported targets produce report-only output.
 - Native importer invoked the standalone helper successfully with Python/MSYS
   absent from PATH; Bower installed correctly and unknown targets left reports.
+- Both downloaded ZIPs passed the packaged helper's review/resume flow with
+  Python/MSYS absent from PATH. Each installed ten validated course ZIPs in an
+  isolated test directory, preserved the detected record hashes and left its
+  source archive unchanged. MF copied ten recordings and flagged four;
+  FZero55 flagged all thirteen recordings for manual placement.
 - Existing course-parser, music-source and per-course save checks passed.
 
 An independent adversarial review found an existing reconstruction-JSON stack
@@ -98,13 +116,17 @@ These downloads are local test inputs, never part of the included collection:
 | F-Zero MF.zip | BPS | 10 | 14 |
 | FZero55 (1).zip | IPS | 10 | 13 |
 
-The first automated attempt rejected both archives at the old 32 MiB input
-limit, before reading their patches. Streaming ZIP support now accepts both
-archives and produces a compatibility report. Their shared FZEdit data-loader forms can
-be identified from ROM instructions, but neither exact revision has a reviewed
-conversion profile. Recognizing the data format is not enough to claim that
-all custom code and music routing are implemented. Keep their results explicit
-and do not install incomplete approximations or add these to the defaults.
+Both archives now pass automatic course extraction and editable-project
+roundtrip validation without an exact-revision profile. Each exposes ten
+detected names in the review form, initially grouped into two cups of five.
+The user supplies cup labels and confirms assignments; these are not claimed
+as recovered author menu labels. The form explains that custom vehicles and
+global code changes are excluded. Data validation does not certify full races.
+
+MF's recognized MSU selector provides ten course recording mappings. FZero55's
+different selector is not recognized: courses can import with their original
+SPC selections, with a warning to add recordings manually. Neither experiment
+is part of the included collection.
 
 The owner requested the final validation through the real picker by hand.
 Leave both experiments absent from the prototype's installed packs for that

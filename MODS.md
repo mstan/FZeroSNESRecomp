@@ -12,10 +12,12 @@ The importer checks the files first. If they work, it installs the pack and
 you can press Play. Track Pack Loader must be enabled in Mods. A different
 display name does not overwrite an existing pack or change saved records.
 
-Original editor projects work best. Some patches need a reviewed conversion
-profile before their courses can be used; a patch alone does not explain its
-custom code. An unsupported input gets an explanation instead of a partial
-installation. See [CONVERSION.md](CONVERSION.md) for editor and patch workflows.
+Original editor projects work best. For a new supported ROM hack, **Review your
+courses** lets you name the cups and check the suggested course assignments.
+Choose **Import courses** to finish, or Cancel to leave everything unchanged.
+This imports course data using supported game rules; custom vehicles and other
+game-wide code changes are not included. Formats that cannot be decoded get an
+explanation. See [CONVERSION.md](CONVERSION.md) for editor and patch workflows.
 The same guide is included inside the build's `mods` folder.
 
 Community Grand Prix, Astra Front, Bower League and MAX League appear as

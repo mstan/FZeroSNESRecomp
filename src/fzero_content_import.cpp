@@ -401,7 +401,7 @@ std::wstring quote(const std::wstring &s) {
 #endif
 void convert(const fs::path &source, const fs::path &stock,
              const fs::path &helpers, const fs::path &out,
-             const fs::path &reports) {
+             const fs::path &reports, const fs::path &answers) {
   auto exe = helpers / "FZeroConvertContent.exe";
   need(fs::is_regular_file(exe),
        "Patch conversion tools are not installed in this build. See "
@@ -417,6 +417,8 @@ void convert(const fs::path &source, const fs::path &stock,
            (helpers / "FZeroExportCourses.exe").wstring(), L"--inspector",
            (helpers / "FZeroInspectPacks.exe").wstring()})
     cmd += L" " + quote(arg);
+  if (!answers.empty())
+    cmd += L" --answers " + quote(answers.wstring());
   auto log = out.parent_path() / "conversion.log";
   SECURITY_ATTRIBUTES security{sizeof(security), nullptr, TRUE};
   HANDLE output =
@@ -444,8 +446,7 @@ void convert(const fs::path &source, const fs::path &stock,
   if (code != 0) {
     std::string message =
         code == 2
-            ? "This hack is not a reviewed conversion yet. No courses were "
-              "installed."
+            ? "This course format could not be converted. No courses were installed."
             : "The patch could not be converted. No courses were installed.";
     auto report = out / "conversion-report.json";
     fs::create_directories(reports);
@@ -465,12 +466,17 @@ void convert(const fs::path &source, const fs::path &stock,
     }
     message += "\nDetails: " + reports.string() +
                "\nSee mods/CONVERSION.md for the next steps.";
+    if (code == 3 && fs::is_regular_file(reports / "conversion-report.json"))
+      throw FzeroContentNeedsInput(
+          "Review the detected courses before importing.",
+          reports / "conversion-report.json");
     throw std::runtime_error(message);
   }
 #else
   (void)source;
   (void)out;
   (void)reports;
+  (void)answers;
   throw std::runtime_error(
       "Patch conversion in this spike is available on Windows. See "
       "mods/CONVERSION.md for the command-line workflow.");
@@ -503,7 +509,8 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
                                             const fs::path &modsInput,
                                             const fs::path &stockInput,
                                             const fs::path &helpersInput,
-                                            const std::string &displayName) {
+                                            const std::string &displayName,
+                                            const std::string &answersJson) {
   need(displayName.size() < 96 &&
            std::none_of(displayName.begin(), displayName.end(),
                         [](unsigned char c) { return c < 32; }),
@@ -521,6 +528,15 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
                  std::chrono::steady_clock::now().time_since_epoch().count()) +
              "-" + std::to_string(sequence++);
   Stage stage{mods / ".imports" / key};
+  fs::path answers;
+  if (!answersJson.empty()) {
+    need(answersJson.size() <= 256 * 1024,
+         "Import answers exceed the size limit.");
+    answers = stage.path / "answers.json";
+    std::ofstream output(answers, std::ios::binary);
+    output.write(answersJson.data(), answersJson.size());
+    need(bool(output), "Cannot save import answers.");
+  }
   // Nested editor source paths otherwise exceed Windows' path limit when
   // the game itself sits in a deep build or Downloads directory.
   Stage cache{fs::temp_directory_path() / ("fzimport-" + key)};
@@ -530,7 +546,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
   bool patch = donorExtension(extension);
   auto reports = mods / "import-reports" / key;
   if (patch) {
-    convert(source, stock, helpers, unpacked / "converted", reports);
+    convert(source, stock, helpers, unpacked / "converted", reports, answers);
   } else if (fs::is_directory(source))
     copyProject(source, unpacked);
   else if (extension == ".fzm")
@@ -541,7 +557,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
     // documentation or tools in patch downloads are never run or installed.
     auto contents = unzip(source, {}, true);
     if (contents.donor && !contents.editor)
-      convert(source, stock, helpers, unpacked / "converted", reports);
+      convert(source, stock, helpers, unpacked / "converted", reports, answers);
     else
       unzip(source, unpacked);
   } else
@@ -566,7 +582,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
          "Choose one patch or ROM hack, or its ZIP download.");
     auto converted = stage.path / "converted";
     convert(extension == ".zip" ? source : donors.front(), stock, helpers,
-            converted, reports);
+            converted, reports, answers);
     manifests.push_back(converted / "pack.json");
   }
   auto catalog = stage.path / "catalog";
@@ -584,7 +600,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
                                           cache.path.string().c_str(),
                                           &original, error, sizeof(error));
     need(valid, error);
-    refreshManifest(candidate, displayName);
+    refreshManifest(candidate, answersJson.empty() ? displayName : "");
   } else {
     need(!projects.empty() || !audio,
          "This ZIP contains music but no courses or patch. Add recordings to "
@@ -655,9 +671,11 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
         if (warning.IsString() && warnings.size() < 768) {
           if (!warnings.empty())
             warnings += "\n";
-          warnings += std::string(warning.GetString()).substr(0, 768 - warnings.size());
+          warnings +=
+              std::string(warning.GetString()).substr(0, 768 - warnings.size());
         }
   }
   fs::rename(candidate, dest);
-  return {info.id, info.name, dest, info.track_count, manifests.empty(), warnings};
+  return {info.id,          info.name,         dest,
+          info.track_count, manifests.empty(), warnings};
 }
