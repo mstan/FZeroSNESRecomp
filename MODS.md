@@ -31,7 +31,17 @@ import both together. If a song's destination is uncertain, valid courses still
 import and the result tells you which music needs attention. Your original ZIP
 stays unchanged. See the pack's `conversion-report.json` for unresolved files;
 place each intended recording at `music/<course-filename>.pcm`. Importing
-content does not change that convention.
+content does not change that convention. The installed pack keeps a **songs
+weren't imported (?)** notice. Hover it for placement instructions. This is a
+record of the import, so adding songs later does not change that notice.
+
+### Import limits
+
+ROM-hack imports bring over courses and supported course rules. They do not
+bring over custom vehicles, menus, or other game-wide code changes. A successful
+import checks the course files; it does not guarantee every custom mechanic
+will behave like the original hack. Original F-Zero Edit exports are preferred.
+Unmatched songs need manual placement, and missing songs use SNES music.
 
 ## Opening Records for testing
 

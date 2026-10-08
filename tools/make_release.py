@@ -62,6 +62,15 @@ for line in (build / "CMakeCache.txt").read_text(encoding="utf-8").splitlines():
 dependency_roots = {"snesrecomp": Path(cache.get("SNESRECOMP_ROOT", ROOT / "snesrecomp")),
                     "recomp-ui": Path(cache.get("RECOMP_UI_ROOT", ROOT / "recomp-ui"))}
 exe = build / a.exe
+import_helpers = [build / filename for filename in (
+    'FZeroConvertContent.exe', 'FZeroExportCourses.exe', 'FZeroInspectPacks.exe')]
+for helper in import_helpers:
+    if not helper.is_file():
+        raise SystemExit(f'Missing Custom Content runtime helper: {helper}')
+helper_licenses = build / 'licenses/content-importer'
+if not helper_licenses.is_dir() or not all((helper_licenses / name).is_file() for name in
+                                          ('Python.txt', 'Pillow.txt', 'PyInstaller.txt')):
+    raise SystemExit('Missing importer notices; rebuild and stage the converter helper')
 image = exe.read_bytes()
 release_version = version + ("-" + a.label if a.label else "")
 if cache.get("SNESRECOMP_BUILD_VERSION") != release_version:
@@ -89,6 +98,8 @@ if developer:
 stage = ROOT / a.output / name
 stage.mkdir(parents=True, exist_ok=False)
 shutil.copy2(exe, stage / "FZeroSNESRecomp.exe")
+for helper in import_helpers:
+    shutil.copy2(helper, stage / helper.name)
 # Build trees can contain privately imported shaders; never redistribute them.
 shutil.copytree(build / "assets", stage / "assets", ignore=shutil.ignore_patterns(
     "shaders", "music", "track-packs", *([] if developer else ["README.md"])))
@@ -144,6 +155,11 @@ if bundled_music and music_manifest.get("attribution_review", {}).get("status") 
 shutil.copy2(deluxe_mods / "BS-Deluxe-credits.txt", stage / "mods/BS-Deluxe-credits.txt")
 shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
 shutil.copy2(ROOT / "MODS.md", stage / "MODS.md")
+shutil.copy2(ROOT / "CONVERSION.md", stage / "CONVERSION.md")
+guide = (ROOT / 'CONVERSION.md').read_text(encoding='utf-8')
+guide = guide.replace('(mods/PARSE_MANIFEST.md)', '(PARSE_MANIFEST.md)')
+guide = guide.replace('(docs/PACK_FORMAT.md)', '(../docs/PACK_FORMAT.md)')
+(stage / 'mods/CONVERSION.md').write_text(guide, encoding='utf-8')
 (stage / "CREDITS.txt").write_text(
     "F-Zero Forever\n\n"
     "CGP gameplay and vehicle artwork: Fennor Virastar, Worthy MF and the CGP contributors.\n"
@@ -197,6 +213,11 @@ shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
 (stage/"README.txt").write_text(
     f"F-Zero Forever {release_version} - Windows x64\n\n"
     "Extract the entire ZIP and run FZeroSNESRecomp.exe. Select your own F-Zero (USA) ROM.\n"
+    "Custom Content > Import adds course ZIPs, FZEdit projects, IPS/BPS patches or supported ROM hacks.\n"
+    "Some imports ask you to confirm pack/cup names and course assignments. No Python installation is needed.\n"
+    "Import limits: custom vehicles, menus and unsupported game-wide code changes are excluded.\n"
+    "Unmatched songs need manual placement; hover the pack's music notice for instructions.\n"
+    "See MODS.md and mods/CONVERSION.md for details.\n\n"
     "Mods > Track Pack Loader defaults on and loads every folder/ZIP in mods/packs. Restart after installing packs.\n"
     "The original 15 courses remain available. Loader and BS Satellaview Tracks exclude each other.\n"
     "The included CGP, Astra, Bower and MAX packs add 15 cups / 75 course versions.\n"
@@ -215,7 +236,7 @@ shutil.copy2(ROOT / "assets/music/README.md", stage / "assets/music/README.md")
     "F7: save-state menu. R: rewind. D/C: left/right shoulder. Alt+Enter: fullscreen.\n"
     "Credits are in CREDITS.txt and each pack; license notices are in licenses/.\n",encoding="utf-8")
 
-pending, seen = [stage / "FZeroSNESRecomp.exe"], set()
+pending, seen = [stage / "FZeroSNESRecomp.exe"] + [stage / p.name for p in import_helpers], set()
 system = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32"
 while pending:
     binary = pending.pop()
@@ -237,6 +258,7 @@ while pending:
 
 notices = stage / "licenses"
 notices.mkdir()
+shutil.copytree(helper_licenses, notices / 'content-importer')
 for notice in (ROOT / "licenses").glob("*.txt"):
     shutil.copy2(notice, notices / notice.name)
 for label, source in {

@@ -41,6 +41,9 @@ unresolved filenames, then put the intended recording in `music` with the same
 name as its course ZIP (for example, `coast.zip` uses `music/coast.pcm`). Menu
 music uses the pack's `menu_music` entries. Ask the pack author if a recording's
 destination is unclear; the importer does not guess from the track's sound.
+The installed-content list retains a **songs weren't imported (?)** notice.
+Hover it for placement instructions. It describes the original import, even
+after you supply songs yourself.
 
 ## IPS/BPS
 

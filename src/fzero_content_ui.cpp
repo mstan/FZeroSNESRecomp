@@ -108,6 +108,43 @@ Review readReview(const fs::path &report, const std::string &source,
   }
   return review;
 }
+void musicNotice(const fs::path &path,
+                 RecompLauncherCCustomContentEntry &entry) {
+  auto report = path / "conversion-report.json";
+  if (!fs::is_regular_file(report))
+    return;
+  try {
+    auto bytes = snesrecomp::data_pack::read(report, 8 * 1024 * 1024);
+    rapidjson::Document d;
+    d.Parse<rapidjson::kParseIterativeFlag>(bytes.c_str());
+    if (d.HasParseError() || !d.IsObject())
+      return;
+    snesrecomp::data_pack::validate_json(d);
+    if (!d.HasMember("audio_inventory") || !d["audio_inventory"].IsObject())
+      return;
+    auto &audio = d["audio_inventory"];
+    if (!audio.HasMember("unmapped_pcm_count") ||
+        !audio["unmapped_pcm_count"].IsUint())
+      return;
+    const auto count = audio["unmapped_pcm_count"].GetUint();
+    if (!count)
+      return;
+    copy(entry.notice,
+         std::to_string(count) + (count == 1 ? " song wasn't imported"
+                                             : " songs weren't imported"));
+    copy(entry.notice_tooltip,
+         "These recordings could not be matched or read during import. "
+         "Add the songs you want manually; your original ZIP is unchanged.\n\n"
+         "For a course, match its ZIP filename in this pack's music folder: "
+         "courses/example.zip uses music/example.pcm.\n\n"
+         "For menu and event songs, use Mods > Menu and event music. "
+         "See MODS.md and this pack's conversion-report.json for details. "
+         "This notice describes the import; songs added afterward are not "
+         "listed here.");
+  } catch (const std::exception &) {
+    // An optional historical report cannot make playable courses invalid.
+  }
+}
 std::vector<RecompLauncherCCustomContentEntry> inventory(const fs::path &mods) {
   std::vector<RecompLauncherCCustomContentEntry> rows;
   auto add = [&](const fs::path &path, bool pack) {
@@ -133,6 +170,7 @@ std::vector<RecompLauncherCCustomContentEntry> inventory(const fs::path &mods) {
                "Included with F-Zero Forever; cannot be removed here");
         } else {
           copy(e.kind, "Imported course pack");
+          musicNotice(path, e);
         }
       } catch (const std::exception &ex) {
         e.has_error = 1;

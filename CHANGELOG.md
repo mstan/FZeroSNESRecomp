@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## 0.8.0 - Custom Content importer
+
+- Add one Import flow for course ZIPs, F-Zero Edit projects, IPS/BPS patches and
+  supported ROM hacks, with editable pack names and cup assignments.
+- Convert supported ROM-hack courses into editable packs automatically. Keep
+  included CGP, Astra, Bower and MAX packs protected and retain their records.
+- Import confidently matched MSU recordings. Keep an installed-pack notice and
+  tooltip for songs that need manual placement; missing songs use SNES music.
+- Explain import limits: custom vehicles and unsupported game-wide code are
+  excluded. MF and FZero55 remain user imports, not bundled default packs.
+- Include standalone import tools, instructions and ready-to-use course caches
+  in both downloads; no Python installation is needed.
+
 ## 0.7.4 - Car-menu transitions and HD race results
 
 - Keep CGP car colors and neighboring columns stable while opening the stats

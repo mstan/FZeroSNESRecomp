@@ -134,6 +134,26 @@ int main() {
           "Cancel clears pending import");
     check(!FzeroContentShutdown() && p->review_field_count(p->ctx) == 0,
           "Cancelled import changes nothing");
+    // Music warnings must survive reopening the launcher without making a
+    // valid pack look broken. Reports describe import history, not live files.
+    auto installed = mods / "packs/music-fixture";
+    fs::create_directories(installed);
+    std::ofstream(installed / "pack.json")
+        << R"({"id":"music-fixture","title":"Music fixture"})";
+    std::ofstream(installed / "conversion-report.json")
+        << R"({"audio_inventory":{"unmapped_pcm_count":4}})";
+    p = FzeroContentProvider(mods.string().c_str(), root.string().c_str());
+    RecompLauncherCCustomContentEntry entry{};
+    check(p->entry_count(p->ctx) == 1 && p->entry_get(p->ctx, 0, &entry),
+          "Installed music fixture");
+    check(!entry.has_error && std::strstr(entry.notice, "4 songs") &&
+              std::strstr(entry.notice_tooltip, "music/example.pcm"),
+          "Persistent music placement notice");
+    std::ofstream(installed / "conversion-report.json") << "invalid report";
+    p = FzeroContentProvider(mods.string().c_str(), root.string().c_str());
+    check(p->entry_get(p->ctx, 0, &entry) && !entry.has_error &&
+              !entry.notice[0],
+          "Optional damaged report does not invalidate courses");
     fs::remove_all(root);
     std::puts("Custom content host review passed");
     return 0;

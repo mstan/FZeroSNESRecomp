@@ -1,12 +1,13 @@
 # Custom Content importer spike
 
-The prototype adds a separate **Custom Content** page to F-Zero's launcher.
+This feature began as a prototype and ships in F-Zero Forever 0.8.0. It adds a
+separate **Custom Content** page to F-Zero's launcher.
 Choose **Import…**, pick a source, edit its display name, and import. The host
 checks it on a worker thread, shows the result, and loads accepted courses when
 Play is pressed. Select an FZM beside its companions for unpacked projects.
 There is one Import button; folder import and folder-opening controls are not
 exposed by F-Zero. Existing Mods
-still controls gameplay features. The original 0.7.4 release was not changed.
+still controls gameplay features. The original 0.7.4 bundles were not changed.
 
 The shared recomp-ui page is opt-in through a nullable C provider. It owns the
 picker, name dialog, progress and installed-content display. The game owns
@@ -45,8 +46,9 @@ byte-for-byte, renamed one recording and reported one unresolved recording.
 
 ## Deliberate limits
 
-This is a spike on `spike/fzero-custom-content`, using recomp-ui's
-`spike/custom-content-page`. It has not been merged into the release branch.
+The implementation was developed on `spike/fzero-custom-content`, using
+recomp-ui's opt-in `spike/custom-content-page`, then integrated into
+`f-zero-forever` for 0.8.0.
 
 Supported data-loader patterns are inferred from ROM instructions rather than
 download names or a list of approved hashes. Unrecognized layouts still need a
@@ -144,6 +146,8 @@ python tools/stage_content_importer.py --build build `
   --converter build-content-converter/FZeroConvertContent.exe
 ```
 
-The local development build is `build-import-ui/FZeroSNESRecomp.exe`. It is a
-prototype, not a new release bundle. The helper and sources remain available in
-their separate development directories.
+The retained development build is `build-import-ui/FZeroSNESRecomp.exe`.
+Player releases include the standalone converter, exporter, inspector,
+dependency DLLs and notices; developer sources remain in the development
+directories. Installed packs retain a music notice with a placement tooltip
+when an import leaves recordings unresolved.
