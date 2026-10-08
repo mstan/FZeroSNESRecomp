@@ -30,6 +30,7 @@
 #include "launcher_cache.h"
 #include "launcher_profile.h"
 #include "recomp_launcher.h"
+#include "fzero_content_ui.h"
 #include "sha256.h"
 #include "snes/cart.h"
 #include "snes/ppu.h"
@@ -607,10 +608,12 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
   }
 
   fprintf(stderr, "[fzero-launcher] opening%s\n", force_launcher ? " (--launcher)" : "");
+  game.custom_content = FzeroContentProvider("mods", assets_dir);
   int action =
       recomp_launcher_run_window("F-Zero \xE2\x80\x94 Launcher", settings,
                                  &game, assets_dir, initial_rom, path,
                                  path_size);
+  int content_changed = FzeroContentShutdown();
   /* Whatever the launcher did, keep what the player chose there. Quitting is
    * as good a moment to persist as pressing Play. */
   save_launcher_settings(settings);
@@ -620,6 +623,17 @@ static int resolve_rom(const char *executable, const char *explicit_rom,
     fprintf(stderr, "[fzero-launcher] unable to save track-pack settings: %s\n", FzeroTracksError());
   if (!FzeroVideoSave(&g_video, kVideoConfig))
     fprintf(stderr, "[fzero-launcher] unable to save video/mod settings\n");
+  if (content_changed) {
+    char content_settings_root[1024];
+    snprintf(content_settings_root, sizeof(content_settings_root), "%s", FzeroTracksRoot());
+    FzeroTracksInit(content_settings_root,
+#ifdef FZERO_HAS_DELUXE
+                   true
+#else
+                   false
+#endif
+                   );
+  }
   if (action == 1) return 0;
   if (action == 0 && path[0]) return 1;
   if (initial_rom[0]) {

@@ -1,5 +1,6 @@
 // FZEdit v1.2 exported file decoder. Only data formats are accepted, never ASM.
 #include "fzero_fzedit.h"
+#include "data_pack_io.hpp"
 extern "C" {
 #include "fzero_course_file.h"
 #include "sha256.h"
@@ -136,7 +137,8 @@ struct Reconstruction {
       : files(f), properties(p) {
     if (source.empty())
       return;
-    document.Parse(source.data(), source.size());
+    document.Parse<rapidjson::kParseIterativeFlag>(source.data(), source.size());
+    snesrecomp::data_pack::validate_json(document);
     check(!document.HasParseError() && document.IsObject() &&
               document.HasMember("format") && document["format"].IsString() &&
               std::string(document["format"].GetString()) ==
@@ -633,6 +635,11 @@ void compactRows(std::vector<uint8_t> &rows, std::vector<uint8_t> &blocks,
 } // namespace
 bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
                      char *error, size_t cap) {
+  return FzeroFzeditReadCached(pack_root, path, "mods/packs/.cache/courses", out, error, cap);
+}
+bool FzeroFzeditReadCached(const char *pack_root, const char *path,
+                         const char *cache_directory, FzeroCourse *out,
+                         char *error, size_t cap) {
   try {
     Files files{fs::weakly_canonical(pack_root), fs::path(path).parent_path()};
     auto properties = props(text(path));
@@ -659,7 +666,7 @@ bool FzeroFzeditRead(const char *pack_root, const char *path, FzeroCourse *out,
     for (unsigned i = 0; i < 32; ++i)
       snprintf(key + i * 2, 3, "%02x", digest[i]);
     fs::path cache =
-        fs::path("mods/packs/.cache/courses") / (std::string(key) + ".fzc");
+        fs::path(cache_directory) / (std::string(key) + ".fzc");
     char cacheError[256];
     if (FzeroCourseFileRead(cache.string().c_str(), out, cacheError,
                             sizeof(cacheError)))

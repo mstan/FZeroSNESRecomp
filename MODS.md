@@ -1,5 +1,25 @@
 # Mods and differences from the source games
 
+## Adding custom courses
+
+Open **Custom Content** in the launcher and choose **Import content**. Pick the
+ZIP you downloaded, a F-Zero Edit `.fzm` project, or an IPS/BPS patch. You can
+change its display name before importing. **Import folder** accepts an unpacked
+editor project with its companion files.
+
+The importer checks the files first. If they work, it installs the pack and
+you can press Play. Track Pack Loader must be enabled in Mods. A different
+display name does not overwrite an existing pack or change saved records.
+
+Original editor projects work best. Some patches need a reviewed conversion
+profile before their courses can be used; a patch alone does not explain its
+custom code. An unsupported input gets an explanation instead of a partial
+installation. See [CONVERSION.md](CONVERSION.md) for editor and patch workflows.
+The same guide is included inside the build's `mods` folder.
+
+Course music still lives in each pack's `music` folder and matches the course
+source filename. Importing content does not change that convention.
+
 ## Opening Records for testing
 
 **Mods > Always show Records** is on by default. It keeps **RECORDS** on the

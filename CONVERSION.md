@@ -90,6 +90,13 @@ Select that ZIP or FZM through **Custom Content > Import content**, or select
 the complete export folder through **Import folder**. The game supplies the
 pack description for an ordinary single-course project.
 
+A bare editor export uses standard F-Zero course rules. FZEdit files do not
+declare a hack's ASM changes. If the course relies on special rules, use the
+author's pack with those rules declared in its manifest. For example, the
+packaged CGP Huckmine example declares its magnet rules; the original bare
+`HM.zip` cannot supply that declaration by itself. The importer does not guess
+those rules from the course name or artwork.
+
 For an original single-course F-Zero Edit ZIP, the maintainer helper can add the
 pack descriptions without changing the original files:
 

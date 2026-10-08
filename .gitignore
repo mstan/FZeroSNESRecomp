@@ -95,6 +95,8 @@ ghidra/*
 # User-owned course payloads and local configuration.
 /mods/track-packs/
 /mods/packs/
+/mods/.imports/
+/mods/import-reports/
 
 # Defense in depth: excluded recordings are physically deleted, not kept here.
 # Audio data is always imported locally, never part of the source repository.

@@ -10,7 +10,7 @@ find_path(RAPIDJSON_INCLUDE_DIR rapidjson/document.h REQUIRED)
 
 include(CTest)
 set(SNESRECOMP_ROOT "${CMAKE_SOURCE_DIR}/snesrecomp" CACHE PATH "Framework checkout")
-add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_menu_music.c src/fzero_course.c src/fzero_course_file.c src/fzero_title.c src/fzero_music_sources.c src/fzero_packs.cpp src/fzero_fzedit.cpp
+add_library(fzero_tracks STATIC src/fzero_tracks.c src/fzero_menu_music.c src/fzero_course.c src/fzero_course_file.c src/fzero_title.c src/fzero_music_sources.c src/fzero_packs.cpp src/fzero_fzedit.cpp src/fzero_content_import.cpp
     "${SNESRECOMP_ROOT}/runner/src/content_pack.c"
     "${SNESRECOMP_ROOT}/runner/src/content_patch.c"
     "${SNESRECOMP_ROOT}/runner/src/sha256.c")
@@ -25,6 +25,8 @@ add_executable(FZeroExportCourses tools/export_courses.c)
 target_link_libraries(FZeroExportCourses PRIVATE fzero_tracks)
 add_executable(FZeroInspectPacks tools/inspect_packs.c)
 target_link_libraries(FZeroInspectPacks PRIVATE fzero_tracks)
+add_executable(FZeroImportContent tools/import_content.cpp)
+target_link_libraries(FZeroImportContent PRIVATE fzero_tracks)
 if(NOT MSVC)
     target_compile_options(fzero_tracks PRIVATE -Wall -Wextra -Werror)
 endif()
@@ -36,6 +38,12 @@ if(NOT MSVC)
     target_link_libraries(fzero_video PUBLIC m)
 endif()
 if(BUILD_TESTING)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME fzero_content_import COMMAND "${Python3_EXECUTABLE}" -X utf8
+            "${CMAKE_SOURCE_DIR}/tests/test_content_import.py"
+            --tool $<TARGET_FILE:FZeroImportContent>)
+    endif()
     add_executable(fzero_tracks_tests tests/test_tracks.c)
     target_link_libraries(fzero_tracks_tests PRIVATE fzero_tracks)
     add_test(NAME fzero_tracks COMMAND fzero_tracks_tests "${CMAKE_SOURCE_DIR}/assets/track-packs")
@@ -197,6 +205,7 @@ add_executable(FZeroSNESRecomp
     "${RECOMP_UI_ROOT}/src/third_party/gl_core_3_1.c"
     ${FZERO_GEN_SOURCES}
     src/sdl_main.c
+    src/fzero_content_ui.cpp
     src/fzero_diagnostics.c
     src/fzero_mods.c
     src/fzero_tracks_mods.c
@@ -351,6 +360,12 @@ file(GLOB FZERO_COURSE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.hidden"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.disabled"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/*.txt")
+file(READ "${CMAKE_SOURCE_DIR}/CONVERSION.md" FZERO_CONVERSION_GUIDE)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/CONVERSION.md")
+string(REPLACE "(mods/PARSE_MANIFEST.md)" "(PARSE_MANIFEST.md)" FZERO_CONVERSION_GUIDE "${FZERO_CONVERSION_GUIDE}")
+string(REPLACE "(docs/PACK_FORMAT.md)" "(../docs/PACK_FORMAT.md)" FZERO_CONVERSION_GUIDE "${FZERO_CONVERSION_GUIDE}")
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
+file(WRITE "${CMAKE_BINARY_DIR}/generated/CONVERSION.md" "${FZERO_CONVERSION_GUIDE}")
 file(GLOB FZERO_VEHICLE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.ini"
     "${CMAKE_SOURCE_DIR}/assets/vehicle-packs/*.ips"
@@ -359,10 +374,18 @@ file(GLOB FZERO_TITLE_REGISTRY CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/*.ips"
     "${CMAKE_SOURCE_DIR}/assets/track-packs/presentation/*.txt")
 set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS
+    "${CMAKE_SOURCE_DIR}/MODS.md" "${CMAKE_SOURCE_DIR}/CONVERSION.md" "${CMAKE_SOURCE_DIR}/docs/PACK_FORMAT.md"
     ${FZERO_COURSE_REGISTRY} ${FZERO_VEHICLE_REGISTRY} "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md"
     ${FZERO_TITLE_REGISTRY})
 add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/track-packs"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:FZeroSNESRecomp>/docs"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_BINARY_DIR}/generated/CONVERSION.md" "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/CONVERSION.md"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/MODS.md" "${CMAKE_SOURCE_DIR}/CONVERSION.md" "$<TARGET_FILE_DIR:FZeroSNESRecomp>/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/docs/PACK_FORMAT.md" "$<TARGET_FILE_DIR:FZeroSNESRecomp>/docs/PACK_FORMAT.md"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/mods/README.md" "${CMAKE_SOURCE_DIR}/mods/PARSE_MANIFEST.md"
         "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/"

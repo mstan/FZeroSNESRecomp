@@ -122,7 +122,7 @@ unsigned mechanics(const fs::path &root, const Value &owner) {
   return bits;
 }
 Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &audio,
-           std::string &newPrimary, bool courseArchive = false) {
+           std::string &newPrimary, const fs::path &cacheRoot, bool courseArchive = false) {
   rapidjson::Document d;
   std::string text(reinterpret_cast<const char *>(entry.payload), entry.payload_size);
   d.Parse<rapidjson::kParseIterativeFlag |
@@ -260,13 +260,13 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
           const auto *item = snes_data_packs_get(nested.get(), i);
           if (fs::path(item->source) != source) continue;
           const char *directory = snes_data_pack_directory(
-              nested.get(), i, "mods/packs/.cache/sources", report, &archiveErrors);
+              nested.get(), i, (cacheRoot / "sources").string().c_str(), report, &archiveErrors);
           auto &message = archiveErrors[source.string()];
           require(directory != nullptr, message.empty() ? "Cannot open course ZIP" : message);
           std::vector<Sound> unusedAudio;
           std::string unusedPrimary;
           auto project = parse(fs::path(reinterpret_cast<const char8_t *>(directory)),
-                               *item, unusedAudio, unusedPrimary, true);
+                               *item, unusedAudio, unusedPrimary, cacheRoot, true);
           require(project.decoded.size() == 1,
                   "A course ZIP must contain exactly one course");
           decoded = project.decoded.front();
@@ -277,11 +277,12 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
         }
         auto &message = archiveErrors[source.string()];
         require(ok, message.empty() ? "Course ZIP has no valid pack manifest" : message);
-      } else if (source.extension() == ".fzc")
+      } else if (lower(source.extension().string()) == ".fzc")
         ok = FzeroCourseFileRead(source.string().c_str(), &decoded, error,
                                  sizeof(error));
-      else if (source.extension() == ".fzm")
-        ok = FzeroFzeditRead(root.string().c_str(), source.string().c_str(),
+      else if (lower(source.extension().string()) == ".fzm")
+        ok = FzeroFzeditReadCached(root.string().c_str(), source.string().c_str(),
+                             (cacheRoot / "courses").string().c_str(),
                              &decoded, error, sizeof(error));
       else
         snprintf(error, sizeof(error), "Expected .fzm, .fzc or single-course .zip source");
@@ -318,6 +319,37 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
   return p;
 }
 } // namespace
+bool FzeroPacksValidateImport(const char *directory, const char *cache_directory, CpPack *info,
+                             char *error, size_t cap) {
+  try {
+    std::string errors;
+    auto report = [](void *ctx, const char *, const char *reason) {
+      auto &s = *static_cast<std::string *>(ctx);
+      if (!s.empty()) s += "\n";
+      s += reason;
+    };
+    uint8_t base[32];
+    cp_hash_parse("bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2", base);
+    const char *caps[] = {"fzero-course-v1"};
+    std::unique_ptr<SnesDataPacks, decltype(&snes_data_packs_destroy)> shared(
+        snes_data_packs_scan(directory, "f-zero", "fzero.course-index", base,
+                            caps, 1, report, &errors), snes_data_packs_destroy);
+    require(errors.empty(), errors);
+    require(snes_data_packs_count(shared.get()) == 1, "Choose one course project or pack at a time.");
+    auto cache = std::string(cache_directory);
+    const char *root = snes_data_pack_directory(shared.get(), 0, cache.c_str(), report, &errors);
+    require(root != nullptr, errors.empty() ? "Cannot read this pack." : errors);
+    std::vector<Sound> audio;
+    std::string prim;
+    auto p = parse(fs::path(reinterpret_cast<const char8_t *>(root)),
+                   *snes_data_packs_get(shared.get(), 0), audio, prim, cache);
+    *info = p.info;
+    return true;
+  } catch (const std::exception &e) {
+    snprintf(error, cap, "%s", e.what());
+    return false;
+  }
+}
 void FzeroPacksDiscover(CpCatalog *cat, const char *directory) {
   packs.clear();
   sounds.clear();
@@ -343,7 +375,7 @@ void FzeroPacksDiscover(CpCatalog *cat, const char *directory) {
       try {
         std::vector<Sound> audio;
         std::string prim;
-        auto pack = parse(fs::path(reinterpret_cast<const char8_t *>(root)), *entry, audio, prim);
+        auto pack = parse(fs::path(reinterpret_cast<const char8_t *>(root)), *entry, audio, prim, cache);
         candidates.push_back(std::move(pack));
         audios.push_back(std::move(audio));
         primaries.push_back(prim);
