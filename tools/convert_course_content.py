@@ -11,6 +11,7 @@ import io
 import json
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -299,7 +300,9 @@ def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_mem
                   metadata=metadata, cup_labels='previously reviewed registry labels; not redecoded here',
                   gameplay_qualification='Existing profile qualification; this run checks data only')
     out.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='.fzero-conversion-', dir=out.parent) as temporary:
+    # Native ZIP/source caches add long names beneath this directory. Keep them
+    # outside the caller's nested installation stage to stay below MAX_PATH.
+    with tempfile.TemporaryDirectory(prefix='fzc-') as temporary:
         temp = Path(temporary)
         pack = temp/'packs'/data['id'][0]
         baseline = temp/'native'; baseline.mkdir()
@@ -317,9 +320,14 @@ def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_mem
         report['title_policy'] = ('Reviewed presentation profile; Astra reuses the CGP title '
                                   'supplied by the CGP pack, Bower uses Original')
         (pack/'conversion-report.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
-        if out.exists():
-            raise ValueError(f'Refusing to replace existing output: {out}')
-        pack.rename(out)
+        # The short workspace may be on another volume. Copy a complete,
+        # validated pack beside the destination, then publish by local rename.
+        with tempfile.TemporaryDirectory(prefix='.fzc-publish-', dir=out.parent) as publication:
+            staged = Path(publication)/'pack'
+            shutil.copytree(pack, staged)
+            if out.exists() or out.is_symlink():
+                raise ValueError(f'Refusing to replace existing output: {out}')
+            staged.rename(out)
     return report
 
 

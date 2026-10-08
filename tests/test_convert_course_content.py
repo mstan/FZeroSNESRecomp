@@ -131,15 +131,70 @@ class ConversionBoundaries(unittest.TestCase):
             tool = root/'native.exe'; tool.write_bytes(b'not executed')
             out = root/'not-published'
             profile = ROOT/'assets/track-packs/bower-league.ini'
+            workspaces = []
+            def fail_export(*args, **kwargs):
+                workspaces.append(Path(args[3]).parents[1])
+                raise ValueError('Invalid course resource')
             with patch.object(converter, 'read_stock', return_value=bytes(0x8000)), \
                  patch.object(converter, 'reviewed_profile', return_value=profile), \
                  patch.object(converter, 'audit_metadata', return_value={}), \
-                 patch.object(converter, 'export_pack', side_effect=ValueError('Invalid course resource')):
+                 patch.object(converter, 'export_pack', side_effect=fail_export):
                 with self.assertRaisesRegex(ValueError, 'Invalid course'):
                     converter.convert(source, out, stock=source, exporter=tool, inspector=tool)
             self.assertFalse(out.exists())
-            self.assertFalse(list(root.glob('.fzero-conversion-*')))
+            self.assertEqual(len(workspaces), 1)
+            self.assertFalse(workspaces[0].exists())
             self.assertEqual(source.read_bytes(), bytes(0x8000))
+
+    def check_publication(self, root, *, fail_copy=False):
+        source = root/'known.sfc'; source.write_bytes(bytes(0x8000))
+        tool = root/'native.exe'; tool.write_bytes(b'not executed')
+        out = root/('nested-install-stage-'+'x'*80)/'mods/.imports/123456789012345-0/converted'
+        profile = ROOT/'assets/track-packs/bower-league.ini'
+        workspaces = []
+        def export(*args, **kwargs):
+            pack = Path(args[3]); pack.mkdir(parents=True)
+            (pack/'pack.json').write_bytes(b'complete validated pack')
+            workspaces.append(pack.parents[1])
+            return dict(record_hashes={})
+        def inspect(inspector, temp, pack, *args):
+            # Model the native loader's deepest cache member path. A workspace
+            # under this destination reproduces the Windows failure (>260).
+            suffix = Path('mods/packs/.cache/sources')/('a'*64)/'brutal-wind-1_Horizon_Tilemap.gif'
+            if len(str(temp/suffix)) >= 260:
+                raise ValueError('Cannot create cached asset: Windows path limit')
+            return dict(native_loader_passed=True)
+        copy = converter.shutil.copytree
+        def copy_pack(source, dest):
+            if fail_copy:
+                Path(dest).mkdir(); (Path(dest)/'partial').write_bytes(b'incomplete copy')
+                raise OSError('Publication disk is full')
+            return copy(source, dest)
+        with patch.object(converter, 'read_stock', return_value=bytes(0x8000)), \
+             patch.object(converter, 'reviewed_profile', return_value=profile), \
+             patch.object(converter, 'audit_metadata', return_value={}), \
+             patch.object(converter, 'export_pack', side_effect=export), \
+             patch.object(converter, 'inspect_roundtrip', side_effect=inspect), \
+             patch.object(converter.shutil, 'copytree', side_effect=copy_pack):
+            if fail_copy:
+                with self.assertRaisesRegex(OSError, 'disk is full'):
+                    converter.convert(source, out, stock=source, exporter=tool, inspector=tool)
+                self.assertFalse(out.exists())
+            else:
+                report = converter.convert(source, out, stock=source, exporter=tool, inspector=tool)
+                self.assertEqual(report['status'], 'converted')
+                self.assertEqual((out/'pack.json').read_bytes(), b'complete validated pack')
+        self.assertFalse(workspaces[0].exists())
+        self.assertFalse(list(out.parent.glob('.fzc-publish-*')))
+        self.assertEqual(source.read_bytes(), bytes(0x8000))
+
+    def test_deep_destination_keeps_native_cache_below_windows_path_limit(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.check_publication(Path(temp))
+
+    def test_publication_copy_failure_leaves_no_partial_pack(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.check_publication(Path(temp), fail_copy=True)
 
     def test_duplicate_and_unsafe_registry_identities(self):
         data = fields(ROOT/'assets/track-packs/bower-league.ini')
