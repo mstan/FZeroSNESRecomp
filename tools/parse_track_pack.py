@@ -13,8 +13,7 @@ import tempfile
 
 from inspect_bs_deluxe import apply_bps, apply_ips, STOCK_SHA256
 from audit_track_metadata import audit_metadata
-
-ROOT = Path(__file__).resolve().parents[1]
+from course_tool_paths import ROOT
 
 
 def digest(data):

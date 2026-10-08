@@ -3,9 +3,9 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+from course_tool_paths import ROOT
 
 BASE_SHA256 = 'bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2'
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def course_source_stem(root, course):
