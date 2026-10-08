@@ -87,7 +87,7 @@ int type(void *, int index, RecompLauncherCCustomContentType *out) {
   copy(out->label, "Import");
   copy(out->description,
        "ZIPs, FZEdit projects, IPS/BPS patches or supported ROM hacks.");
-  copy(out->file_patterns, "*.zip,*.ips,*.bps,*.fzm,*.sfc,*.smc");
+  copy(out->file_patterns, "*.zip,*.ips,*.bps,*.fzm,*.sfc,*.smc,*.rom,*.fig");
   copy(out->file_description, "F-Zero custom content");
   return 1;
 }
@@ -146,11 +146,13 @@ int start(void *, const char *, const char *path, const char *image,
         context.status.progress = 100;
         copy(context.status.message,
              "Imported " + result.name + " (" + std::to_string(result.courses) +
-                 (result.courses == 1 ? " course)." : " courses)."));
+                 (result.courses == 1 ? " course)." : " courses).") +
+                 (result.warnings.empty() ? "" : " Some files need attention."));
         std::string detail =
             "Ready to play with Track Pack Loader enabled in Mods.";
         if (!result.warnings.empty())
-          detail += "\n" + result.warnings;
+          detail += "\n" + result.warnings + "\nDetails: mods/packs/" +
+                    result.id + "/conversion-report.json";
         if (result.plain_editor_project)
           detail +=
               " This editor project uses standard F-Zero rules. Special rules "

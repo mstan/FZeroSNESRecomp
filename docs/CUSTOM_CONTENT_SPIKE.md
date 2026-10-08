@@ -33,6 +33,11 @@ Another game can implement that provider without inheriting F-Zero parsing.
   `mods/import-reports`, without installing a partial pack or donor ROM.
 - `mods/CONVERSION.md` explains both input paths and how to qualify a new hack.
 
+ZIP music follows reviewed course/menu mappings or a matching course filename.
+Unmapped, ambiguous or damaged recordings warn without blocking validated
+courses. A native Astra patch-plus-audio check retained all ten course ZIPs
+byte-for-byte, renamed one recording and reported one unresolved recording.
+
 ## Deliberate limits
 
 This is a spike on `spike/fzero-custom-content`, using recomp-ui's
@@ -66,7 +71,7 @@ can use the documented maintainer conversion command.
   display naming, duplicate imports, malformed inputs, bounded nested archives,
   uppercase extensions, included-ID protection, ZIP ROM routing, music-only
   guidance, visible conversion warnings and transactional failure. ROM-free subset is in CTest.
-- Converter: 21 ROM-free checks. All 75 converted editable course ZIPs exactly
+- Converter: 33 ROM-free checks. All 75 converted editable course ZIPs exactly
   match the existing shipped examples. The 74 reconstructed courses match full
   native course bytes; original Huckmine retains its existing author source.
 - Full original Astra ROM, MAX Modern, IPS/BPS, equivalent patch ZIPs and
@@ -83,6 +88,28 @@ Integrated testing also caught a Windows path-length failure with Astra inside
 the deeper UI staging directory. Decoder caches and the converter's inspection
 workspace use short temporary paths; validated output is published on the
 destination volume after copying completes.
+
+## Downloaded-pack experiments
+
+These downloads are local test inputs, never part of the included collection:
+
+| Download | Donor | Course resources detected | PCM recordings |
+| --- | --- | ---: | ---: |
+| F-Zero MF.zip | BPS | 10 | 14 |
+| FZero55 (1).zip | IPS | 10 | 13 |
+
+The first automated attempt rejected both archives at the old 32 MiB input
+limit, before reading their patches. Streaming ZIP support now accepts both
+archives and produces a compatibility report. Their shared FZEdit data-loader forms can
+be identified from ROM instructions, but neither exact revision has a reviewed
+conversion profile. Recognizing the data format is not enough to claim that
+all custom code and music routing are implemented. Keep their results explicit
+and do not install incomplete approximations or add these to the defaults.
+
+The owner requested the final validation through the real picker by hand.
+Leave both experiments absent from the prototype's installed packs for that
+pass. The baseline included collection has 75 course entries whose normalized
+record hashes match the existing extraction manifests.
 
 ## Rebuilding the prototype
 

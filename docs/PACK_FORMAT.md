@@ -7,6 +7,13 @@ pack switches. Remove a folder/ZIP to uninstall it. The original 15 courses
 remain available. BS Satellaview Tracks and the loader exclude each other;
 vehicle options remain separate. Invalid packs appear in the Mods diagnostics.
 
+The launcher also offers **Custom Content > Import** for ZIPs, FZEdit projects,
+patches and ROM hacks. It validates and installs supported inputs. Included
+packs are labeled separately and cannot be removed or replaced through that
+page. Build staging records their ownership in `mods/.bundled-packs.json`;
+user pack manifests cannot declare themselves included. This index is not a
+course or music manifest and does not change record identities.
+
 ZIPs contain `pack.json` at their root, or inside one enclosing directory.
 Use relative paths with forward slashes. Keep each FZEdit export's referenced
 files together; filenames do not have to match course IDs. Stable IDs identify

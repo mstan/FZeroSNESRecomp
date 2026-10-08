@@ -20,13 +20,24 @@ the best input: they already contain the editable course. A ROM patch can also
 be converted when its exact revision has a reviewed import profile.
 
 Conversion adds course data and supported course mechanics. Vehicle changes,
-global game rules and other donor ASM need separate adaptation. Recordings are
-added separately; missing recordings use the course's selected SNES song.
+global game rules and other donor ASM need separate adaptation. ZIPs can include
+music too: recordings with a verified mapping are copied into the pack's
+`music` folder with the matching course filename. Missing recordings use the
+course's selected SNES song.
+
+Uncertain music does not block otherwise valid courses. The result tells you
+that the courses were imported and which music needs attention. The original
+ZIP is unchanged. See the installed pack's `conversion-report.json` for the
+unresolved filenames, then put the intended recording in `music` with the same
+name as its course ZIP (for example, `coast.zip` uses `music/coast.pcm`). Menu
+music uses the pack's `menu_music` entries. Ask the pack author if a recording's
+destination is unclear; the importer does not guess from the track's sound.
 
 ## IPS/BPS
 
-The converter accepts `.ips`, `.bps`, a ZIP containing patches, or a hacked
-`.sfc`/`.smc` ROM. It checks the resulting ROM's SHA-256 rather than trusting a
+The converter accepts `.ips`, `.bps`, a hacked `.sfc`/`.smc`/`.rom`/`.fig` image,
+or a ZIP containing these files, including downloads with MSU recordings and
+documentation. It checks the resulting ROM's SHA-256 rather than trusting a
 filename. The reviewed profiles cover Astra Front, Bower League, the current CGP
 P3test revision, and MAX League Classic/Modern. Older CGP revisions are not
 accepted. The original reviewed Astra Front ROM is also recognized.
@@ -50,7 +61,8 @@ authored names, race order, SPC selection and declared mechanics.
 For a ZIP with equivalent IPS/BPS files, selection is automatic and prefers
 BPS, whose checksums are verified. Known Classic/Modern variants can share one
 reviewed profile. If a ZIP contains distinct packs or unknown differing targets,
-select the intended patch with `--patch-member "folder/course.bps"`.
+select the intended patch or ROM with `--member "folder/course.bps"`. Import
+one pack at a time; the picker does not silently choose between different hacks.
 
 Unrecognized revisions create only `conversion-report.json` and `REVIEW.txt`.
 The command returns **2** to distinguish review needed from successful conversion

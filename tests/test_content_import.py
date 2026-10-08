@@ -88,10 +88,12 @@ class ImportTests(unittest.TestCase):
         self.assertIn('conversion tools', result.stderr)
 
     def test_rom_zip_is_routed_to_converter(self):
-        result = self.run_import(self.archive([('download/hack.SMC', bytes(512)),
-                                               ('download/tool.exe', 'not executed'),
-                                               ('download/notes.pdf', 'documentation')]))
-        self.assertIn('conversion tools', result.stderr)
+        for ext in ('SFC', 'SMC', 'ROM', 'FIG'):
+            with self.subTest(extension=ext):
+                result = self.run_import(self.archive([(f'download/hack.{ext}', bytes(512)),
+                                                       ('download/tool.exe', 'not executed'),
+                                                       ('download/notes.pdf', 'documentation')]))
+                self.assertIn('conversion tools', result.stderr)
 
     def test_music_only_zip_explains_mapping(self):
         result = self.run_import(self.archive([('hack-1.pcm', b'MSU1')]))

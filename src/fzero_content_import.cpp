@@ -37,6 +37,10 @@ std::string lower(std::string s) {
     c = char(std::tolower(static_cast<unsigned char>(c)));
   return s;
 }
+bool donorExtension(const std::string &ext) {
+  return ext == ".ips" || ext == ".bps" || ext == ".sfc" || ext == ".smc" ||
+         ext == ".rom" || ext == ".fig";
+}
 std::string hash(const std::string &bytes) {
   uint8_t digest[32];
   sha256_compute(reinterpret_cast<const uint8_t *>(bytes.data()), bytes.size(),
@@ -51,7 +55,8 @@ bool allowed(const fs::path &p) {
       ".fzm",  ".aip", ".tmx", ".tsx", ".png",     ".gif", ".bmp",
       ".json", ".bin", ".fzc", ".fzt", ".fztitle", ".txt", ".md",
       ".pcm",  ".msu", ".zip", ".ips", ".bps",     ".sfc", ".smc"};
-  return ext.count(lower(p.extension().string())) != 0;
+  auto suffix = lower(p.extension().string());
+  return ext.count(suffix) != 0 || donorExtension(suffix);
 }
 void safeRelative(const fs::path &p) {
   need(!p.empty() && !p.is_absolute() && !p.has_root_name(),
@@ -140,8 +145,7 @@ ZipContents unzip(const fs::path &source, const fs::path &dest,
     need(size >= 0, "ZIP entry has an invalid size.");
     budget.add(rel, uint64_t(size));
     auto ext = lower(rel.extension().string());
-    contents.donor |=
-        ext == ".ips" || ext == ".bps" || ext == ".sfc" || ext == ".smc";
+    contents.donor |= donorExtension(ext);
     contents.editor |= ext == ".fzm" || rel.filename() == "pack.json";
     if (inspectOnly) {
       archive_read_data_skip(ar.get());
@@ -223,8 +227,7 @@ void preflight(const fs::path &root) {
                archive_entry_filetype(entry) == AE_IFREG,
            "Unsupported course ZIP entry.");
       auto ext = lower(path.extension().string());
-      need(ext != ".zip" && ext != ".sfc" && ext != ".smc" && ext != ".ips" &&
-               ext != ".bps",
+      need(ext != ".zip" && !donorExtension(ext),
            "A course ZIP must contain editor assets, not another archive, ROM "
            "or patch.");
       archive_read_data_skip(ar.get());
@@ -524,8 +527,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
   auto unpacked = stage.path / "unpacked";
   fs::create_directory(unpacked);
   auto extension = lower(source.extension().string());
-  bool patch = extension == ".ips" || extension == ".bps" ||
-               extension == ".sfc" || extension == ".smc";
+  bool patch = donorExtension(extension);
   auto reports = mods / "import-reports" / key;
   if (patch) {
     convert(source, stock, helpers, unpacked / "converted", reports);
@@ -554,7 +556,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
         manifests.push_back(e.path());
       if (ext == ".fzm")
         projects.push_back(e.path());
-      if (ext == ".ips" || ext == ".bps" || ext == ".sfc" || ext == ".smc")
+      if (donorExtension(ext))
         donors.push_back(e.path());
       if (ext == ".pcm" || ext == ".msu")
         audio = true;
@@ -612,7 +614,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
   for (auto &e : fs::recursive_directory_iterator(candidate))
     if (e.is_regular_file()) {
       auto ext = lower(e.path().extension().string());
-      need(ext != ".sfc" && ext != ".smc" && ext != ".ips" && ext != ".bps",
+      need(!donorExtension(ext),
            "The content includes ROM or patch files alongside its assets. "
            "Import that patch directly, or remove those files from the editor "
            "project.");

@@ -24,7 +24,12 @@ their gameplay switches remain in Mods. Huckmine is one of CGP's courses, not a
 separate default pack. New imports are separate from the included collection.
 
 Course music still lives in each pack's `music` folder and matches the course
-source filename. Importing content does not change that convention.
+source filename. ZIPs containing a supported patch or ROM plus recordings can
+import both together. If a song's destination is uncertain, valid courses still
+import and the result tells you which music needs attention. Your original ZIP
+stays unchanged. See the pack's `conversion-report.json` for unresolved files;
+place each intended recording at `music/<course-filename>.pcm`. Importing
+content does not change that convention.
 
 ## Opening Records for testing
 
