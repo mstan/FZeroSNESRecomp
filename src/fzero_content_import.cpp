@@ -97,7 +97,11 @@ struct Budget {
          "The archive contains duplicate filenames.");
   }
 };
-void unzip(const fs::path &source, const fs::path &dest) {
+struct ZipContents {
+  bool donor = false, editor = false;
+};
+ZipContents unzip(const fs::path &source, const fs::path &dest,
+                  bool inspectOnly = false) {
   std::unique_ptr<archive, decltype(&archive_read_free)> ar(archive_read_new(),
                                                             archive_read_free);
   archive_read_support_format_zip(ar.get());
@@ -105,6 +109,7 @@ void unzip(const fs::path &source, const fs::path &dest) {
            ARCHIVE_OK,
        "Cannot open this ZIP.");
   Budget budget;
+  ZipContents contents;
   archive_entry *entry;
   int status;
   while ((status = archive_read_next_header(ar.get(), &entry)) == ARCHIVE_OK) {
@@ -125,14 +130,24 @@ void unzip(const fs::path &source, const fs::path &dest) {
     }
     if (archive_entry_filetype(entry) == AE_IFDIR) {
       budget.add(rel, 0);
-      fs::create_directories(dest / rel);
+      if (!inspectOnly)
+        fs::create_directories(dest / rel);
       continue;
     }
-    need(archive_entry_filetype(entry) == AE_IFREG && allowed(rel),
-         "Unsupported file in ZIP: " + rel.generic_string());
+    need(archive_entry_filetype(entry) == AE_IFREG,
+         "Unsupported ZIP entry: " + rel.generic_string());
     auto size = archive_entry_size(entry);
     need(size >= 0, "ZIP entry has an invalid size.");
     budget.add(rel, uint64_t(size));
+    auto ext = lower(rel.extension().string());
+    contents.donor |=
+        ext == ".ips" || ext == ".bps" || ext == ".sfc" || ext == ".smc";
+    contents.editor |= ext == ".fzm" || rel.filename() == "pack.json";
+    if (inspectOnly) {
+      archive_read_data_skip(ar.get());
+      continue;
+    }
+    need(allowed(rel), "Unsupported file in ZIP: " + rel.generic_string());
     fs::create_directories((dest / rel).parent_path());
     std::ofstream out(dest / rel, std::ios::binary);
     need(bool(out), "Cannot create an imported file.");
@@ -150,6 +165,7 @@ void unzip(const fs::path &source, const fs::path &dest) {
          "ZIP data is damaged or incomplete.");
   }
   need(status == ARCHIVE_EOF, "The ZIP directory is damaged.");
+  return contents;
 }
 void copyProject(const fs::path &source, const fs::path &dest) {
   need(!linked(source),
@@ -468,6 +484,18 @@ struct Stage {
   }
 };
 } // namespace
+bool FzeroContentIsBundled(const fs::path &mods, const std::string &id) {
+  auto path = mods / ".bundled-packs.json";
+  if (!fs::exists(path))
+    return false;
+  auto index = json(path);
+  need(index.HasMember("packs") && index["packs"].IsArray(),
+       "The included-pack index is damaged. Restore it from your download.");
+  for (const auto &pack : index["packs"].GetArray())
+    if (pack.IsObject() && string(pack, "id") == id)
+      return true;
+  return false;
+}
 FzeroContentImportResult FzeroContentImport(const fs::path &input,
                                             const fs::path &modsInput,
                                             const fs::path &stockInput,
@@ -505,12 +533,20 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
     copyProject(source, unpacked);
   else if (extension == ".fzm")
     copyProject(source.parent_path(), unpacked);
-  else if (extension == ".zip")
-    unzip(source, unpacked);
-  else
+  else if (extension == ".zip") {
+    // Identify the submission before extracting potentially large recordings.
+    // The converter reads just the selected donor and validated assets; extra
+    // documentation or tools in patch downloads are never run or installed.
+    auto contents = unzip(source, {}, true);
+    if (contents.donor && !contents.editor)
+      convert(source, stock, helpers, unpacked / "converted", reports);
+    else
+      unzip(source, unpacked);
+  } else
     throw std::runtime_error(
         "Choose a FZEdit project, ZIP, IPS/BPS patch, or SNES ROM hack.");
-  std::vector<fs::path> manifests, projects, patches;
+  std::vector<fs::path> manifests, projects, donors;
+  bool audio = false;
   for (auto &e : fs::recursive_directory_iterator(unpacked))
     if (e.is_regular_file()) {
       auto ext = lower(e.path().extension().string());
@@ -518,14 +554,16 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
         manifests.push_back(e.path());
       if (ext == ".fzm")
         projects.push_back(e.path());
-      if (ext == ".ips" || ext == ".bps")
-        patches.push_back(e.path());
+      if (ext == ".ips" || ext == ".bps" || ext == ".sfc" || ext == ".smc")
+        donors.push_back(e.path());
+      if (ext == ".pcm" || ext == ".msu")
+        audio = true;
     }
-  if (manifests.empty() && projects.empty() && !patches.empty()) {
-    need(extension == ".zip" || patches.size() == 1,
-         "Choose one patch or its ZIP download.");
+  if (manifests.empty() && projects.empty() && !donors.empty()) {
+    need(extension == ".zip" || donors.size() == 1,
+         "Choose one patch or ROM hack, or its ZIP download.");
     auto converted = stage.path / "converted";
-    convert(extension == ".zip" ? source : patches.front(), stock, helpers,
+    convert(extension == ".zip" ? source : donors.front(), stock, helpers,
             converted, reports);
     manifests.push_back(converted / "pack.json");
   }
@@ -546,6 +584,10 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
     need(valid, error);
     refreshManifest(candidate, displayName);
   } else {
+    need(!projects.empty() || !audio,
+         "This ZIP contains music but no courses or patch. Add recordings to "
+         "the matching pack's music folder, using its course filenames. See "
+         "mods/CONVERSION.md for music mapping.");
     need(projects.size() == 1,
          "Choose a ZIP or folder with one FZEdit project, or a pack that "
          "includes pack.json. Multiple projects need explicit league/order "
@@ -564,6 +606,9 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
   need(std::string(info.id) != "retail" && std::string(info.id) != "bs-deluxe",
        "This pack uses a reserved built-in game ID. Its author must choose a "
        "unique pack ID.");
+  need(!FzeroContentIsBundled(mods, info.id),
+       "This pack is included with F-Zero Forever. Import cannot replace an "
+       "included pack.");
   for (auto &e : fs::recursive_directory_iterator(candidate))
     if (e.is_regular_file()) {
       auto ext = lower(e.path().extension().string());
@@ -579,8 +624,7 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
     if (e.path().filename().string().starts_with('.'))
       continue;
     need(installedId(e.path()) != info.id,
-         "This pack is already installed. Open its folder to manage it; "
-         "importing will not overwrite it.");
+         "This pack is already installed. Importing will not overwrite it.");
   }
   // The shared transport also recognizes installed ZIPs and rejects ID
   // collisions.
@@ -601,6 +645,17 @@ FzeroContentImportResult FzeroContentImport(const fs::path &input,
   auto dest = installed / info.id;
   need(!fs::exists(dest),
        "A folder already exists for this pack. Nothing was overwritten.");
+  std::string warnings;
+  if (fs::is_regular_file(candidate / "conversion-report.json")) {
+    auto report = json(candidate / "conversion-report.json");
+    if (report.HasMember("warnings") && report["warnings"].IsArray())
+      for (auto &warning : report["warnings"].GetArray())
+        if (warning.IsString() && warnings.size() < 768) {
+          if (!warnings.empty())
+            warnings += "\n";
+          warnings += std::string(warning.GetString()).substr(0, 768 - warnings.size());
+        }
+  }
   fs::rename(candidate, dest);
-  return {info.id, info.name, dest, info.track_count, manifests.empty()};
+  return {info.id, info.name, dest, info.track_count, manifests.empty(), warnings};
 }

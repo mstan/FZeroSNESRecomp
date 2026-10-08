@@ -12,6 +12,8 @@ int main(int argc, char **argv) {
                            argc > 5 ? argv[5] : ".", argc > 3 ? argv[3] : "");
     printf("Imported %s [%s], %u courses: %s\n", r.name.c_str(), r.id.c_str(),
            r.courses, r.installed.string().c_str());
+    if (!r.warnings.empty())
+      printf("%s\n", r.warnings.c_str());
     return 0;
   } catch (const std::exception &e) {
     fprintf(stderr, "%s\n", e.what());

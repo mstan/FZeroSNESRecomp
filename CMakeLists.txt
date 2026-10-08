@@ -324,10 +324,14 @@ endif()
 # Shipped descriptors, patches and credits live separately from user inputs/settings.
 set(FZERO_PACK_SOURCE "" CACHE PATH "Locally extracted, validated standalone release packs")
 if(FZERO_PACK_SOURCE)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
     file(GLOB_RECURSE FZERO_PACK_PAYLOAD CONFIGURE_DEPENDS "${FZERO_PACK_SOURCE}/*")
-    set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS ${FZERO_PACK_PAYLOAD})
+    set_property(TARGET FZeroSNESRecomp APPEND PROPERTY LINK_DEPENDS ${FZERO_PACK_PAYLOAD}
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/bundled_content.py")
     add_custom_command(TARGET FZeroSNESRecomp POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${FZERO_PACK_SOURCE}" "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods/packs"
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/bundled_content.py"
+            --source "${FZERO_PACK_SOURCE}" --mods "$<TARGET_FILE_DIR:FZeroSNESRecomp>/mods"
         VERBATIM)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/music/cgp/cgp.msu")
         find_package(Python3 COMPONENTS Interpreter REQUIRED)

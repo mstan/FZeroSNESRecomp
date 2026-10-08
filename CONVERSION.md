@@ -1,10 +1,14 @@
 # Bringing courses into F-Zero Forever
 
-Open **Custom Content**, choose **Import content**, and select your ZIP, FZM,
+Open **Custom Content**, choose **Import**, and select your ZIP, FZM,
 IPS/BPS patch or hacked ROM. You can give the imported pack a display name.
 The importer detects its contents, checks usable courses and installs them for
-the next time you press Play. Use **Import folder** for a whole editor export.
-The Custom Content list also shows the files already in `mods`.
+the next time you press Play. For an unpacked editor export, choose its FZM
+file with its companions beside it, or ZIP the whole export. There is one
+Import button for all of these inputs. The list also shows installed mod files.
+
+CGP, Astra Front, Bower and MAX are included packs. This page cannot remove or
+replace them. Huckmine belongs to CGP; it is not an additional default pack.
 
 Reviewed patch conversion runs automatically with your selected game ROM.
 You do not need Python or a command line. If a revision needs review, the
@@ -86,8 +90,7 @@ screen. Titles, music and display names do not change course record hashes.
 Keep the `.fzm` file and all its companion files together. The companions contain
 the track, computer drivers' route, artwork, sky, colors and minimap. Export or
 ZIP the complete set, preserving relative paths and the author's credits.
-Select that ZIP or FZM through **Custom Content > Import content**, or select
-the complete export folder through **Import folder**. The game supplies the
+Select that ZIP or FZM through **Custom Content > Import**. The game supplies the
 pack description for an ordinary single-course project.
 
 A bare editor export uses standard F-Zero course rules. FZEdit files do not

@@ -15,6 +15,7 @@ import subprocess
 import zipfile
 from import_cgp_music import verify_music, stage_course_music
 from import_astra_music import stage_music as stage_astra_music
+from bundled_content import write_index
 
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
@@ -104,6 +105,8 @@ for ident in ("astra-front","bower-league","cgp","max-league"):
         expected_courses[f"{ident}/{course}"] = digest
     shutil.copytree(source,stage/"mods/packs"/ident,ignore=shutil.ignore_patterns(
         ".cache","*.pcm","*.msu", *([] if developer else ["extraction.json"])))
+write_index(stage / "mods", [stage / "mods/packs" / ident for ident in
+                            ("astra-front", "bower-league", "cgp", "max-league")])
 # Use the real loader in the clean staging installation. Its content-keyed
 # source extraction and compiled-course caches travel with the ZIP, avoiding
 # conversion on first launch while retaining ordinary edit invalidation.

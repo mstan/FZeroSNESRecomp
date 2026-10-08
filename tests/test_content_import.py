@@ -87,6 +87,16 @@ class ImportTests(unittest.TestCase):
         result = self.run_import(self.archive([('hack.ips', 'PATCHEOF'), ('hack.bps', 'BPS1')]))
         self.assertIn('conversion tools', result.stderr)
 
+    def test_rom_zip_is_routed_to_converter(self):
+        result = self.run_import(self.archive([('download/hack.SMC', bytes(512)),
+                                               ('download/tool.exe', 'not executed'),
+                                               ('download/notes.pdf', 'documentation')]))
+        self.assertIn('conversion tools', result.stderr)
+
+    def test_music_only_zip_explains_mapping(self):
+        result = self.run_import(self.archive([('hack-1.pcm', b'MSU1')]))
+        self.assertIn('music but no courses', result.stderr)
+
     def test_user_name_is_not_a_path(self):
         self.run_import(self.raw(), name='x\nunsafe')
 
@@ -110,6 +120,16 @@ class ImportTests(unittest.TestCase):
         broken.mkdir(parents=True)
         (broken / 'pack.json').write_text('{bad JSON')
         self.installed_sample()
+
+    def test_included_id_cannot_be_replaced_even_if_folder_is_missing(self):
+        pack = self.installed_sample()
+        ident = json.loads((pack / 'pack.json').read_text())['id']
+        (self.mods / '.bundled-packs.json').write_text(json.dumps(
+            {'format': 1, 'packs': [{'id': ident, 'title': 'Included course'}]}))
+        shutil.rmtree(pack)  # Simulate a missing bundled folder in our fixture.
+        result = self.run_import(SAMPLE)
+        self.assertIn('included with F-Zero Forever', result.stderr)
+        self.assertFalse(pack.exists())
 
     def pack_zip(self, pack, name):
         return self.archive([(p.relative_to(pack).as_posix(), p.read_bytes())
@@ -135,6 +155,15 @@ class ImportTests(unittest.TestCase):
         shutil.rmtree(pack)
         result = self.run_import(archive)
         self.assertIn('already installed', result.stderr)
+
+    def test_conversion_warnings_are_not_hidden_after_success(self):
+        pack = self.installed_sample()
+        (pack / 'conversion-report.json').write_text(json.dumps(
+            {'warnings': ['One recording could not be mapped. Original ZIP is unchanged.']}))
+        archive = self.pack_zip(pack, 'with-warning.zip')
+        shutil.rmtree(pack)
+        result = self.run_import(archive, succeeds=True)
+        self.assertIn('One recording could not be mapped', result.stdout)
 
     def test_tampered_payload_is_rejected(self):
         pack = self.installed_sample()

@@ -3,7 +3,9 @@
 The prototype adds a separate **Custom Content** page to F-Zero's launcher.
 Choose **Import…**, pick a source, edit its display name, and import. The host
 checks it on a worker thread, shows the result, and loads accepted courses when
-Play is pressed. Folder import covers unpacked editor projects. Existing Mods
+Play is pressed. Select an FZM beside its companions for unpacked projects.
+There is one Import button; folder import and folder-opening controls are not
+exposed by F-Zero. Existing Mods
 still controls gameplay features. The original 0.7.4 release was not changed.
 
 The shared recomp-ui page is opt-in through a nullable C provider. It owns the
@@ -22,6 +24,9 @@ Another game can implement that provider without inheriting F-Zero parsing.
   cup IDs, names/order, SPC music, supported mechanics and title policy.
 - Display names are separate from save identities. Duplicate IDs are rejected;
   existing folders, saves and source files are never replaced.
+- Staging records included pack IDs outside user manifests. CGP, Astra Front,
+  Bower and MAX are labeled as included and cannot be replaced by an import,
+  even if their data folder is missing. There is no removal control for them.
 - Imports validate in an isolated staging directory before publication. Course
   archives share bounded expansion limits; linked and escaping paths fail.
 - Unknown hacks produce an explanation and persistent report under
@@ -46,8 +51,8 @@ Raw project IDs derive from source contents; changing the display title does
 not change them. Authors maintaining revisions should supply a stable pack ID.
 
 Title choices refresh on the next launcher opening. Course discovery refreshes
-before Play. Removing/updating content uses **Open folder** for now; there is no
-in-place replacement or uninstall operation. Audio-only ZIP import and arbitrary
+before Play. There is no in-place replacement or uninstall operation.
+Audio-only ZIP import and arbitrary
 non-course mod formats are not implemented; existing pack music conventions
 remain unchanged. Windows helper packaging is demonstrated; other platforms
 can use the documented maintainer conversion command.
@@ -57,9 +62,10 @@ can use the documented maintainer conversion command.
 - Shared UI: 25 checks, including NULL-provider invisibility and busy-state
   launch guard; integrated launcher build and 1100×880 visual capture. The real
   Windows file picker, edited name and successful import were exercised together.
-- Native importer: 17 integration cases using the original HM.zip, ready packs,
+- Native importer: 21 integration cases using the original HM.zip, ready packs,
   display naming, duplicate imports, malformed inputs, bounded nested archives,
-  uppercase extensions and transactional failure. ROM-free subset is in CTest.
+  uppercase extensions, included-ID protection, ZIP ROM routing, music-only
+  guidance, visible conversion warnings and transactional failure. ROM-free subset is in CTest.
 - Converter: 21 ROM-free checks. All 75 converted editable course ZIPs exactly
   match the existing shipped examples. The 74 reconstructed courses match full
   native course bytes; original Huckmine retains its existing author source.

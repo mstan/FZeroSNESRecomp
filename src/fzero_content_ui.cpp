@@ -6,12 +6,6 @@
 #include <mutex>
 #include <thread>
 #include <vector>
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#include <shellapi.h>
-#endif
 namespace fs = std::filesystem;
 namespace {
 struct Context {
@@ -48,6 +42,14 @@ std::vector<RecompLauncherCCustomContentEntry> inventory(const fs::path &mods) {
         if (d.HasParseError() || !d.IsObject())
           throw std::runtime_error("Invalid pack.json");
         copy(e.name, snesrecomp::data_pack::string(d, "title"));
+        if (FzeroContentIsBundled(mods,
+                                  snesrecomp::data_pack::string(d, "id"))) {
+          copy(e.kind, "Included course pack");
+          copy(e.status,
+               "Included with F-Zero Forever; cannot be removed here");
+        } else {
+          copy(e.kind, "Imported course pack");
+        }
       } catch (const std::exception &ex) {
         e.has_error = 1;
         copy(e.status, ex.what());
@@ -59,11 +61,11 @@ std::vector<RecompLauncherCCustomContentEntry> inventory(const fs::path &mods) {
     for (auto &e : fs::directory_iterator(mods)) {
       if (e.path().filename().string().rfind('.', 0) == 0)
         continue;
-      // Guides and loader preferences are available through Open folder;
-      // they are not installed playable content.
+      // Guides, import reports and preferences are not playable content.
       auto filename = e.path().filename().string();
       if (filename == "CONVERSION.md" || filename == "PARSE_MANIFEST.md" ||
-          filename == "README.md" || filename == "track-packs")
+          filename == "README.md" || filename == "track-packs" ||
+          filename == "import-reports")
         continue;
       if (e.path().filename() == "packs" && e.is_directory()) {
         for (auto &p : fs::directory_iterator(e.path()))
@@ -76,18 +78,17 @@ std::vector<RecompLauncherCCustomContentEntry> inventory(const fs::path &mods) {
             [](auto &a, auto &b) { return std::string(a.name) < b.name; });
   return rows;
 }
-int types(void *) { return 2; }
+int types(void *) { return 1; }
 int type(void *, int index, RecompLauncherCCustomContentType *out) {
-  if (!out || index < 0 || index > 1)
+  if (!out || index != 0)
     return 0;
   *out = {};
-  copy(out->id, index ? "folder" : "file");
-  copy(out->label, index ? "Import folder" : "Import content");
+  copy(out->id, "file");
+  copy(out->label, "Import");
   copy(out->description,
-       "FZEdit projects and packs, or supported IPS/BPS patches.");
+       "ZIPs, FZEdit projects, IPS/BPS patches or supported ROM hacks.");
   copy(out->file_patterns, "*.zip,*.ips,*.bps,*.fzm,*.sfc,*.smc");
   copy(out->file_description, "F-Zero custom content");
-  out->directory = index;
   return 1;
 }
 int count(void *) {
@@ -148,6 +149,8 @@ int start(void *, const char *, const char *path, const char *image,
                  (result.courses == 1 ? " course)." : " courses)."));
         std::string detail =
             "Ready to play with Track Pack Loader enabled in Mods.";
+        if (!result.warnings.empty())
+          detail += "\n" + result.warnings;
         if (result.plain_editor_project)
           detail +=
               " This editor project uses standard F-Zero rules. Special rules "
@@ -178,46 +181,10 @@ int status(void *, RecompLauncherCCustomContentStatus *out) {
   *out = context.status;
   return 1;
 }
-int open(void *, const char *id) {
-  try {
-    fs::path path = context.mods;
-    if (id && *id) {
-      std::lock_guard guard(context.lock);
-      bool found = false;
-      for (auto &e : context.rows)
-        if (std::string(e.id) == id) {
-          path = fs::u8path(e.path);
-          found = true;
-          break;
-        }
-      if (!found)
-        throw std::runtime_error("This content entry is no longer available.");
-      if (!fs::is_directory(path))
-        path = path.parent_path();
-    }
-    fs::create_directories(path);
-#ifdef _WIN32
-    // Explicit user action; invoke Explorer, never execute the selected
-    // content.
-    auto argument = L"\"" + path.wstring() + L"\"";
-    if (reinterpret_cast<INT_PTR>(
-            ShellExecuteW(nullptr, L"open", L"explorer.exe", argument.c_str(),
-                          nullptr, SW_SHOWNORMAL)) <= 32)
-      throw std::runtime_error("Could not open the content folder.");
-    return 1;
-#else
-    throw std::runtime_error(
-        "Open the content folder using your file manager: " + path.string());
-#endif
-  } catch (const std::exception &e) {
-    context.error = e.what();
-    return 0;
-  }
-}
 const char *lastError(void *) { return context.error.c_str(); }
 const RecompLauncherCCustomContentProvider provider = {
     nullptr,
-    "Add courses from a ZIP, FZEdit project, or supported IPS/BPS patch. Your "
+    "Add courses from a ZIP, FZEdit project, patch or supported ROM hack. Your "
     "installed content appears below. Gameplay options remain in Mods.",
     types,
     type,
@@ -225,7 +192,7 @@ const RecompLauncherCCustomContentProvider provider = {
     entry,
     start,
     status,
-    open,
+    nullptr,
     lastError};
 } // namespace
 const RecompLauncherCCustomContentProvider *

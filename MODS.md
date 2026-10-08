@@ -2,10 +2,11 @@
 
 ## Adding custom courses
 
-Open **Custom Content** in the launcher and choose **Import content**. Pick the
-ZIP you downloaded, a F-Zero Edit `.fzm` project, or an IPS/BPS patch. You can
-change its display name before importing. **Import folder** accepts an unpacked
-editor project with its companion files.
+Open **Custom Content** in the launcher and choose **Import**. Pick the ZIP you
+downloaded, a F-Zero Edit `.fzm` project, an IPS/BPS patch, or a ROM hack. You can
+change its display name before importing. For an unpacked editor project,
+select its `.fzm` file and keep the companion files beside it, or ZIP the whole
+project. The same picker handles every supported format.
 
 The importer checks the files first. If they work, it installs the pack and
 you can press Play. Track Pack Loader must be enabled in Mods. A different
@@ -16,6 +17,11 @@ profile before their courses can be used; a patch alone does not explain its
 custom code. An unsupported input gets an explanation instead of a partial
 installation. See [CONVERSION.md](CONVERSION.md) for editor and patch workflows.
 The same guide is included inside the build's `mods` folder.
+
+Community Grand Prix, Astra Front, Bower League and MAX League appear as
+**Included course pack**. They cannot be removed or replaced through this page;
+their gameplay switches remain in Mods. Huckmine is one of CGP's courses, not a
+separate default pack. New imports are separate from the included collection.
 
 Course music still lives in each pack's `music` folder and matches the course
 source filename. Importing content does not change that convention.
