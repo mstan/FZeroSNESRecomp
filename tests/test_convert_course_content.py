@@ -47,6 +47,31 @@ def bps_literal(source, target):
     return stream+struct.pack('<I', zlib.crc32(stream))
 
 
+def pcm(frames=8, loop=0):
+    return b'MSU1'+struct.pack('<I', loop)+bytes(frames*4)
+
+
+def metadata_donor():
+    """Two reordered resources exercise generic consumers without a profile."""
+    rom = bytearray(0x100000)
+    def put(address, value):
+        offset = ((address & 0x7f0000) >> 1) | (address & 0x7fff)
+        rom[offset:offset+len(value)] = value
+    def pointer(address):
+        return address.to_bytes(3, 'little')
+    put(0x00f7e0, bytes.fromhex('08 e2 30 c2 10 ae 59 10 bf')+pointer(0x109100)+bytes.fromhex('e2 10 ea ea ea'))
+    put(0x10824d, bytes.fromhex('8a c2 30 29 ff 00 8d 5b 10 bb bf')+pointer(0x109110)+bytes.fromhex('29 ff 00 8d 59 10 20'))
+    put(0x10845b, bytes.fromhex('ad 59 10 0a 0a aa bf')+pointer(0x109126)+bytes.fromhex('8d d9 0a bf')+pointer(0x109128)+bytes.fromhex('8d db 0a'))
+    put(0x10846f, bytes.fromhex('ad 59 10 0a 6d 59 10 aa 8b bf')+pointer(0x109120)+bytes.fromhex('a8 e2 20 bf')+pointer(0x109122)+b'\x48')
+    put(0x10839b, bytes.fromhex('da c2 30 ad 59 10 0a 6d 59 10 aa bf')+pointer(0x109140)+bytes.fromhex('85 00 bf')+pointer(0x109141)+bytes.fromhex('85 01 e2 30 fa'))
+    put(0x109100, bytes([9, 72])); put(0x109110, bytes([1, 0]))
+    put(0x109140, pointer(0x109200)+pointer(0x109300))
+    put(0x109200, bytes.fromhex('10 53 01 82 1b ff')+bytes([converter.ALPHABET[9]])+b'\0')
+    put(0x109300, bytes.fromhex('10 53 01 82 1b ff')+bytes([converter.ALPHABET[16]])+b'\0')
+    put(0x02c26a, bytes.fromhex('a5 46 29 07 c9 06 d0 11 a5 53 a6 58 d0 08 a5 90 0a 0a 65 90 65 53 18 69 0c 60'))
+    return bytes(rom)
+
+
 class ConversionBoundaries(unittest.TestCase):
     def test_ips_bps_equivalence_and_zip_pair_selection(self):
         source, target = bytes(0x8000), b'A'+bytes(0x7fff)
@@ -102,6 +127,188 @@ class ConversionBoundaries(unittest.TestCase):
             path = Path(temp)/'large'; path.write_bytes(bytes(9))
             with self.assertRaisesRegex(ValueError, 'exceeds'):
                 converter.read_bounded(path, 8)
+
+    def test_disk_zip_streams_rom_and_only_audio_headers(self):
+        raw = bytes(512)+bytes(0x8000)
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp)/'submission.zip'
+            path.write_bytes(archive_bytes([('hack.smc', raw), ('hack-10.pcm', pcm(10000)),
+                                           ('tools/optional.asm', b'not executed'), ('INSTRUCTIONS.txt', b'author notes')]))
+            opened = []
+            original = zipfile.ZipFile.open
+            def observe(archive, entry, *args, **kwargs):
+                opened.append(entry.filename if isinstance(entry, zipfile.ZipInfo) else entry)
+                return original(archive, entry, *args, **kwargs)
+            with patch.object(converter, 'read_bounded', side_effect=AssertionError('ZIP buffered whole')), \
+                 patch.object(zipfile.ZipFile, 'open', observe):
+                target, report = converter.read_submission(path)
+            self.assertEqual(target, raw[512:])
+            self.assertEqual(report['removed_copier_header_bytes'], 512)
+            self.assertEqual(report['donor_member'], 'hack.smc')
+            self.assertEqual(report['audio_inventory']['pcm_count'], 1)
+            self.assertTrue(report['audio_inventory']['members'][0]['header_valid'])
+            self.assertEqual(report['ignored_members'], ['tools/optional.asm', 'INSTRUCTIONS.txt'])
+            self.assertNotIn('tools/optional.asm', opened)
+            self.assertNotIn('INSTRUCTIONS.txt', opened)
+
+    def test_ambiguous_zip_publishes_report_and_member_resolves(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); source = root/'different.zip'
+            source.write_bytes(archive_bytes([('a.sfc', bytes(0x8000)), ('b.sfc', b'B'+bytes(0x7fff))]))
+            with patch('subprocess.run', side_effect=AssertionError('Ambiguous donor invoked code')):
+                report = converter.convert(source, root/'review')
+            self.assertEqual(report['status'], 'review-required')
+            self.assertIn('different donor revisions', report['reason'])
+            self.assertEqual(len(report['archive_donor_candidates']), 2)
+            self.assertNotIn('target_sha256', report)
+            target, selected = converter.read_submission(source, patch_member='b.sfc')
+            self.assertEqual(target, b'B'+bytes(0x7fff))
+            self.assertEqual(selected['donor_member'], 'b.sfc')
+
+    def test_reviewed_donor_does_not_hide_another_unknown_revision(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp)/'mixed.zip'
+            path.write_bytes(archive_bytes([('known.sfc', bytes(0x8000)), ('new.sfc', b'B'+bytes(0x7fff))]))
+            profile = ROOT/'assets/track-packs/bower-league.ini'
+            with patch.object(converter, 'reviewed_profile', side_effect=lambda data: profile if data[0] == 0 else None):
+                target, report = converter.read_submission(path)
+            self.assertIsNone(target)
+            self.assertIn('different donor revisions', report['reason'])
+
+    def test_audio_only_archive_has_clear_review_reason(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); source = root/'music.zip'
+            source.write_bytes(archive_bytes([('music-1.pcm', pcm()), ('README.md', b'music notes')]))
+            report = converter.convert(source, root/'review')
+            self.assertIn('audio-only', report['reason'])
+            self.assertEqual(report['status'], 'review-required')
+            self.assertEqual(report['audio_inventory']['mapped_pcm_count'], 0)
+            self.assertFalse((root/'review/music').exists())
+
+    def test_zip_compressed_file_and_path_collision_bounds(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)/'bound.zip'; source.write_bytes(archive_bytes([('hack.sfc', bytes(0x8000))]))
+            with patch.object(converter, 'ZIP_ARCHIVE_LIMIT', 1), self.assertRaisesRegex(ValueError, 'Compressed ZIP'):
+                converter.read_submission(source)
+            with patch.object(converter, 'ZIP_FILE_LIMIT', 1), self.assertRaisesRegex(ValueError, 'expanded'):
+                converter.read_submission(source)
+            with patch.object(converter, 'ZIP_DIRECTORY_LIMIT', 1), self.assertRaisesRegex(ValueError, 'central directory'):
+                converter.read_submission(source)
+            with patch.object(converter, 'IMAGE_LIMIT', 0x7fff), self.assertRaisesRegex(ValueError, '32 KiB'):
+                converter.decode_donor(bytes(0x8000), '.sfc', None)
+        with self.assertRaisesRegex(ValueError, 'collision'):
+            converter.zip_patches(archive_bytes([('folder', b'file'), ('folder/hack.ips', b'PATCHEOF')]))
+
+    def audio_pack(self, root, members):
+        source = root/'music.zip'; source.write_bytes(archive_bytes(members))
+        pack = root/'pack'; pack.mkdir()
+        index = dict(courses=[dict(id='a', source='courses/a.zip', music=dict(track=10)),
+                              dict(id='b', source='courses/b.zip', music=dict(track=11))],
+                     soundtracks=[dict(prefix='reviewed')], menu_music=dict(title='music/reviewed-4.pcm'))
+        (pack/'courses.json').write_text(json.dumps(index))
+        with zipfile.ZipFile(source) as archive:
+            _, _, audio = converter.zip_inventory(archive)
+        report = dict(audio_inventory=audio, donor_member='hack.ips', warnings=[])
+        return source, pack, report
+
+    def test_reviewed_audio_maps_course_and_menu_without_guessing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source, pack, report = self.audio_pack(Path(temp), [('reviewed-10.pcm', pcm()),
+                ('nested/b.pcm', pcm(loop=2)), ('reviewed-4.pcm', pcm(16)),
+                ('reviewed-99.pcm', pcm()), ('other-11.pcm', pcm()), ('notes/song.ogg', b'unsupported')])
+            before = source.read_bytes()
+            converter.copy_archive_audio(source, report, pack)
+            self.assertEqual((pack/'music/a.pcm').read_bytes(), pcm())
+            self.assertEqual((pack/'music/b.pcm').read_bytes(), pcm(loop=2))
+            self.assertEqual((pack/'music/reviewed-4.pcm').read_bytes(), pcm(16))
+            self.assertEqual(report['audio_inventory']['mapped_pcm_count'], 3)
+            self.assertEqual(report['audio_inventory']['unmapped_pcm_count'], 2)
+            self.assertEqual({p.name for p in (pack/'music').iterdir()}, {'a.pcm', 'b.pcm', 'reviewed-4.pcm'})
+            self.assertTrue(any('unchanged ZIP' in warning for warning in report['warnings']))
+            self.assertTrue(any('other audio' in warning for warning in report['warnings']))
+            self.assertEqual(source.read_bytes(), before)
+
+    def test_ambiguous_audio_skips_disputed_file_and_keeps_other_music(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source, pack, report = self.audio_pack(Path(temp), [('reviewed-10.pcm', pcm()),
+                ('a.pcm', pcm(16)), ('reviewed-11.pcm', pcm())])
+            converter.copy_archive_audio(source, report, pack)
+            self.assertFalse((pack/'music/a.pcm').exists())
+            self.assertEqual((pack/'music/b.pcm').read_bytes(), pcm())
+            self.assertEqual(report['audio_inventory']['mapped_pcm_count'], 1)
+            self.assertTrue(any('multiple matching' in warning for warning in report['warnings']))
+            self.assertEqual(len([item for item in report['audio_inventory']['members'] if 'mapping_reason' in item]), 2)
+
+    def test_corrupt_audio_warns_without_partial_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            info = zipfile.ZipInfo('reviewed-10.pcm'); info.compress_type = zipfile.ZIP_STORED
+            source, pack, report = self.audio_pack(root, [(info, pcm(20000)), ('reviewed-11.pcm', pcm())])
+            with zipfile.ZipFile(source) as archive:
+                entry = archive.getinfo('reviewed-10.pcm')
+                offset = entry.header_offset+30+len(entry.filename.encode())+len(entry.extra)+entry.file_size-1
+            corrupt = bytearray(source.read_bytes()); corrupt[offset] ^= 1; source.write_bytes(corrupt)
+            converter.copy_archive_audio(source, report, pack)
+            self.assertFalse((pack/'music/a.pcm').exists())
+            self.assertEqual((pack/'music/b.pcm').read_bytes(), pcm())
+            self.assertFalse(list(pack.rglob('*.part')))
+            self.assertEqual(report['audio_inventory']['mapped_pcm_count'], 1)
+            self.assertIn('CRC', report['audio_inventory']['members'][0]['copy_error'])
+            self.assertTrue(any('Courses are available' in warning for warning in report['warnings']))
+
+    def test_invalid_pcm_header_is_inventory_only(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source, pack, report = self.audio_pack(Path(temp), [('reviewed-10.pcm', pcm(loop=9)),
+                ('reviewed-11.pcm', b'not PCM'), ('reviewed-4.pcm', pcm(16))])
+            converter.copy_archive_audio(source, report, pack)
+            self.assertEqual(report['audio_inventory']['mapped_pcm_count'], 1)
+            self.assertEqual(report['audio_inventory']['unmapped_pcm_count'], 2)
+            self.assertFalse((pack/'music/a.pcm').exists())
+
+    def test_small_corrupt_pcm_header_does_not_reject_archive_donor(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp)/'small-corrupt.zip'
+            info = zipfile.ZipInfo('hack-10.pcm'); info.compress_type = zipfile.ZIP_STORED
+            source.write_bytes(archive_bytes([('hack.sfc', bytes(0x8000)), (info, pcm())]))
+            with zipfile.ZipFile(source) as archive:
+                entry = archive.getinfo('hack-10.pcm')
+                offset = entry.header_offset+30+len(entry.filename.encode())+len(entry.extra)+8
+            raw = bytearray(source.read_bytes()); raw[offset] ^= 1; source.write_bytes(raw)
+            target, report = converter.read_submission(source)
+            self.assertEqual(target, bytes(0x8000))
+            recording = report['audio_inventory']['members'][0]
+            self.assertFalse(recording['header_valid'])
+            self.assertIn('CRC', recording['header_error'])
+
+    def test_duplicate_audio_publication_budget_keeps_courses(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source, pack, report = self.audio_pack(Path(temp), [('reviewed-10.pcm', pcm())])
+            index = json.loads((pack/'courses.json').read_text())
+            index['courses'][1]['music']['track'] = 10
+            (pack/'courses.json').write_text(json.dumps(index))
+            with patch.object(converter, 'ZIP_TOTAL_LIMIT', len(pcm())+1):
+                converter.copy_archive_audio(source, report, pack)
+            self.assertFalse((pack/'music').exists())
+            self.assertTrue((pack/'courses.json').is_file())
+            self.assertEqual(report['audio_inventory']['mapped_pcm_count'], 0)
+            self.assertTrue(any('publication limit' in warning for warning in report['warnings']))
+
+    def test_generic_metadata_probe_is_evidence_not_qualification(self):
+        donor = metadata_donor(); report = converter.probe_fzedit_metadata(donor)
+        self.assertEqual(report['status'], 'recognized-resource-metadata')
+        self.assertEqual(report['internal_resource_count'], 2)
+        self.assertEqual(report['source_order_prefix'], [1, 0])
+        self.assertEqual([row['name'] for row in report['tracks']], ['Q', 'J'])
+        self.assertEqual([row['spc_index'] for row in report['tracks']], [8, 1])
+        self.assertEqual([row['msu_track'] for row in report['tracks']], [12, 13])
+        self.assertFalse(report['executable_compatibility_verified'])
+        self.assertFalse(report['cup_labels_verified'])
+        changed = bytearray(donor); changed[0x77e0] = 0
+        self.assertEqual(converter.probe_fzedit_metadata(changed)['status'], 'unrecognized-loader')
+        changed = bytearray(donor); changed[0x1426a] = 0
+        report = converter.probe_fzedit_metadata(changed)
+        self.assertFalse(report['msu_selector']['recognized'])
+        self.assertFalse(any('msu_track' in row for row in report['tracks']))
 
     def test_unknown_rom_is_report_only_and_exit_two(self):
         with tempfile.TemporaryDirectory() as temp:
