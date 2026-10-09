@@ -158,7 +158,7 @@ shutil.copy2(ROOT / "MODS.md", stage / "MODS.md")
 shutil.copy2(ROOT / "CONVERSION.md", stage / "CONVERSION.md")
 guide = (ROOT / 'CONVERSION.md').read_text(encoding='utf-8')
 guide = guide.replace('(mods/PARSE_MANIFEST.md)', '(PARSE_MANIFEST.md)')
-guide = guide.replace('(docs/PACK_FORMAT.md)', '(../docs/PACK_FORMAT.md)')
+guide = guide.replace('(docs/', '(../docs/')
 (stage / 'mods/CONVERSION.md').write_text(guide, encoding='utf-8')
 (stage / "CREDITS.txt").write_text(
     "F-Zero Forever\n\n"
@@ -205,7 +205,7 @@ if developer:
     shutil.copy2(ROOT/"docs/PACK_FORMAT.md",stage/"docs/PACK_FORMAT.md")
 # MODS.md links to these instructions in player downloads too.
 (stage / "docs").mkdir(exist_ok=True)
-player_guides = ("PACK_FORMAT.md", "CGP_COURSE_CAPABILITIES.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md")
+player_guides = ("PACK_FORMAT.md", "CGP_COURSE_CAPABILITIES.md", "CGP_SNES_MUSIC.md", "ASTRA_FRONT_IMPORT.md", "FUZEE_FORMAT.md")
 for filename in player_guides:
     shutil.copy2(ROOT / "docs" / filename, stage / "docs" / filename)
 shutil.copy2(ROOT / "mods/PARSE_MANIFEST.md", stage / "mods/PARSE_MANIFEST.md")

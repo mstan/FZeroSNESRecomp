@@ -130,6 +130,20 @@ CGP and MAX include their reviewed title artwork. Bower uses Original. Astra
 shares CGP's artwork and reuses the CGP title choice; it does not add a duplicate
 screen. Titles, music and display names do not change course record hashes.
 
+## Older Fuzee projects and patches
+
+Fuzee is a different, older editor. Its projects use `regionN.txt` and
+`globalsetting.txt`, rather than F-Zero Edit's FZM and companion files.
+Keep that complete project and the author's credits if you have them.
+
+Nebula Highway uses a Fuzee-compatible ROM layout. We have located the original
+editor source and decoded its roads and checkpoints, but complete playable
+conversion is still pending. These files cannot yet be imported just by naming
+the courses. The importer identifies this format and explains the limitation.
+Maintainers can use the inspection tool and source references in
+[FUZEE_FORMAT.md](docs/FUZEE_FORMAT.md). Its audit output belongs in `captures`,
+not `mods/packs`.
+
 ## F-Zero Edit
 
 Keep the `.fzm` file and all its companion files together. The companions contain

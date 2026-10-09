@@ -24,6 +24,7 @@ from audit_track_metadata import audit_metadata, GLYPHS, SONGS, span
 from audit_intro_font import atlas
 from course_tool_paths import ROOT, native_tool
 from export_runtime_packs import export_pack
+from fuzee_course_format import decode as decode_fuzee, recognized as recognized_fuzee
 from import_astra_front import SOURCE_SHA256 as ASTRA_SOURCE_SHA256
 from inspect_bs_deluxe import STOCK_SHA256
 from parse_track_pack import donor, fields, recognize
@@ -417,6 +418,20 @@ def probe_fzedit_metadata(target):
         if (span(target, 0x009f08, len(classic)) == classic
                 and span(target, 0x00f7e0, 17) == bytes.fromhex(
                     '08 e2 30 ae d8 0a bf 71 9e 03 0a 0a 0a 7f 71 9e 03')):
+            if recognized_fuzee(target):
+                result.update(status='recognized-incomplete-resource-layout', loader_family='fuzee-0.04',
+                    unsupported_reason='This hack uses the Fuzee course format. Its road and checkpoint '
+                        'layout is identified, but complete course conversion is not supported yet. '
+                        'See CONVERSION.md for the current decoder limits.')
+                try:
+                    audit, maps = decode_fuzee(target)
+                    result['decoded_resource_inventory'] = dict(gp_entries=15, practice_entries=7,
+                        unique_road_variants=len(maps),
+                        checkpoint_sections=sum(len(course['checkpoints']) for course in audit['courses']),
+                        decoded_fields=audit['decoded_fields'], remaining_fields=audit['remaining_fields'])
+                except ValueError as error:
+                    result['structural_error'] = str(error)
+                return result
             result.update(loader_family='legacy-stock',
                 unsupported_reason='This hack uses the older F-Zero course format, which the importer cannot '
                     'decode yet. Course labels alone cannot resolve it. Original FZEdit projects can be '

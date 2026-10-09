@@ -127,6 +127,30 @@ class ConversionBoundaries(unittest.TestCase):
         self.assertIn('new resource decoder', result['unsupported_reason'])
         self.assertNotEqual(result['status'], 'recognized-resource-metadata')
 
+    def test_fuzee_loader_reports_decoded_inventory_without_allowing_import(self):
+        from test_fuzee_course_format import fixture
+        rom = fixture()
+        rom[0x77e0:0x77f1] = bytes.fromhex('08 e2 30 ae d8 0a bf 71 9e 03 0a 0a 0a 7f 71 9e 03')
+        result = converter.probe_fzedit_metadata(rom)
+        self.assertEqual(result['loader_family'], 'fuzee-0.04')
+        self.assertEqual(result['status'], 'recognized-incomplete-resource-layout')
+        self.assertEqual(result['decoded_resource_inventory']['gp_entries'], 15)
+        self.assertEqual(result['decoded_resource_inventory']['practice_entries'], 7)
+        self.assertEqual(result['decoded_resource_inventory']['unique_road_variants'], 3)
+        self.assertIn('complete course conversion is not supported', result['unsupported_reason'])
+        self.assertFalse(result['executable_compatibility_verified'])
+
+    def test_malformed_fuzee_does_not_get_a_usable_inventory(self):
+        from test_fuzee_course_format import fixture, put
+        rom = fixture()
+        rom[0x77e0:0x77f1] = bytes.fromhex('08 e2 30 ae d8 0a bf 71 9e 03 0a 0a 0a 7f 71 9e 03')
+        put(rom, 0x11fff0, b'\xff')
+        result = converter.probe_fzedit_metadata(rom)
+        self.assertEqual(result['loader_family'], 'fuzee-0.04')
+        self.assertIn('block index', result['structural_error'])
+        self.assertNotIn('decoded_resource_inventory', result)
+        self.assertNotEqual(result['status'], 'recognized-resource-metadata')
+
     def test_table_msu_selector_follows_gp_order_and_events(self):
         rom = bytearray(metadata_donor())
         def put(address, data):
