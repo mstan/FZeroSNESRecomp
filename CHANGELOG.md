@@ -1,5 +1,17 @@
 ﻿# Changelog
 
+## 0.8.1 - Shared rendering workers and import refinements
+
+- Distribute HD racing and finish scenery across persistent rendering workers,
+  using the shared pool merged into snesrecomp. Keep identical output, a serial
+  fallback and sleeping workers between frames.
+- Improve imported MSU song matching from donor selectors and keep music
+  discovery working when course source files are renamed.
+- Identify legacy Fuzee layouts in conversion reports; unsupported course
+  formats still require further conversion work.
+- Retain editable course ZIPs, ready-to-use caches, per-pack music filenames
+  and both MSU/no-MSU downloads.
+
 ## 0.8.0 - Custom Content importer
 
 - Add one Import flow for course ZIPs, F-Zero Edit projects, IPS/BPS patches and
