@@ -55,6 +55,21 @@ CGP P3test revision, and MAX League Classic/Modern. Other supported FZEdit-based
 revisions use the interactive review. Older revisions do not inherit a known
 pack's identity or compatibility claims.
 
+Older FZEdit layouts are also supported, including the SNES Maximum Velocity
+hack, Hybrid and ReFractured. The decoder recognizes relocated data consumers,
+older course-name and checkpoint loaders, inline minimaps, and the original
+compressed skies where retained. SNES music choices come from the donor's
+venue/variant selector or its per-course table. They are never inferred from
+course names. These downloads are optional imports, not included packs.
+
+PCM numbering is also read from recognized donor MSU selectors. For example,
+the supplied FZero55 patch explicitly selects **11–20** for its ten courses;
+the first course does not select 10. Hybrid reuses five course recordings
+across its two cups. A matched recording is copied to the filename of each
+course that uses it, so the installed convention remains
+`music/<course-filename>.pcm`. Unrecognized selectors still produce the manual
+music placement notice.
+
 For maintainers, run this from the repository root:
 
 ```powershell

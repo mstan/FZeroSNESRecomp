@@ -40,6 +40,10 @@ course-to-song mapping. This includes FZero55's ten course songs and its title,
 menu and ending recordings. Choose that pack under **Mods > Menu and event
 music** to use its menu songs. Missing or ambiguous recordings still need
 manual placement; file numbering alone is not enough to identify a song.
+The FZero55 download we checked uses song **11** for its first course and
+**12–20** for the rest. Those numbers come from the patch's music table.
+The importer renames the matched songs for you; once installed, they still use
+`music/<course-filename>.pcm`.
 
 You can rename an imported course ZIP inside its `courses` folder while the
 game is closed. On the next launch, the loader finds its internal identity and
@@ -59,7 +63,9 @@ Unmatched songs need manual placement, and missing songs use SNES music.
 Older stock-format hacks, including Nebula Highway v0.1.1, need a separate
 course decoder and are not supported yet. Vintage Velocity I v2.1 targets
 **F-Zero: Maximum Velocity for Game Boy Advance**, so it cannot be imported
-into this SNES game. For a download supplied as RAR, extract it first and pick
+into this SNES game. The separate **SNES Maximum Velocity** hack can be imported,
+along with Hybrid and ReFractured. They use the same course review form.
+For a download supplied as RAR, extract it first and pick
 the IPS/BPS file; the importer accepts ZIP archives directly.
 
 ## Opening Records for testing

@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## Unreleased
+
+- Import older FZEdit layouts used by the SNES Maximum Velocity hack, Hybrid
+  and ReFractured, preserving course names, source order, maps and SNES music.
+- Map Hybrid's supplied MSU recordings from its patch's selector and install
+  them with the usual per-pack course filenames.
+
 ## 0.8.1 - Shared rendering workers and import refinements
 
 - Distribute HD racing and finish scenery across persistent rendering workers,

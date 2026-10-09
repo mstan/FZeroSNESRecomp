@@ -105,6 +105,46 @@ def inferable_donor():
     return bytes(rom)
 
 
+def older_metadata_donor(inline=False):
+    """Synthetic older FZEdit layout: relocated consumers, venue SPC music."""
+    rom=bytearray(0x100000)
+    def put(address,value):
+        offset=((address&0x7f0000)>>1)|(address&0x7fff)
+        rom[offset:offset+len(value)]=value
+    def ptr(address):return address.to_bytes(3,'little')
+    entry=0x109000
+    put(0x009f08,b'\x5c'+ptr(entry))
+    put(entry,bytes.fromhex('08 e2 30 a5 58 d0 0a a5 90 0a 0a 65 90 65 53 80 02 a5 53 a8 a2 00 c9 05 30 06 38 e9 05 e8 80 f6')+
+        bytes.fromhex('8a c2 30 29 ff 00 8d 5b 10 bb bf')+ptr(0x109700)+bytes.fromhex('29 ff 00 8d 59 10 20'))
+    put(0x009f1b,b'\x5c'+ptr(0x109050))
+    put(0x109050,bytes.fromhex('ae 59 10 bf')+ptr(0x109720)+bytes.fromhex('5c 1f 9f 00'))
+    put(0x109080,bytes.fromhex('da c2 20 ad 59 10 0a 6d 59 10 aa bf')+ptr(0x109740)+
+        bytes.fromhex('85 00 e2 20 bf')+ptr(0x109742)+bytes.fromhex('85 02 fa 5c dd ab 00'))
+    mini=0x109400
+    if inline:
+        code=bytes.fromhex('a9 0c 00 8d d9 0a a9 d3 00 8d db 0a ad 59 10 0a 6d 59 10 aa bf')
+        mini=0x109100+len(code)+3+5+3+7+15
+        code+=ptr(mini)+bytes.fromhex('a8 8b e2 20 bf')+ptr(mini+2)+bytes.fromhex('48 ab a9 80 8d 15 21')
+        code+=bytes.fromhex('a2 00 5e 8e 16 21 a2 1f 00 22 77 9e 03 ab 6b')
+        put(0x109100,code)
+        put(mini+6,bytes.fromhex('ae 59 10 bf')+ptr(0x109780)+bytes.fromhex('85 9c 5c 22 a1 00'))
+    else:
+        put(0x109100,bytes.fromhex('ad 59 10 0a 6d 59 10 aa bf')+ptr(mini)+
+            bytes.fromhex('a8 8b e2 20 bf')+ptr(mini+2)+bytes.fromhex('48 ab a9 80 8d 15 21'))
+        put(0x109200,bytes.fromhex('ad 59 10 0a 0a aa bf')+ptr(mini+6)+
+            bytes.fromhex('8d d9 0a bf')+ptr(mini+8)+bytes.fromhex('8d db 0a'))
+    put(mini,ptr(0x109800)*2)
+    put(0x109700,bytes([1,0]));put(0x109720,bytes([0xc3,0xe3]))
+    put(0x109740,ptr(0x109900)+ptr(0x109a00))
+    put(0x109900,bytes.fromhex('10 53 01 82 1b ff 64 28 00'))
+    put(0x109a00,bytes.fromhex('10 53 01 82 1b ff 65 00'))
+    table=0x039e68
+    put(0x00f7e0,bytes.fromhex('08 e2 30 ae d8 0a bf')+ptr(table)+bytes.fromhex('0a 0a 0a 7f')+ptr(table))
+    put(table,bytes(list(range(9))+[7]+[0]*5))
+    put(0x009fb5,bytes.fromhex('e2 30 ad f5 0c c9 03 90 0f c9 06 f0 0b ae ff 0c f0 06 18 6d ff 0c 69 04 8d d8 0a 28 60'))
+    return bytes(rom)
+
+
 class ConversionBoundaries(unittest.TestCase):
     def test_explicit_other_game_readme_explains_rejection(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -410,6 +450,43 @@ class ConversionBoundaries(unittest.TestCase):
         report = converter.probe_fzedit_metadata(changed)
         self.assertFalse(report['msu_selector']['recognized'])
         self.assertFalse(any('msu_track' in row for row in report['tracks']))
+
+    def test_older_fzedit_relocated_consumers_preserve_venue_variant_music(self):
+        donor=older_metadata_donor()
+        report=converter.probe_fzedit_metadata(donor)
+        self.assertEqual(report['status'],'recognized-resource-metadata')
+        self.assertEqual(report['loader_family'],'fzedit-older')
+        self.assertEqual(report['source_order_prefix'],[1,0])
+        self.assertEqual([row['spc_index'] for row in report['tracks']],[7,3])
+        self.assertEqual([row['donor_music_index'] for row in report['tracks']],[9,3])
+        self.assertEqual([row['name'] for row in report['tracks']],["B","A'"])
+        changed=bytearray(donor);changed[0x1f08]=0
+        self.assertEqual(converter.probe_fzedit_metadata(changed)['status'],'unrecognized-loader')
+        changed=bytearray(donor);changed[0x19e68+9]=255
+        self.assertEqual(converter.probe_fzedit_metadata(changed)['status'],'unrecognized-loader')
+        changed=bytearray(donor);changed[0x81800:0x81810]=donor[0x81050:0x81060]
+        self.assertEqual(converter.probe_fzedit_metadata(changed)['status'],'unrecognized-loader')
+
+    def test_older_inline_minimap_count_requires_exact_resource_boundaries(self):
+        donor=older_metadata_donor(inline=True)
+        report=converter.probe_fzedit_metadata(donor)
+        self.assertEqual(report['internal_resource_count'],2)
+        self.assertEqual(report['minimap_constants'],[12,211])
+        changed=bytearray(donor)
+        offset=(int(report['minimap_table'],16)&0x7fff)+0x80000
+        changed[offset-1]=0
+        self.assertEqual(converter.probe_fzedit_metadata(changed)['status'],'unrecognized-loader')
+
+    def test_native_horizon_rle_decodes_all_modes_and_rejects_bad_lengths(self):
+        rom=bytearray(0x8000)
+        stream=bytes.fromhex('00 11 09 22 02 33 02 07 fc')
+        rom[:len(stream)]=stream
+        expected=bytes.fromhex('11 18 22 18 22 18 33 18 33 18 33 18 80 1d 80 1d')
+        self.assertEqual(converter.decode_native_horizon(rom,0x008000,len(expected)),expected)
+        for size in (len(expected)-2,len(expected)+2):
+            with self.assertRaises(ValueError):converter.decode_native_horizon(rom,0x008000,size)
+        rom[len(stream)-1]=0
+        with self.assertRaises(ValueError):converter.decode_native_horizon(rom,0x008000,len(expected))
 
     def test_inference_reads_consumers_and_explicit_canonical_opponents(self):
         rom=inferable_donor(); probe=converter.probe_fzedit_metadata(rom)

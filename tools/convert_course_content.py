@@ -408,6 +408,147 @@ def probe_msu_selector(target, races):
     return dict(recognized=False)
 
 
+def find_consumer(target, prefix, middle, tail=None, delta=0):
+    """One bounded FZEdit consumer; relocated code is not a new data format."""
+    expression = re.escape(bytes.fromhex(prefix))+b'(.{3})'+re.escape(bytes.fromhex(middle))
+    if tail is not None:
+        expression += b'(.{3})'+re.escape(bytes.fromhex(tail))
+    matches = []
+    for match in re.finditer(expression, span(target,0x108000,0x8000),re.DOTALL):
+        address = int.from_bytes(match[1],'little')
+        if tail is not None and int.from_bytes(match[2],'little') != address+delta:
+            continue
+        span(target,address,1)
+        matches.append((address,0x108000+match.start(),0x108000+match.end()))
+    if len(matches) != 1:
+        raise ValueError(f'Expected one FZEdit metadata consumer, found {len(matches)}')
+    return matches[0]
+
+
+def decode_native_horizon(target, address, expected):
+    """Bounded tile RLE used by the unchanged $03:9806 native decoder."""
+    output=bytearray()
+    for _ in range(expected//2+1):
+        control=span(target,address,1)[0]
+        if control==0xfc:
+            if len(output)!=expected:
+                raise ValueError('Native horizon has an unexpected decoded size')
+            return bytes(output)
+        kind=control&3
+        if kind==3:
+            value=b'\x80\x1d';count=(control>>2)+1;address+=1
+        else:
+            low=span(target,address+1,1)[0]
+            value=bytes([low,(control|0x18) if kind==0 else (control&0xc4)|0x18])
+            count=1 if kind==0 else ((control>>3)&7)+1
+            address+=2
+            if kind==2:
+                count=span(target,address,1)[0]+1;address+=1
+        if len(output)+count*2>expected:
+            raise ValueError('Native horizon exceeds its tilemap bounds')
+        output+=value*count
+    raise ValueError('Unterminated native horizon stream')
+
+
+def probe_older_fzedit(target):
+    """Older FZEdit loaders retain venue SPC selection and relocate routines."""
+    order, consumer, _ = find_consumer(target,'8a c2 30 29 ff 00 8d 5b 10 bb bf',
+                                      '29 ff 00 8d 59 10 20')
+    entry = consumer-32
+    if (span(target,0x009f08,4) != b'\x5c'+entry.to_bytes(3,'little') or
+            span(target,entry,32) != bytes.fromhex('08 e2 30 a5 58 d0 0a a5 90 0a 0a 65 90 65 53 '
+                '80 02 a5 53 a8 a2 00 c9 05 30 06 38 e9 05 e8 80 f6')):
+        raise ValueError('Unrecognized FZEdit order entry point')
+    settings, settings_consumer, _ = find_consumer(target,'ae 59 10 bf','5c 1f 9f 00')
+    if span(target,0x009f1b,4) != b'\x5c'+settings_consumer.to_bytes(3,'little'):
+        raise ValueError('Unrecognized FZEdit settings hook')
+    names, _, _ = find_consumer(target,'da c2 20 ad 59 10 0a 6d 59 10 aa bf',
+                              '85 00 e2 20 bf','85 02 fa 5c dd ab 00',2)
+    try:
+        mini, _, mini_end = find_consumer(target,'ad 59 10 0a 6d 59 10 aa 8b bf',
+            'a8 e2 20 bf','48 a9 80 8d 15 21',2)
+    except ValueError:
+        mini, _, mini_end = find_consumer(target,'ad 59 10 0a 6d 59 10 aa bf',
+            'a8 8b e2 20 bf','48 ab a9 80 8d 15 21',2)
+    try:
+        positions, _, _ = find_consumer(target,'ad 59 10 0a 0a aa bf','8d d9 0a bf','8d db 0a',2)
+        distance=positions-mini
+        count_evidence='Adjacent minimap and position tables, three-byte minimap stride'
+        constants=None
+    except ValueError:
+        # Earliest loader embeds all minimap pointers immediately after RTL,
+        # followed by the gradient routine. These boundaries establish count.
+        position_pattern=(b'\xa9(.{2})'+re.escape(bytes.fromhex('8d d9 0a a9'))+b'(.{2})'+
+                          re.escape(bytes.fromhex('8d db 0a ad 59 10 0a 6d 59 10 aa bf'))+
+                          mini.to_bytes(3,'little'))
+        matches=list(re.finditer(position_pattern,span(target,0x108000,0x8000),re.DOTALL))
+        if len(matches)!=1 or span(target,mini_end,15) != bytes.fromhex('a2 00 5e 8e 16 21 a2 1f 00 22 77 9e 03 ab 6b'):
+            raise ValueError('Unrecognized inline minimap table')
+        _, gradient_consumer, _=find_consumer(target,'ae 59 10 bf','85 9c 5c 22 a1 00')
+        if mini != mini_end+15:
+            raise ValueError('Inline minimap table is not adjacent to its transfer')
+        distance=gradient_consumer-mini
+        positions=None
+        constants=[int.from_bytes(matches[0][i],'little') for i in (1,2)]
+        count_evidence='Inline minimap pointer table bounded by transfer RTL and gradient consumer'
+    if distance%3 or not 1 <= distance//3 <= 128:
+        raise ValueError('Invalid FZEdit metadata table boundaries')
+    count=distance//3
+    span(target,mini,count*3)
+    source_order=list(span(target,order,count))
+    if len(set(source_order))!=count or any(slot>=count for slot in source_order):
+        raise ValueError('Invalid FZEdit published order')
+    selector=span(target,0x00f7e0,17)
+    if (selector[:7]!=bytes.fromhex('08 e2 30 ae d8 0a bf') or
+            selector[10:14]!=bytes.fromhex('0a 0a 0a 7f') or selector[7:10]!=selector[14:17] or
+            bytes.fromhex('e2 30 ad f5 0c c9 03 90 0f c9 06 f0 0b ae ff 0c f0 06 '
+                          '18 6d ff 0c 69 04 8d d8 0a 28 60') not in target[:0x8000]):
+        raise ValueError('Unsupported venue music selector')
+    music=int.from_bytes(selector[7:10],'little')
+    songs=span(target,music,15)
+    tracks=[]
+    alphabet=dict(zip(ALPHABET,'ABCDEFGHIJKLMNOPQRSTUVWXYZ'));alphabet.update(GLYPHS)
+    alphabet.update({0x80+i:str(i) for i in range(10)})
+    # FZEdit's alphabet_8x16.txt also names these native punctuation glyphs.
+    alphabet.update({0x28:"'",0x38:'"',0x1b:'.',0x2a:'(',0x3a:')',0x2b:'^',0xa9:'?'})
+    for position,slot in enumerate(source_order):
+        setting=span(target,settings+slot,1)[0]
+        venue,variant=setting&15,(setting>>4)-12
+        if venue>=9 or not 0<=variant<=2:
+            raise ValueError('Unsupported venue/variant settings')
+        music_index=venue
+        if venue>=3 and venue!=6 and variant:
+            music_index+=variant+4
+        song=songs[music_index]
+        if song>=len(SONGS):
+            raise ValueError('Unsupported venue SPC song')
+        pointer=int.from_bytes(span(target,names+slot*3,3),'little')
+        encoded=span(target,pointer,128).split(b'\0',1)[0]
+        row=dict(slot=slot,order_table_position=position,spc_selector_byte=song*9,
+                 spc_index=song,stock_spc_theme=SONGS[song],donor_music_index=music_index)
+        if len(encoded)<6 or encoded[1:6]!=bytes.fromhex('53 01 82 1b ff'):
+            raise ValueError('Unsupported FZEdit intro name encoding')
+        try: row['name']=''.join(alphabet[code] for code in encoded[6:]).strip()
+        except KeyError as error: row['name_error']=f'Unreviewed intro glyph {error.args[0]:02x}'
+        tracks.append(row)
+    menu=probe_cup_menu(target)
+    races=menu['cup_count']*5 if menu else count
+    if races!=count:
+        raise ValueError('Published cup count differs from resource order')
+    msu=probe_msu_selector(target,races)
+    if msu['recognized']:
+        for row,number in zip(tracks,msu['tracks']):row['msu_track']=number
+    result=dict(status='recognized-resource-metadata',loader_family='fzedit-older',
+        executable_compatibility_verified=False,cup_labels_verified=False,intro_font_verified=False,
+        music_table=f'{music:06x}',music_selector_kind='venue',settings_table=f'{settings:06x}',
+        order_table=f'{order:06x}',name_table=f'{names:06x}',minimap_table=f'{mini:06x}',
+        position_table=f'{positions:06x}' if positions else None,minimap_constants=constants,
+        internal_resource_count=count,published_course_count=races,count_evidence=count_evidence,
+        source_order_prefix=source_order,tracks=tracks,msu_selector=msu)
+    if menu:result['donor_cup_menu']=menu
+    return result
+
+
 def probe_fzedit_metadata(target):
     """Decode recognized data consumers; this does not qualify other donor ASM."""
     result = dict(status='unrecognized-loader', executable_compatibility_verified=False,
@@ -443,6 +584,10 @@ def probe_fzedit_metadata(target):
                 or selector[12:] != bytes.fromhex('e2 10 ea ea ea')
                 or order[:11] != bytes.fromhex('8a c2 30 29 ff 00 8d 5b 10 bb bf')
                 or order[14:] != bytes.fromhex('29 ff 00 8d 59 10 20')):
+            try:
+                return probe_older_fzedit(target)
+            except ValueError as error:
+                result['alternate_loader_error']=str(error)
             return result
         music_table = int.from_bytes(selector[9:12], 'little')
         order_table = int.from_bytes(order[11:14], 'little')
@@ -525,6 +670,17 @@ def infer_fzedit_layout(target, stock, probe):
     layout = dict(format=['fzero-course-1'], count=[str(count)],
                   names=[probe['name_table']], music=[probe['music_table']])
     evidence = dict(method='recognized FZEdit data consumers and native bounded extraction', tables={})
+    normalized = target
+    def synthesize(key, data, basis):
+        nonlocal normalized
+        offset=(len(normalized)+0x7fff)&~0x7fff
+        address=((offset//0x8000)<<16)|0x8000
+        normalized+=bytes(offset-len(normalized))+data
+        span(normalized,address,len(data))
+        layout[key]=[f'{address:06x}']
+        evidence.setdefault('normalized_resources',{})[key]=dict(address=f'{address:06x}',
+            bytes=len(data),sha256=digest(data),basis=basis)
+        return address
     regions = ((0, target[:0x8000]), (0x80000, target[0x80000:0x88000]))
     def pointer(key, prefix, middle, tail=None, delta=0, width=3, optional=False):
         expression = re.escape(bytes.fromhex(prefix))+b'(.{'+str(width).encode()+b'})'+re.escape(bytes.fromhex(middle))
@@ -557,27 +713,97 @@ def infer_fzedit_layout(target, stock, probe):
     pointer('palettes', 'ad 59 10 0a 6d 59 10 aa bf', '85 00 bf', '85 01 a0 de 00', 1)
     pointer('pools', 'ad 59 10 0a 6d 59 10 aa a9 00 80 8d 00 43 a9 00 24 8d 05 43 bf',
             '8d 02 43 e2 20 bf', '8d 04 43', 2)
-    pointer('graphics', 'ad 59 10 0a 6d 59 10 aa bf', '85 04 e2 20 bf', '85 06 a9 00 22 9b 82 10', 2)
-    pointer('paths', 'ad 59 10 0a 6d 59 10 aa bf', '85 30 bf', '85 31 64 33 5c 4e d6 00', 1)
-    pointer('sky_graphics', 'ad 59 10 0a 6d 59 10 aa a9 01 18 8d 00 43 bf',
-            '8d 02 43 bf', '8d 03 43 a9 00 20 8d 05 43', 1)
-    pointer('sky_back', 'a9 01 18 8d 00 43 bf', '85 00 8d 02 43 bf', 'e2 10 aa 8e 04 43 a9 00 07', 2)
-    pointer('sky_front', 'a9 60 71 8d 16 21 bf', '85 00 8d 02 43 bf', 'e2 10 aa 8e 04 43 a9 40 05', 2)
-    pointer('terrain', '8b c2 30 da 9b ad 59 10 0a 6d 59 10 aa bf',
-            '18 79 d0 0c a8 e2 20 bf', 'fa 48 ab e0 00 00', 2)
+    if pointer('graphics', 'ad 59 10 0a 6d 59 10 aa bf', '85 04 e2 20 bf',
+               '85 06 a9 00 22 9b 82 10', 2,optional=True) is None:
+        pointer('graphics', 'ad 59 10 0a 6d 59 10 aa bf', '85 04 e2 20 bf', '85 06 a9 00 5c df a0 00', 2)
+    flags=pointer('_graphics_flags','c2 30 ad 5b 10 0a aa bf',
+        'd0 0f a9 00 80 85 04 e2 20 a9 0c 85 06 5c c5 a0 00',optional=True)
+    if flags is not None:
+        layout.pop('_graphics_flags')
+        if any(not int.from_bytes(span(target,flags+row['order_table_position']//5*2,2),'little')
+               for row in probe['tracks']):
+            raise ValueError('Mixed native/custom road graphics need another decoder')
+        evidence['graphics_policy']='Every published cup selects the decoded custom graphics table'
+    if pointer('paths', 'ad 59 10 0a 6d 59 10 aa bf', '85 30 bf',
+               '85 31 64 33 5c 4e d6 00', 1,optional=True) is None:
+        address=pointer('paths','ad 59 10 0a 6d 59 10 aa bf','5c 4a d6 00')
+        bank_address=pointer('path_bank','ad 59 10 0a 6d 59 10 aa bf',
+                             'e2 30 48 ab a9 00 48 5c 0f d6 00')
+        if bank_address!=address+2:
+            raise ValueError('Checkpoint bank and word consumers disagree')
+        layout.pop('path_bank')
+    sky=pointer('sky_graphics', 'ad 59 10 0a 6d 59 10 aa a9 01 18 8d 00 43 bf',
+                '8d 02 43 bf', '8d 03 43 a9 00 20 8d 05 43', 1,optional=True)
+    if sky is not None:
+        pointer('sky_back', 'a9 01 18 8d 00 43 bf', '85 00 8d 02 43 bf', 'e2 10 aa 8e 04 43 a9 00 07', 2)
+        pointer('sky_front', 'a9 60 71 8d 16 21 bf', '85 00 8d 02 43 bf', 'e2 10 aa 8e 04 43 a9 40 05', 2)
+    else:
+        # Early FZEdit projects keep the native sky loader. Verify every
+        # consumer/decoder before reading its tables; never use stock artwork
+        # as a guess for a custom routine that we do not understand.
+        if (span(target,0x00a48c,0xcc)!=span(stock,0x00a48c,0xcc) or
+                span(target,0x039806,140)!=span(stock,0x039806,140) or
+                span(target,0x00a561,2)!=bytes.fromhex('01 18') or
+                span(target,0x00a566,2)!=bytes.fromhex('00 20')):
+            raise ValueError('Unsupported native horizon consumer')
+        dma=int.from_bytes(span(target,0x00a563,3),'little')
+        span(target,dma,0x2000)
+        synthesize('sky_graphics',dma.to_bytes(3,'little')*count,'Recognized native horizon DMA descriptor')
+        for key,delta,size in [('sky_back',0,0x700),('sky_front',2,0x540)]:
+            pointers=[];decoded={}
+            for slot in range(count):
+                venue=span(target,int(layout['settings'][0],16)+slot,1)[0]&15
+                if venue>=9:raise ValueError('Invalid native horizon venue')
+                offset=int.from_bytes(span(target,0x00b19d+venue*4+delta,2),'little')
+                if offset not in decoded:
+                    data=decode_native_horizon(target,0x0f8000+offset,size)
+                    decoded[offset]=synthesize(f'_{key}_{offset:04x}',data,'Decoded donor native horizon tilemap')
+                    layout.pop(f'_{key}_{offset:04x}')
+                address=decoded[offset]
+                pointers.append(address.to_bytes(3,'little'))
+            synthesize(key,b''.join(pointers),'Recognized donor venue horizon pointer table')
+    terrain=pointer('terrain', '8b c2 30 da 9b ad 59 10 0a 6d 59 10 aa bf',
+                    '18 79 d0 0c a8 e2 20 bf', 'fa 48 ab e0 00 00', 2,optional=True)
+    if terrain is None:
+        flags,consumer,_=find_consumer(target,'ad 5b 10 0a aa bf',
+            'd0 0a ad f5 0c 29 ff 00 5c 15 a3 00 5c 49 a3 00')
+        if span(target,0x00a30f,4)!=b'\x5c'+consumer.to_bytes(3,'little'):
+            raise ValueError('Unrecognized native terrain bypass')
+        for row in probe['tracks']:
+            if not int.from_bytes(span(target,flags+(row['order_table_position']//5)*2,2),'little'):
+                raise ValueError('Mixed native/extended terrain needs another decoder')
+        address=synthesize('_terrain_data',bytes(0x400),'Donor explicitly skips native mine bitmap loading')
+        layout.pop('_terrain_data')
+        synthesize('terrain',address.to_bytes(3,'little')*count,'Recognized per-cup native terrain bypass')
     pointer('gradients', 'ae 59 10 bf', '85 9c 5c 22 a1 00')
-    pointer('shortcuts', '8b e2 20 bf', '48 ab c2 20 bf', 'aa bd 00 00 30 3f af 6d 10 00', -2)
-    layout['shortcuts'] = [f'{int(layout["shortcuts"][0],16)-2:06x}']
-    evidence['tables']['shortcuts']['address']=layout['shortcuts'][0]
+    shortcut=pointer('shortcuts', '8b e2 20 bf', '48 ab c2 20 bf',
+                     'aa bd 00 00 30 3f af 6d 10 00', -2,optional=True)
+    if shortcut is None:
+        shortcut=pointer('shortcuts', '8b e2 20 bf', '48 ab c2 20 bf',
+                         'aa bd 00 00 30 3b ad 6d 10', -2,optional=True)
+    if shortcut is None:
+        if span(target,0x00d9c8,1)!=b'\x60':
+            raise ValueError('Unrecognized shortcut resource consumer')
+        empty=synthesize('empty_shortcuts',b'\0\x80','Donor shortcut entry point immediately returns')
+        layout.pop('empty_shortcuts')
+        synthesize('shortcuts',empty.to_bytes(3,'little')*count,'Donor disables shortcut penalties')
+    else:
+        layout['shortcuts'] = [f'{shortcut-2:06x}']
+        evidence['tables']['shortcuts']['address']=layout['shortcuts'][0]
     pointer('palette_cycles', 'c2 30 8b 4b ab ad 59 10 0a aa bc', 'be 00 00 30 1c', width=2)
-    pointer('minimaps', 'ad 59 10 0a 6d 59 10 aa 8b bf', 'a8 e2 20 bf', '48 a9 80 8d 15 21', 2)
-    pointer('map_positions', 'ad 59 10 0a 0a aa bf', '8d d9 0a bf', '8d db 0a', 2)
+    if pointer('minimaps', 'ad 59 10 0a 6d 59 10 aa 8b bf', 'a8 e2 20 bf',
+               '48 a9 80 8d 15 21', 2,optional=True) is None:
+        pointer('minimaps', 'ad 59 10 0a 6d 59 10 aa bf', 'a8 8b e2 20 bf', '48 ab a9 80 8d 15 21', 2)
+    if probe.get('minimap_constants') is not None:
+        synthesize('map_positions',b''.join(value.to_bytes(2,'little') for value in probe['minimap_constants'])*count,
+                   'Exact constant X/Y loads in the recognized donor minimap consumer')
+    else:
+        pointer('map_positions', 'ad 59 10 0a 0a aa bf', '8d d9 0a bf', '8d db 0a', 2)
     # The map loader reads grid rows at table+3 before the block pointer.
     pointer('maps', 'bf', '85 26 bf', '85 22 bf', -3)
     layout['maps'] = [f'{int(layout["maps"][0],16)-3:06x}']
     evidence['tables']['maps']['address']=layout['maps'][0]
     opponents = pointer('opponents', 'ad 59 10 0a 6d 59 10 65 02 aa bf', 'e2 30 8d 66 10 6b', optional=True)
-    normalized = target
     if opponents is None:
         # FZEdit projects without opponent overrides retain original GP rules.
         # Present these as resource-slot triples for the native typed decoder.
@@ -585,9 +811,9 @@ def infer_fzedit_layout(target, stock, probe):
         for position, slot in enumerate(probe['source_order_prefix']):
             for level in range(3):
                 data[slot*3+level] = span(stock, 0x02fbda+level*15+position%15, 1)[0]
-        offset = (len(target)+0x7fff) & ~0x7fff
+        offset = (len(normalized)+0x7fff) & ~0x7fff
         address = ((offset//0x8000)<<16)|0x8000
-        normalized = target+bytes(offset-len(target))+data
+        normalized = normalized+bytes(offset-len(normalized))+data
         span(normalized, address, len(data))
         layout['opponents'] = [f'{address:06x}']
         evidence['opponents_policy'] = ('Original engine explosive-opponent frequencies by source GP position; '
@@ -595,17 +821,26 @@ def infer_fzedit_layout(target, stock, probe):
         evidence['synthesized_data'] = dict(address=f'{address:06x}', bytes=len(data), sha256=digest(data))
     else:
         evidence['opponents_policy'] = 'Recognized donor per-resource opponent table'
+    if probe.get('music_selector_kind')=='venue':
+        music=bytearray(count)
+        for row in probe['tracks']:music[row['slot']]=row['spc_selector_byte']
+        synthesize('music',bytes(music), 'Recognized donor venue/variant index and SPC upload selector; no filename guesses')
     # Preserve changed, used intro glyph artwork through the known remapper.
-    if span(target, 0x00d146, 30) != bytes.fromhex(
+    extended_font=span(target, 0x00d146, 30) == bytes.fromhex(
             '08 e2 20 c9 bb b0 31 eb 29 7f eb aa bf 50 81 10 48 '
-            'bf 95 80 10 85 00 f0 03 20 93 d1 fa f0'):
+            'bf 95 80 10 85 00 f0 03 20 93 d1 fa f0')
+    if not extended_font and span(target,0x00d146,80)!=span(stock,0x00d146,80):
         raise ValueError('The intro font resource remapper is unsupported')
     native_font, donor_font = atlas(stock), atlas(target)
+    if not extended_font and donor_font!=native_font:
+        raise ValueError('Changed native intro font needs a supported decoder')
     used = set()
     for row in probe['tracks']:
         address = int.from_bytes(span(target, int(layout['names'][0],16)+row['slot']*3,3),'little')
         used.update(span(target,address,128).split(b'\0',1)[0][6:])
     for code in sorted(used-{0xff}):
+        if not extended_font:
+            continue # Original native remapper and atlas were checked byte for byte.
         lookup = 0x8e if code == 0xfe else code
         top = span(target, 0x108095+lookup,1)[0]
         bottom = span(target, 0x108150+lookup,1)[0]
