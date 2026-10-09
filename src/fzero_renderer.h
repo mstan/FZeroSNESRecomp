@@ -4,6 +4,9 @@
 #include "snes/ppu.h"
 
 void FzeroRendererReset(void);
+/* Join rendering workers on host shutdown. Reset/state loads reuse the pool. */
+void FzeroRendererShutdown(void);
+unsigned FzeroRendererWorkerCount(void);
 void FzeroRendererBeginFrame(const uint8_t ram[0x20000], unsigned frame);
 void FzeroRendererCaptureLine(const Ppu *ppu, unsigned line);
 void FzeroRendererEndFrame(const Ppu *ppu, const uint32_t stock[256 * 224]);

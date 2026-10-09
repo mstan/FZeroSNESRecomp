@@ -27,8 +27,11 @@ that report back with a description of where the slowdown occurred.
 
 The report includes the raw timing log, a readable summary, and selected CPU,
 memory and graphics-driver fields. It excludes ROMs, recordings, saves and
-configuration files. Nothing is uploaded. This bundle retains the current
-serial renderer; the parallel rendering experiment is not included.
+configuration files. Nothing is uploaded. The original serial profiler ZIP
+is retained; the worker-pool test ZIP has its own build label and profiler.
+For a comparison with the same executable, set
+`SNESRECOMP_RENDER_WORKERS=1` before launching it. The worker ZIP's README
+includes the two Command Prompt commands needed to do this.
 
 To compare HD sampling costs, make separate recordings with HD off, 2x and
 4x, keeping the same course, aspect, shader and Presentation FPS. The summary
@@ -65,6 +68,10 @@ players do not need Python or development tools.
   The sample includes target/display rates, missed presentation deadlines,
   and frame interval p95/p99/max. Percentiles are upper bounds in 0.25 ms
   histogram bins; intervals above 128 ms use the observed maximum.
+- `render_workers` is the pool's participant capacity, including the main
+  thread. Native rendering and flat menus remain serial even after a pool
+  has been created. The composition stage measures main-thread elapsed time
+  through the completion barrier, including work performed by workers.
 - `stages` contains calls, total, mean and maximum **main-thread wall time**:
   simulation, native PPU capture, presentation composition (including HD Mode
   7), texture upload, draw submission, present/swap, pacing wait, and pause.

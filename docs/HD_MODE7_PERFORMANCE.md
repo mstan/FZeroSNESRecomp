@@ -1,9 +1,67 @@
 # HD Mode 7 performance
 
 The [2026-10-09 efficiency assessment](HD_MODE7_EFFICIENCY_ASSESSMENT.md)
-examines the remaining single-threaded architecture, measures an isolated
-multicore prototype, and describes the affected-machine profiling bundle.
-Its experimental renderer is not included in normal builds.
+records the original serial baseline and private multicore experiment. The
+production renderer now uses snesrecomp's opt-in
+[rendering worker pool](../snesrecomp/docs/RENDER_WORKERS.md).
+
+## Reusable workers (2026-10-09)
+
+HD racing and frozen finish scenery use persistent workers with immutable
+source frames and private PPU/row scratch. The main thread participates in
+eight-scanline bands. Automatic selection uses up to four participants,
+bounded by available logical CPUs; idle workers sleep. Native composition and
+flat menus remain serial. Every draw waits for its batch before simulation,
+state loading, rewind or shutdown can change the source. Allocation/thread
+creation failure retains serial rendering. No OpenMP DLL is needed.
+
+The pool belongs to the engine and is linked only by targets that explicitly
+opt in. Other games and the shared PPU keep their existing behavior. F-Zero
+selects workers automatically for HD scenery; there is no extra gameplay mod.
+This distributes CPU rendering and does not move affine sampling to the GPU.
+
+Windows Release, GCC 15.2, Ryzen 7 9800X3D, consecutive CGP Huckmine frames
+1780/1781 at alpha 0.5. Serial / four participants / four participants / serial
+ran sequentially without competing builds or game processes. Each entry
+averages two medians of three batches of 30 presentations.
+
+| Aspect | HD scale | Serial | Worker pool | Speedup |
+| --- | --- | ---: | ---: | ---: |
+| 4:3 | 4x | 3.047 ms | 0.828 ms | 3.68x |
+| 16:9 | 2x | 2.640 ms | 0.689 ms | 3.83x |
+| 16:9 | 4x | 4.949 ms | 1.361 ms | 3.64x |
+| 21:9 | 4x | 6.694 ms | 1.732 ms | 3.86x |
+| 32:9 | 4x | 10.326 ms | 2.564 ms | 4.03x |
+
+Native and HD hashes match the original serial renderer for all 24
+combinations of four aspects, native/2x/4x and alpha 1/0.5. The same checks
+pass with one, two and eight participants. Additional finish-results and menu
+captures also match. The ROM-free renderer regression passes in forced serial
+and four-participant modes; the shared pool lifecycle/concurrency suite passes
+on Windows and Linux.
+
+Timings measure composition only, excluding emulation, upload, GPU work and
+pacing. They do not establish performance on the tester's GTX 1060 system.
+The worker test ZIP includes the one-click profiler for that measurement.
+Set `SNESRECOMP_RENDER_WORKERS=1` before launch for a controlled serial
+comparison of the same executable. Diagnostics records `render_workers`, the
+pool's participant capacity including the caller; a flat/native frame can
+still render serially after the pool has been created.
+
+Whole-game A/B used the same worker-capable executable forced to one or four
+participants, isolated identical configs/saves, 32:9, 4x HD and 120 Hz
+presentation. Each run completed 2,400 simulation frames, saved at frame
+1,600 and loaded at 1,800. Both state operations succeeded and final WRAM
+hashes matched, ending in active-race state `[2,3,0]`.
+
+| Participants | Presentations | Missed deadlines | Active presentation FPS | Active composition |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 3,554 | 1,239 | 59.95 | 9.603 ms |
+| 4 | 4,785 | 5 | 119.95 | 3.387 ms |
+
+SDL used dummy video/audio and software presentation, so this verifies host
+pacing rather than the performance of a real GPU/display driver. Private
+logs and CSVs are under `captures/mode7-assessment-20261009/`.
 
 ## Forever follow-up (2026-09-30)
 

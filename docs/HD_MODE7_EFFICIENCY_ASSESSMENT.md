@@ -1,5 +1,10 @@
 # HD Mode 7 efficiency assessment (2026-10-09)
 
+This assessment records the serial baseline and private OpenMP experiment.
+The subsequent production integration uses the reusable snesrecomp worker
+pool; see [HD Mode 7 performance](HD_MODE7_PERFORMANCE.md). The original
+serial profiler ZIP remains available for before/after testing.
+
 The current renderer has useful optimizations, but a significant architectural
 limitation remains: it renders the entire HD image on one CPU thread. A private
 parallel scanline prototype reduces renderer time by about threefold at 4x on

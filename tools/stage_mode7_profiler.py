@@ -1,7 +1,8 @@
 """Stage a one-off, ROM-free Mode 7 profiler from a reviewed player bundle.
 
-No source packs, recordings, user configs or saves are added. The parallel
-renderer experiment is deliberately excluded from affected-machine profiling.
+No private ROMs, recordings, user configs or saves are added. The default
+version preserves the original serial profiling bundle; worker builds can
+also be staged with an explicit version and renderer description.
 """
 import argparse
 import hashlib
@@ -18,12 +19,14 @@ def main():
     parser.add_argument('--base', type=Path, required=True)
     parser.add_argument('--exe', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--version', default='0.8.0-mode7-profile')
+    parser.add_argument('--renderer', default='unchanged serial renderer')
     args = parser.parse_args()
     base, exe, out = args.base.resolve(), args.exe.resolve(), args.output.resolve()
     if not base.is_dir() or not exe.is_file() or out.exists():
         parser.error('Need an existing reviewed bundle/executable and a fresh output directory.')
     image = exe.read_bytes()
-    if b'--profile-mode7' not in image or b'0.8.0-mode7-profile' not in image:
+    if b'--profile-mode7' not in image or args.version.encode('utf-8') not in image:
         parser.error('Executable is not the expected profiling build.')
     forbidden = {'.sfc', '.smc', '.srm', '.sav', '.bin', '.c', '.cpp', '.h', '.pcm', '.msu'}
     for path in base.rglob('*'):
@@ -39,10 +42,13 @@ def main():
         if path.is_file():
             shutil.copy2(path, out / path.name)
     (out / 'profiling-build.json').write_text(json.dumps({
-        'version': '0.8.0-mode7-profile',
-        'renderer': 'unchanged serial renderer',
+        'version': args.version,
+        'renderer': args.renderer,
         'executable_sha256': hashlib.sha256(image).hexdigest(),
     }, indent=2) + '\n', encoding='utf-8')
+    readme = out / 'README.txt'
+    readme.write_text(readme.read_text(encoding='utf-8').replace(
+        '{{BUILD_DESCRIPTION}}', f'Build {args.version}: {args.renderer}.'), encoding='utf-8')
     archive = out.parent / (out.name + '.zip')
     with zipfile.ZipFile(archive, 'x', zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
         for path in sorted(out.rglob('*')):

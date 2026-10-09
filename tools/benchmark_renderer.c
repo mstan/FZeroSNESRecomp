@@ -50,6 +50,7 @@ static uint64_t digest(const uint32_t *p, size_t count) {
 }
 
 int main(int argc, char **argv) {
+  atexit(FzeroRendererShutdown);
   if (argc < 3 || argc > 4) {
     fputs("usage: FZeroRendererBenchmark capture.bin iterations [next-capture.bin]\n", stderr);
     return 2;

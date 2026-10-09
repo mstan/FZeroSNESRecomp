@@ -25,6 +25,7 @@ typedef struct FzeroDiagnosticFrame {
   FzeroViewport viewport;
   int output_width, output_height;
   unsigned effective_scale;
+  unsigned render_workers;
   double target_hz, refresh_hz;
   bool fullscreen, suspended;
   unsigned scene, subscene;

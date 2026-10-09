@@ -736,6 +736,8 @@ int main(void) {
   test_hd_mode7();
   test_hd_results();
   test_hd_composition_cache();
+  FzeroRendererShutdown();
+  CHECK(FzeroRendererWorkerCount() == 1);
   puts("F-Zero renderer: bounds, immutable frames, scene fallback, car identity, signed X, panorama wrap and HUD transitions passed");
   return 0;
 }

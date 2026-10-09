@@ -1,5 +1,6 @@
 #include "fzero_renderer.h"
 #include "fzero_mode7.h"
+#include "render_workers.h"
 #include "snes/mode7_hd.h"
 
 #include <math.h>
@@ -26,6 +27,30 @@ typedef struct FzeroSourceFrame {
 static FzeroSourceFrame frames[2];
 static unsigned current;
 static Ppu scanout; /* Private renderer scratch; never points at guest state. */
+static SnesRenderWorkers *render_workers;
+static Ppu *worker_scratch;
+static bool workers_attempted;
+
+static void prepare_workers(void) {
+  if (workers_attempted) return;
+  workers_attempted = true;
+  render_workers = SnesRenderWorkersCreate(0);
+  if (!render_workers) return;
+  worker_scratch = calloc(SnesRenderWorkersCount(render_workers), sizeof(*worker_scratch));
+  if (!worker_scratch) {
+    SnesRenderWorkersDestroy(render_workers);
+    render_workers = NULL;
+  }
+}
+
+unsigned FzeroRendererWorkerCount(void) { return SnesRenderWorkersCount(render_workers); }
+void FzeroRendererShutdown(void) {
+  SnesRenderWorkersDestroy(render_workers);
+  render_workers = NULL;
+  free(worker_scratch); worker_scratch = NULL;
+  workers_attempted = false;
+}
+
 
 bool FzeroRendererLoadCapture(const char *path) {
   FILE *f = fopen(path, "rb");
@@ -530,76 +555,52 @@ typedef struct FzeroHdPixelContext {
   uint8_t flags; /* BG enabled on main/sub, then colour-window membership. */
 } FzeroHdPixelContext;
 
-static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
-                          unsigned scale, uint32_t *native) {
-  const FzeroSourceFrame *f = &frames[current];
-  const FzeroSourceFrame *previous = &frames[current ^ 1];
-  if (!f->valid || !out || viewport.width < 256 || viewport.width > FZERO_MAX_WIDTH ||
-      viewport.width != 256 + 2 * viewport.extra) return false;
-  memset(out, 0, (size_t)viewport.width * 224 * scale * scale * sizeof(*out));
-  if (native) memset(native, 0, (size_t)viewport.width * 224 * sizeof(*native));
-  /* $81 selects live track scenery on the title screen as well as in races.
-   * Scene $54=2 additionally owns vehicle identity and adaptive race HUD. */
-  bool scenery = f->ram[0x81] != 0;
-  /* Scene 3 also contains exits from a live race. The native result setup
-   * ($03:99C5) sets $5F bit 7 for both successful and failed races. Successful
-   * results keep the frozen track visible ($97); losses use a black backdrop
-   * ($94). Testing only the background mask misclassified a successful
-   * result's phase-5 fade as a race HUD and split the lap/rank digits. */
-  memcpy(&scanout, f->lines[100].registers, PPU_SAVESTATE_REGS_SIZE);
-  bool results = scenery && f->ram[0x54] == 3 &&
-      ((f->ram[0x5f] & 0x80) || !(scanout.screenEnabled[0] & 3));
-  bool result_scenery = results && (scanout.screenEnabled[0] & 3);
-  bool race_exit = f->ram[0x54] == 3 &&
-      !results && (f->ram[0x55] == 4 || f->ram[0x55] == 5);
-  bool world = scenery && (f->ram[0x54] == 2 || race_exit);
-  /* Phase 6 is still the live YOU LOST view in both GP and Training; its
-   * timer, power fill and spare machines all retain the race HUD layout. */
-  /* $8ACD installs the race HUD before $8B11 advances setup substate $56.
-   * Setup phase $55=2 then displays it while waiting to enter active phase 3.
-   * Anchor tiles, sprites and the power meter as soon as that HUD is ready;
-   * the preceding course-title/setup phase still uses centered reservations. */
-  bool race_hud = world && (f->ram[0x55] >= 3 ||
-                            (f->ram[0x55] == 2 && f->ram[0x56] != 0));
-  bool interpolate = world && previous->valid && previous->frame + 1 == f->frame &&
-      !memcmp(previous->ram + 0x54, f->ram + 0x54, 3) &&
-      previous->ram[0x81] == f->ram[0x81];
-  if (interpolate) {
-    int angle_change = abs((int)previous->ram[0xac] - f->ram[0xac]);
-    if (angle_change > 96) angle_change = 192 - angle_change;
-    if (angle_change > 16 ||
-        abs((int)remainder(read_i16(previous->ram + 0xb70) - read_i16(f->ram + 0xb70), 8192)) > 128 ||
-        abs((int)remainder(read_i16(previous->ram + 0xb90) - read_i16(f->ram + 0xb90), 4096)) > 128)
-      interpolate = false;
-  }
-  /* A widened viewport can reach outside retail's streamed square. Both a
-   * live race and its frozen finish backdrop retain the course tables. */
-  FzeroCourse course = course_open(f, (world || result_scenery) && viewport.enhanced);
+typedef struct FzeroRenderBatch {
+  const FzeroSourceFrame *frame, *previous;
+  uint32_t *out, *native;
+  Ppu *scratch;
+  FzeroViewport viewport;
+  FzeroCourse course;
+  double alpha, sample_offset[FZERO_HD_SCALE_MAX];
+  unsigned scale;
+  bool scenery, results, result_scenery, world, race_hud, interpolate;
+} FzeroRenderBatch;
+
+static void render_lines(void *opaque, size_t begin, size_t end, unsigned slot) {
+  const FzeroRenderBatch *batch = opaque;
+  const FzeroSourceFrame *f = batch->frame, *previous = batch->previous;
+  uint32_t *out = batch->out, *native = batch->native;
+  Ppu *scanout = &batch->scratch[slot];
+  FzeroViewport viewport = batch->viewport;
+  const FzeroCourse course = batch->course;
+  double alpha = batch->alpha;
+  const double *sample_offset = batch->sample_offset;
+  unsigned scale = batch->scale;
+  bool scenery = batch->scenery, results = batch->results;
+  bool result_scenery = batch->result_scenery, world = batch->world;
+  bool race_hud = batch->race_hud, interpolate = batch->interpolate;
   uint16_t object_pixels[FZERO_MAX_WIDTH];
   uint32_t row[FZERO_MAX_WIDTH];
-  double sample_offset[FZERO_HD_SCALE_MAX];
-  for (unsigned sample = 0; sample < scale; ++sample)
-    sample_offset[sample] = (double)sample / scale;
-  for (int y = 0; y < 224; ++y) {
+  for (int y = (int)begin; y < (int)end; ++y) {
     const FzeroRasterLine *l = &f->lines[y];
-    memcpy(&scanout, l->registers, PPU_SAVESTATE_REGS_SIZE);
-    if (scanout.inidisp & 128) continue;
-    int mode = scanout.bgmode & 7;
+    memcpy(scanout, l->registers, PPU_SAVESTATE_REGS_SIZE);
+    if (scanout->inidisp & 128) continue;
+    int mode = scanout->bgmode & 7;
     if (!scenery || (mode != 1 && mode != 7)) {
       /* Flat selection/loading screens keep their original centered artwork,
        * but their backdrop, fades and colour windows cover the full viewport. */
       for (int sx = 0; sx < viewport.width; ++sx)
-        row[sx] = colour(&scanout, l->palette, 0x500, 0x500,
-            in_window(&scanout, 5, sx - viewport.extra, viewport.extra));
+        row[sx] = colour(scanout, l->palette, 0x500, 0x500,
+            in_window(scanout, 5, sx - viewport.extra, viewport.extra));
       memcpy(row + viewport.extra, f->stock + y * 256, 256 * sizeof(*out));
       expand_line(out, row, y, viewport.width, scale);
       if (native) memcpy(native + y * viewport.width, row, viewport.width * sizeof(*native));
       continue;
     }
-    FzeroMode7Line transform = FzeroMode7Transform(scanout.m7matrix, scanout.m7sel, y + 1);
+    FzeroMode7Line transform = FzeroMode7Transform(scanout->m7matrix, scanout->m7sel, y + 1);
     double camera_x = course.camera_x, camera_y = course.camera_y;
-    double centre_x = course_centre(scanout.m7matrix, 4);
-    double centre_y = course_centre(scanout.m7matrix, 5);
+    double centre_x = course_centre(scanout->m7matrix, 4);
+    double centre_y = course_centre(scanout->m7matrix, 5);
     FzeroCourseCache cache = kCourseCacheEmpty;
     if (mode == 7 && interpolate && alpha < 1) {
       Ppu old;
@@ -622,23 +623,23 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
     }
     FzeroCourseLine reference = course_line(camera_x, camera_y, centre_x, centre_y);
     if (world || results)
-      sprites(&scanout, f, interpolate ? previous : NULL, alpha, y, viewport,
+      sprites(scanout, f, interpolate ? previous : NULL, alpha, y, viewport,
               race_hud, results, object_pixels);
     else
       memset(object_pixels, 0, (size_t)viewport.width * sizeof(*object_pixels));
     /* Successful results retain the frozen course. Its spatial sampling
      * stays HD even though actor/camera interpolation has stopped. */
     bool hd_line = scale > 1 && (world || result_scenery) && mode == 7 &&
-        !((scanout.mosaic & 1) && (scanout.mosaic >> 4)) &&
-        !(scanout.setini & 0x49) && !(scanout.cgwsel & 1);
+        !((scanout->mosaic & 1) && (scanout->mosaic >> 4)) &&
+        !(scanout->setini & 0x49) && !(scanout->cgwsel & 1);
     if (!hd_line || native) {
       for (int sx = 0; sx < viewport.width; ++sx) {
         int x = sx - viewport.extra;
         uint16_t screens[2] = {0x500, 0x500};
         for (int sub = 0; sub < 2; ++sub) {
           for (int layer = 0; layer < (mode == 7 ? 1 : 3); ++layer) {
-            if (!(scanout.screenEnabled[sub] & (1u << layer))) continue;
-            if ((scanout.screenWindowed[sub] & (1u << layer)) && in_window(&scanout, layer, x, viewport.extra)) continue;
+            if (!(scanout->screenEnabled[sub] & (1u << layer))) continue;
+            if ((scanout->screenWindowed[sub] & (1u << layer)) && in_window(scanout, layer, x, viewport.extra)) continue;
             uint16_t pixel;
             if (mode == 7) {
               FzeroMode7Texel texel = FzeroMode7Locate(&transform, x);
@@ -657,13 +658,13 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
                 if ((sx < viewport.width / 2 && bx >= 128) ||
                     (sx >= viewport.width / 2 && bx < 128)) continue;
               }
-              pixel = background_pixel(&scanout, f->vram, layer, bx, y + 1,
+              pixel = background_pixel(scanout, f->vram, layer, bx, y + 1,
                                        viewport.enhanced && (x < 0 || x >= 256));
             }
             if (pixel > screens[sub]) screens[sub] = pixel;
           }
-          if ((scanout.screenEnabled[sub] & 16) &&
-              (!(scanout.screenWindowed[sub] & 16) || !in_window(&scanout, 4, x, viewport.extra)) &&
+          if ((scanout->screenEnabled[sub] & 16) &&
+              (!(scanout->screenWindowed[sub] & 16) || !in_window(scanout, 4, x, viewport.extra)) &&
               object_pixels[sx] > screens[sub]) screens[sub] = object_pixels[sx];
         }
         /* The power meter is filled by the colour window, not a BG tile.
@@ -676,10 +677,10 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
         bool black_results = results && !result_scenery;
         int colour_x = black_results ? sx : x;
         if (race_hud && mode == 1 && y >= 19 && y <= 27 &&
-            scanout.window1left >= 176 && scanout.window1right <= 239)
+            scanout->window1left >= 176 && scanout->window1right <= 239)
           colour_x -= viewport.extra;
-        row[sx] = colour(&scanout, l->palette, screens[0], screens[1],
-            in_window(&scanout, 5, colour_x, black_results ? 0 : viewport.extra));
+        row[sx] = colour(scanout, l->palette, screens[0], screens[1],
+            in_window(scanout, 5, colour_x, black_results ? 0 : viewport.extra));
       }
       /* Preserve the meter's composed fill, including its fixed-colour HDMA,
        * without letting a different section of skyline show through it. */
@@ -707,21 +708,21 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
     for (int sx = 0; sx < viewport.width; ++sx) {
       int x = sx - viewport.extra;
       FzeroHdPixelContext *c = &contexts[sx];
-      c->flags = in_window(&scanout, 5, x, viewport.extra) ? 4 : 0;
+      c->flags = in_window(scanout, 5, x, viewport.extra) ? 4 : 0;
       for (int sub = 0; sub < 2; ++sub) {
-        if ((scanout.screenEnabled[sub] & 1) &&
-            (!(scanout.screenWindowed[sub] & 1) ||
-             !in_window(&scanout, 0, x, viewport.extra))) c->flags |= 1u << sub;
-        c->objects[sub] = (scanout.screenEnabled[sub] & 16) &&
-            (!(scanout.screenWindowed[sub] & 16) ||
-             !in_window(&scanout, 4, x, viewport.extra)) ? object_pixels[sx] : 0;
+        if ((scanout->screenEnabled[sub] & 1) &&
+            (!(scanout->screenWindowed[sub] & 1) ||
+             !in_window(scanout, 0, x, viewport.extra))) c->flags |= 1u << sub;
+        c->objects[sub] = (scanout->screenEnabled[sub] & 16) &&
+            (!(scanout->screenWindowed[sub] & 16) ||
+             !in_window(scanout, 4, x, viewport.extra)) ? object_pixels[sx] : 0;
       }
       c->colors = NULL;
       if (!(c->objects[0] | c->objects[1])) {
         unsigned key = c->flags;
         if (!(colors_ready & (1u << key))) {
           for (unsigned index = 0; index < 256; ++index)
-            colors[key][index] = colour(&scanout, l->palette,
+            colors[key][index] = colour(scanout, l->palette,
                 (key & 1) && index ? (uint16_t)(0x5000 | index) : 0x500,
                 (key & 2) && index ? (uint16_t)(0x5000 | index) : 0x500,
                 (key & 4) != 0);
@@ -738,15 +739,15 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
       /* Smooth only the same camera's contiguous Mode 7 band. HUD, IRQ
        * splits, flips, fades and changes of coordinate origin are boundaries. */
       adjacent = (next_registers[offsetof(Ppu, bgmode)] & 7) == 7 &&
-          next_registers[offsetof(Ppu, m7sel)] == scanout.m7sel &&
-          next_registers[offsetof(Ppu, inidisp)] == scanout.inidisp &&
-          next_registers[offsetof(Ppu, setini)] == scanout.setini &&
-          next_registers[offsetof(Ppu, mosaic)] == scanout.mosaic &&
-          !memcmp(next_registers + offsetof(Ppu, m7matrix) + 8, scanout.m7matrix + 4, 8);
+          next_registers[offsetof(Ppu, m7sel)] == scanout->m7sel &&
+          next_registers[offsetof(Ppu, inidisp)] == scanout->inidisp &&
+          next_registers[offsetof(Ppu, setini)] == scanout->setini &&
+          next_registers[offsetof(Ppu, mosaic)] == scanout->mosaic &&
+          !memcmp(next_registers + offsetof(Ppu, m7matrix) + 8, scanout->m7matrix + 4, 8);
       if (adjacent) next = hd_frame_transform(f, previous, y + 1, alpha, interpolate);
     }
     SnesMode7HdTransform affine = SnesMode7HdMakeTransform(
-        scanout.m7matrix, scanout.m7sel, (unsigned)y + 1);
+        scanout->m7matrix, scanout->m7sel, (unsigned)y + 1);
     for (unsigned sy = 0; sy < scale; ++sy) {
       double fraction = (double)sy / scale;
       FzeroMode7Line subline = hd;
@@ -792,14 +793,78 @@ static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
               if ((c->flags & (1u << sub)) && index) screens[sub] = (uint16_t)(0x5000 | index);
               if (c->objects[sub] > screens[sub]) screens[sub] = c->objects[sub];
             }
-            destination[sx * scale + sample] = colour(&scanout, l->palette,
+            destination[sx * scale + sample] = colour(scanout, l->palette,
                 screens[0], screens[1], (c->flags & 4) != 0);
           }
         }
       }
     }
   }
-  return true;
+}
+
+static bool render_frame(uint32_t *out, FzeroViewport viewport, double alpha,
+                          unsigned scale, uint32_t *native) {
+  const FzeroSourceFrame *f = &frames[current];
+  const FzeroSourceFrame *previous = &frames[current ^ 1];
+  if (!f->valid || !out || viewport.width < 256 || viewport.width > FZERO_MAX_WIDTH ||
+      viewport.width != 256 + 2 * viewport.extra) return false;
+  memset(out, 0, (size_t)viewport.width * 224 * scale * scale * sizeof(*out));
+  if (native) memset(native, 0, (size_t)viewport.width * 224 * sizeof(*native));
+  /* $81 selects live track scenery on the title screen as well as in races.
+   * Scene $54=2 additionally owns vehicle identity and adaptive race HUD. */
+  bool scenery = f->ram[0x81] != 0;
+  /* Scene 3 also contains exits from a live race. The native result setup
+   * ($03:99C5) sets $5F bit 7 for both successful and failed races. Successful
+   * results keep the frozen track visible ($97); losses use a black backdrop
+   * ($94). Testing only the background mask misclassified a successful
+   * result's phase-5 fade as a race HUD and split the lap/rank digits. */
+  memcpy(&scanout, f->lines[100].registers, PPU_SAVESTATE_REGS_SIZE);
+  bool results = scenery && f->ram[0x54] == 3 &&
+      ((f->ram[0x5f] & 0x80) || !(scanout.screenEnabled[0] & 3));
+  bool result_scenery = results && (scanout.screenEnabled[0] & 3);
+  bool race_exit = f->ram[0x54] == 3 &&
+      !results && (f->ram[0x55] == 4 || f->ram[0x55] == 5);
+  bool world = scenery && (f->ram[0x54] == 2 || race_exit);
+  /* Phase 6 is still the live YOU LOST view in both GP and Training; its
+   * timer, power fill and spare machines all retain the race HUD layout. */
+  /* $8ACD installs the race HUD before $8B11 advances setup substate $56.
+   * Setup phase $55=2 then displays it while waiting to enter active phase 3.
+   * Anchor tiles, sprites and the power meter as soon as that HUD is ready;
+   * the preceding course-title/setup phase still uses centered reservations. */
+  bool race_hud = world && (f->ram[0x55] >= 3 ||
+                            (f->ram[0x55] == 2 && f->ram[0x56] != 0));
+  bool interpolate = world && previous->valid && previous->frame + 1 == f->frame &&
+      !memcmp(previous->ram + 0x54, f->ram + 0x54, 3) &&
+      previous->ram[0x81] == f->ram[0x81];
+  if (interpolate) {
+    int angle_change = abs((int)previous->ram[0xac] - f->ram[0xac]);
+    if (angle_change > 96) angle_change = 192 - angle_change;
+    if (angle_change > 16 ||
+        abs((int)remainder(read_i16(previous->ram + 0xb70) - read_i16(f->ram + 0xb70), 8192)) > 128 ||
+        abs((int)remainder(read_i16(previous->ram + 0xb90) - read_i16(f->ram + 0xb90), 4096)) > 128)
+      interpolate = false;
+  }
+  /* A widened viewport can reach outside retail's streamed square. Both a
+   * live race and its frozen finish backdrop retain the course tables. */
+  FzeroCourse course = course_open(f, (world || result_scenery) && viewport.enhanced);
+  /* Only substantial HD scenery uses workers. Native composition and flat
+   * menus stay serial. The call joins before another source frame, state load,
+   * rewind action or shutdown can replace the immutable snapshot. */
+  SnesRenderWorkers *pool = NULL;
+  if (scale > 1 && (world || result_scenery)) {
+    prepare_workers();
+    pool = render_workers;
+  }
+  FzeroRenderBatch batch = {
+    .frame = f, .previous = previous, .out = out, .native = native,
+    .scratch = pool ? worker_scratch : &scanout,
+    .viewport = viewport, .course = course, .alpha = alpha, .scale = scale,
+    .scenery = scenery, .results = results, .result_scenery = result_scenery,
+    .world = world, .race_hud = race_hud, .interpolate = interpolate
+  };
+  for (unsigned sample = 0; sample < scale; ++sample)
+    batch.sample_offset[sample] = (double)sample / scale;
+  return SnesRenderWorkersRun(pool, 224, 8, render_lines, &batch);
 }
 
 bool FzeroRendererDraw(uint32_t *out, FzeroViewport viewport, double alpha) {

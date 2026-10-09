@@ -56,6 +56,7 @@ static void usage(void) {
 }
 
 int main(int argc, char **argv) {
+  atexit(FzeroRendererShutdown);
   const char *scale = getenv("FZERO_HD_SCALE");
   if (scale && *scale) {
     if (!FzeroParseHdScale(scale, &g_scale)) { usage(); return 2; }

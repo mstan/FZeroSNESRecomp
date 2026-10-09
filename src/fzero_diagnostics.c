@@ -222,10 +222,10 @@ void FzeroDiagnosticsSample(const FzeroDiagnosticFrame *f, bool final) {
           "\"hd_enabled\":%d,\"requested_scale\":%u,\"effective_scale\":%u,"
           "\"fps_enabled\":%d,\"requested_fps\":%u,\"source_width\":%d,\"source_height\":%d,"
           "\"output_width\":%d,\"output_height\":%d,\"fullscreen\":%d,\"suspended\":%d,"
-          "\"scene\":%u,\"subscene\":%u,\"stages\":{",
+          "\"scene\":%u,\"subscene\":%u,\"render_workers\":%u,\"stages\":{",
           v->enhanced, f->viewport.enhanced, v->bs_deluxe, v->hd_mode7, v->hd_scale, f->effective_scale,
           v->fps_enabled, v->fps, f->viewport.width * (int)f->effective_scale, FZERO_HEIGHT * (int)f->effective_scale,
-          f->output_width, f->output_height, f->fullscreen, f->suspended, f->scene, f->subscene);
+          f->output_width, f->output_height, f->fullscreen, f->suspended, f->scene, f->subscene, f->render_workers);
   uint64_t accounted = 0;
   for (unsigned i = 0; i < FZERO_DIAG_STAGE_COUNT; ++i) {
     Timing *t = &timings[i]; accounted += t->ticks;

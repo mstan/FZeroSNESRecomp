@@ -8,6 +8,7 @@ $text = [System.Collections.Generic.List[string]]::new()
 $text.Add('F-Zero Mode 7 performance report')
 $text.Add('Stage times measure CPU/driver wall time. GPU execution is not measured directly.')
 $text.Add('Samples span about two seconds; scene and graphics settings describe the end of each interval.')
+$text.Add('Render participants includes the main thread; it is pool capacity. Flat menus/native rendering stay serial.')
 $text.Add('')
 
 foreach ($log in Get-ChildItem -LiteralPath $InputDirectory -Filter 'performance-*.jsonl' -File) {
@@ -42,7 +43,8 @@ foreach ($log in Get-ChildItem -LiteralPath $InputDirectory -Filter 'performance
         $text.Add($scope.label)
         if ($scope.samples.Count -eq 0) { $text.Add('No matching intervals recorded.'); continue }
         $groups = $scope.samples | Group-Object -Property {
-            "aspect=$($_.aspect), HD=$($_.hd_enabled), requested=$($_.requested_scale)x, effective=$($_.effective_scale)x, source=$($_.source_width)x$($_.source_height), output=$($_.output_width)x$($_.output_height), target=$($_.target_hz) Hz, display=$($_.display_hz) Hz"
+            $workers = if ($_.PSObject.Properties.Name -contains 'render_workers') { $_.render_workers } else { 1 }
+            "aspect=$($_.aspect), HD=$($_.hd_enabled), requested=$($_.requested_scale)x, effective=$($_.effective_scale)x, source=$($_.source_width)x$($_.source_height), output=$($_.output_width)x$($_.output_height), target=$($_.target_hz) Hz, display=$($_.display_hz) Hz, render participants=$workers"
         }
         foreach ($group in $groups) {
             $duration = ($group.Group | Measure-Object interval_ms -Sum).Sum

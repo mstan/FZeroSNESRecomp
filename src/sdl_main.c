@@ -1890,6 +1890,7 @@ int main(int argc, char **argv) {
         .settings = g_video, .viewport = viewport,
         .output_width = drawable_width, .output_height = drawable_height,
         .effective_scale = FzeroHdScale(), .target_hz = hz, .refresh_hz = actual_refresh,
+        .render_workers = FzeroRendererWorkerCount(),
         .fullscreen = (SDL_GetWindowFlags(window) & SNESRECOMP_SDL_WINDOW_FULLSCREEN_DESKTOP) != 0,
         .suspended = suspended, .scene = g_ram[0x54], .subscene = g_ram[0x55]
       };
@@ -2188,6 +2189,7 @@ int main(int argc, char **argv) {
   FzeroTracksSavesFinish();
   RtlWriteSram();
   FzeroSetMode7Hd(0, NULL, 0);
+  FzeroRendererShutdown();
   free(hd_pixels);
   debug_server_shutdown();
   snesrecomp_sdl_pause_audio_device(audio, true);

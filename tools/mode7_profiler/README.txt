@@ -18,9 +18,15 @@ Keep the same course, aspect, shader and Presentation FPS. Send all three
 report ZIPs. Let the window stay focused while measuring; Alt-Tab pauses are
 different from gameplay slowdown.
 
-This is an assessment build based on Forever 0.8.0. It uses the existing
-renderer. The experimental parallel renderer is not included, so the report
-measures the implementation that testers have been using.
+{{BUILD_DESCRIPTION}}
+
+Rendering workers are CPU threads. A worker build uses up to four participants
+automatically (including the main thread); workers sleep between frames.
+For a serial comparison of the same build, open Command Prompt in this folder
+and run these two lines:
+  set SNESRECOMP_RENDER_WORKERS=1
+  "Profile Mode 7.cmd"
+Close that Command Prompt to restore automatic selection for other launches.
 
 If you already have a working 0.8.0 installation, you can first copy config.ini,
 fzero-video.ini, keybinds.ini and rom.cfg beside this executable to retain your
