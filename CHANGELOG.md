@@ -1,6 +1,6 @@
 ﻿# Changelog
 
-## Unreleased
+## 0.8.2 - Older course-pack imports
 
 - Import older FZEdit layouts used by the SNES Maximum Velocity hack, Hybrid
   and ReFractured, preserving course names, source order, maps and SNES music.
