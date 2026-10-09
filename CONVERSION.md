@@ -100,6 +100,18 @@ Extend the supported resource decoder, or add a validated exact revision to
 the reviewed registry and exporter profile for unattended conversion.
 Arbitrary donor code is never run.
 
+Nebula Highway v0.1.1 is an example of an older stock-format hack. It retains
+the original GP course selector and SPC theme selector, with relocated course
+resources. It does not use the FZEdit table format supported by the current
+decoder. Changing cup labels in the review form cannot fix that difference.
+A future legacy decoder must recover its map blocks, checkpoint paths and
+venue resources before exporting and round-trip checking editable projects.
+Until then, it is rejected without installing partial courses.
+
+Vintage Velocity I v2.1 is a different case: its included README explicitly
+targets F-Zero: Maximum Velocity on Game Boy Advance. Its IPS files must not
+be applied to the SNES game. IPS itself has no source-game checksum.
+
 The recovered projects include the road, tile art, terrain, colors, sky, minimap,
 AI/checkpoints, shortcuts, intro lettering, opponents and supported mechanics.
 Keep each `_Reconstruction.json` companion with its editor files. It preserves

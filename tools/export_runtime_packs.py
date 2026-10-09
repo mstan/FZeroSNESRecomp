@@ -11,6 +11,7 @@ import subprocess
 import struct
 import shutil
 import tempfile
+import zipfile
 from parse_track_pack import donor, fields
 from pack_manifest import write_index
 from reconstruct_fzedit_course import reconstruct
@@ -84,6 +85,8 @@ def _export_pack(stock, result, base, root, exporter, priority, ident, data, nat
                                   for p in data['soundtrack_prefix']]
     if ident == 'cgp':
         manifest['menu_music'] = json.loads((ROOT/'assets/music/cgp-menu.json').read_text())
+    elif data.get('menu_music'):
+        manifest['menu_music'] = dict(row.split('|', 1) for row in data['menu_music'])
     title = ROOT/'assets/track-packs/presentation'/f'{ident}.ips'
     if title.exists():
         from inspect_bs_deluxe import apply_ips
@@ -132,6 +135,9 @@ def _export_pack(stock, result, base, root, exporter, priority, ident, data, nat
                 ident+'-'+course['id'], course['name'], manifest['author'], credit_bytes)
             course['source'] = archive.relative_to(root).as_posix()
             source.unlink()
+        # Archive identity survives a user renaming the public ZIP filename.
+        with zipfile.ZipFile(root/course['source']) as project:
+            course['source_id'] = json.loads(project.read('pack.json'))['id']
     write_index(root, manifest)
     (root/'CREDITS.txt').write_bytes(credit_bytes)
     audit = dict(source=source_label,

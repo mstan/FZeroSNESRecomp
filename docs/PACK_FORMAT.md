@@ -79,6 +79,17 @@ and combined with the enclosing pack. The enclosing pack supplies the league
 position, course identity and optional music overrides. Audio filenames follow
 the ZIP filename (`huckmine.zip` means `music/huckmine.pcm` in the enclosing pack).
 
+For a ZIP source, optional `source_id` records the nested archive's stable
+`pack.json` ID. Import/export tools populate this field. If the file is renamed
+within its course directory, the folder-pack loader can locate that identity,
+validate the course, and update `source` and the envelope checksum. Older
+reconstructed imports use the existing `<pack-id>-<course-id>` identity.
+Duplicate or missing identities are rejected; display names are never used to
+guess a replacement. Matching music follows the new filename without replacing
+an existing destination PCM. This repair applies to installed folder packs,
+not to source paths inside an outer pack ZIP. Stable IDs and record keys do not
+change, and renaming the ZIP does not change the displayed course name.
+
 The Huckmine example preserves the supplied twelve files byte-for-byte. The
 maintainer helper `tools/package_fzedit_course.py` adds descriptors and credits
 to a new ZIP without changing the original archive. Its map layout, checkpoints,

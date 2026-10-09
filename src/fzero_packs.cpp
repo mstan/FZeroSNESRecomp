@@ -18,6 +18,17 @@ extern "C" {
 #include <fstream>
 #include <map>
 #include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -69,10 +80,14 @@ template <size_t N> void copy(char (&out)[N], const std::string &s) {
   std::copy(s.begin(), s.end(), out);
   out[s.size()] = 0;
 }
+std::string pathString(const fs::path &path) {
+  auto bytes = path.generic_u8string();
+  return std::string(bytes.begin(), bytes.end());
+}
 fs::path courseMusic(const Pack &pack, unsigned index) {
   auto name = pack.courses[index].filename();
   name.replace_extension(".pcm");
-  return inside(pack.root, "music/" + name.string());
+  return inside(pack.root, "music/" + pathString(name));
 }
 unsigned requiredFeatures(const Value &features) {
   require(features.IsArray(), "requires must be an array");
@@ -121,8 +136,90 @@ unsigned mechanics(const fs::path &root, const Value &owner) {
   }
   return bits;
 }
+std::string jsonText(const Value &value) {
+  rapidjson::StringBuffer buffer;
+  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+  value.Accept(writer);
+  return std::string(buffer.GetString(), buffer.GetSize()) + "\n";
+}
+void replaceFile(const fs::path &staged, const fs::path &destination) {
+#ifdef _WIN32
+  require(MoveFileExW(staged.c_str(), destination.c_str(),
+                      MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0,
+          "Cannot update renamed course source: " + destination.filename().string());
+#else
+  fs::rename(staged, destination);
+#endif
+}
+void writeFile(const fs::path &path, const std::string &bytes) {
+  std::ofstream out(path, std::ios::binary);
+  out.write(bytes.data(), bytes.size());
+  out.close();
+  require(bool(out), "Cannot write renamed course source: " + path.filename().string());
+}
+// Only called for a fully validated folder pack. Keep the index and shared
+// envelope checksum together; preserve stable IDs and course/record data.
+void saveRenamedSources(const fs::path &root, const Value &index,
+                        const std::string &original,
+                        const std::vector<std::pair<fs::path, fs::path>> &renamed) {
+  auto manifestPath = inside(root, "pack.json");
+  auto manifestBytes = read(manifestPath, 65536);
+  rapidjson::Document manifest;
+  manifest.Parse(manifestBytes.data(), manifestBytes.size());
+  require(!manifest.HasParseError() && manifest.IsObject() && manifest.HasMember("payload"),
+          "Pack changed while resolving renamed courses");
+  validate_json(manifest);
+  auto &payload = manifest["payload"];
+  auto indexPath = inside(root, string(payload, "file"));
+  require(read(indexPath) == original, "Course index changed while resolving renamed courses");
+  auto updated = jsonText(index);
+  uint8_t hash[32];
+  char hex[65];
+  sha256_compute(reinterpret_cast<const uint8_t *>(original.data()), original.size(), hash);
+  for (unsigned i = 0; i < 32; ++i) snprintf(hex + i * 2, 3, "%02x", hash[i]);
+  require(string(payload, "sha256") == hex, "Pack envelope changed while resolving renamed courses");
+  sha256_compute(reinterpret_cast<const uint8_t *>(updated.data()), updated.size(), hash);
+  for (unsigned i = 0; i < 32; ++i) snprintf(hex + i * 2, 3, "%02x", hash[i]);
+  payload["sha256"].SetString(hex, manifest.GetAllocator());
+  auto stagedIndex = inside(root, ".renamed-courses.tmp");
+  auto stagedManifest = inside(root, ".renamed-pack.tmp");
+  require(!fs::exists(stagedIndex) && !fs::exists(stagedManifest),
+          "An interrupted source update needs its .renamed-*.tmp files checked");
+  std::vector<std::pair<fs::path, fs::path>> moved;
+  bool changedIndex = false;
+  try {
+    writeFile(stagedIndex, updated);
+    writeFile(stagedManifest, jsonText(manifest));
+    for (auto &[oldSource, newSource] : renamed) {
+      auto oldName = oldSource.filename(), newName = newSource.filename();
+      oldName.replace_extension(".pcm"); newName.replace_extension(".pcm");
+      auto before = inside(root, "music/" + pathString(oldName));
+      auto after = inside(root, "music/" + pathString(newName));
+      // Respect music already provided under the new filename.
+      if (before != after && fs::is_regular_file(before) && !fs::exists(after)) {
+        fs::rename(before, after);
+        moved.emplace_back(before, after);
+      }
+    }
+    replaceFile(stagedIndex, indexPath);
+    changedIndex = true;
+    replaceFile(stagedManifest, manifestPath);
+  } catch (...) {
+    if (changedIndex) {
+      writeFile(stagedIndex, original);
+      replaceFile(stagedIndex, indexPath);
+    }
+    for (auto it = moved.rbegin(); it != moved.rend(); ++it)
+      fs::rename(it->second, it->first);
+    std::error_code ignored;
+    fs::remove(stagedIndex, ignored);
+    fs::remove(stagedManifest, ignored);
+    throw;
+  }
+}
 Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &audio,
-           std::string &newPrimary, const fs::path &cacheRoot, bool courseArchive = false) {
+           std::string &newPrimary, const fs::path &cacheRoot, bool courseArchive = false,
+           bool repairSources = false) {
   rapidjson::Document d;
   std::string text(reinterpret_cast<const char *>(entry.payload), entry.payload_size);
   d.Parse<rapidjson::kParseIterativeFlag |
@@ -202,12 +299,15 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
   require(d.HasMember("cups") && d["cups"].IsArray() &&
               d["cups"].Size() <= CP_CUPS,
           "Invalid cups");
-  std::map<std::string, const Value *> definitions;
+  std::map<std::string, Value *> definitions;
+  std::vector<std::pair<fs::path, fs::path>> renamed;
+  std::set<fs::path> claimedSources;
   unsigned packMechanics = mechanics(root, d);
   for (auto &c : d["courses"].GetArray()) {
     auto cid = string(c, "id");
     ident(cid);
     require(definitions.emplace(cid, &c).second, "Duplicate course ID");
+    claimedSources.insert(inside(root, string(c, "source")));
   }
   std::set<std::string> cupids;
   // All per-course archives in a directory share one scan. Re-scanning every
@@ -256,9 +356,35 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
               snes_data_packs_scan(source.parent_path().string().c_str(), "f-zero",
                                   "fzero.course-index", base, caps, 1, report, &archiveErrors),
               snes_data_packs_destroy);
+        if (repairSources && !fs::exists(source)) {
+          // Imported reconstructions before source_id was explicit used this
+          // same stable nested ID. Never infer identity from the display name,
+          // directory order, or the fact that only one ZIP remains.
+          auto expected = c.HasMember("source_id") ? string(c, "source_id")
+                                                   : id + "-" + string(c, "id");
+          const SnesDataPack *replacement = nullptr;
+          for (size_t i = 0; i < snes_data_packs_count(nested.get()); ++i) {
+            const auto *item = snes_data_packs_get(nested.get(), i);
+            if (expected == item->id && !claimedSources.count(fs::path(reinterpret_cast<const char8_t *>(item->source)))) {
+              require(!replacement, "Ambiguous renamed course: " + string(c, "id"));
+              replacement = item;
+            }
+          }
+          require(replacement, "Cannot locate renamed course ZIP: " + source.filename().string());
+          auto replacementPath = fs::path(reinterpret_cast<const char8_t *>(replacement->source));
+          auto relative = pathString(replacementPath.lexically_relative(root));
+          require(inside(root, relative) == replacementPath &&
+                      lower(replacementPath.extension().string()) == ".zip",
+                  "Renamed course must remain a ZIP in its course folder");
+          renamed.emplace_back(source, replacementPath);
+          claimedSources.insert(replacementPath);
+          source = replacementPath;
+          p.courses.back() = source;
+          c["source"].SetString(relative.c_str(), d.GetAllocator());
+        }
         for (size_t i = 0; i < snes_data_packs_count(nested.get()); ++i) {
           const auto *item = snes_data_packs_get(nested.get(), i);
-          if (fs::path(item->source) != source) continue;
+          if (fs::path(reinterpret_cast<const char8_t *>(item->source)) != source) continue;
           const char *directory = snes_data_pack_directory(
               nested.get(), i, (cacheRoot / "sources").string().c_str(), report, &archiveErrors);
           auto &message = archiveErrors[source.string()];
@@ -316,6 +442,7 @@ Pack parse(const fs::path &root, const SnesDataPack &entry, std::vector<Sound> &
     }
   }
   require(p.info.track_count > 0, "Empty course pack");
+  if (!renamed.empty()) saveRenamedSources(root, d, text, renamed);
   return p;
 }
 } // namespace
@@ -375,7 +502,8 @@ void FzeroPacksDiscover(CpCatalog *cat, const char *directory) {
       try {
         std::vector<Sound> audio;
         std::string prim;
-        auto pack = parse(fs::path(reinterpret_cast<const char8_t *>(root)), *entry, audio, prim, cache);
+        auto pack = parse(fs::path(reinterpret_cast<const char8_t *>(root)), *entry, audio, prim, cache,
+                          false, fs::is_directory(fs::path(reinterpret_cast<const char8_t *>(entry->source))));
         candidates.push_back(std::move(pack));
         audios.push_back(std::move(audio));
         primaries.push_back(prim);

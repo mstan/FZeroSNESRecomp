@@ -263,6 +263,21 @@ def read_zip_submission(source, stock, member):
                     errors.append(dict(member=entry.filename, reason=str(error)))
         report['archive_donor_candidates'] = valid
         report['archive_candidate_errors'] = errors
+        # IPS has no source-platform checksum. Use an explicit patching
+        # statement in the author's README only as a rejection hint, never as
+        # permission to import data or choose one of multiple SNES targets.
+        other_game = None
+        readmes = [entry for entry in entries if not entry.is_dir()
+                   and PurePosixPath(entry.filename).suffix.lower() in ('.txt', '.md')
+                   and entry.file_size <= 65536]
+        for entry in readmes[:4]:
+            notes = read_zip_member(archive, entry, 65536).decode('utf-8', errors='replace')
+            if re.search(r'apply\s+the\s+IPS\s+patch\s+to\s+an\s+unmodified\s+copy\s+of\s+'
+                         r'(?:the\s+)?(?:US/EU\s+)?Maximum\s+Velocity\s+rom', notes, re.IGNORECASE):
+                other_game = dict(platform='Game Boy Advance', game='F-Zero: Maximum Velocity',
+                                  evidence_member=entry.filename)
+        if other_game:
+            report['declared_patch_target'] = other_game
         if not candidates:
             report['reason'] = ('No IPS/BPS or ROM donor was found. Ready packs and FZEdit projects '
                                 'use the native importer; audio-only archives need an existing course pack.')
@@ -278,6 +293,11 @@ def read_zip_submission(source, stock, member):
             selected = None
         else:
             selected = min(valid, key=lambda item: (item['input_kind'] != 'bps', item['input_kind'] == 'rom', item['member']))
+        if other_game and not any(entry['profile'] for entry in valid):
+            report['reason'] = ('The author\'s README says this patch is for F-Zero: Maximum Velocity '
+                                'on Game Boy Advance. This importer supports SNES F-Zero course data; '
+                                'GBA courses cannot be installed here. No courses or recordings were installed.')
+            selected = None
         if selected is not None:
             entry = archive.getinfo(selected['member'])
             extension = PurePosixPath(entry.filename).suffix.lower()
@@ -347,11 +367,61 @@ def probe_cup_menu(target):
                 evidence='Recognized 13-word transfer; adjacent pointer table and fixed-width label records')
 
 
+def probe_msu_selector(target, races):
+    """Recognize the selector that feeds MSU track registers, without running ASM."""
+    events = {'countdown': 1, 'ready': 2, 'lost-life': 3, 'title': 4, 'select': 5, 'ending': 7}
+    # Existing FZEdit arithmetic selector. Only the immediate base may vary.
+    standard = bytes.fromhex('a5 46 29 07 c9 06 d0 11 a5 53 a6 58 d0 08 '
+                             'a5 90 0a 0a 65 90 65 53 18 69 0a 60')
+    try:
+        code = span(target, 0x02c26a, len(standard))
+        if code[:24] == standard[:24] and code[25:] == standard[25:]:
+            tracks = list(range(code[24], code[24]+races))
+            if all(0 < track < 256 for track in tracks):
+                return dict(recognized=True, kind='arithmetic', base_track=code[24],
+                            formula=f'{code[24]} + 5 * cup + race', tracks=tracks, events=events)
+        # Table selector: Practice uses race; GP uses the stock 5*cup offset.
+        # Require both loads to use the same table and a caller that writes the
+        # returned byte to $2004, then clears the high track byte at $2005.
+        pattern = (re.escape(bytes.fromhex('a5 46 29 0f c9 06 f0 01 60 a5 58 f0 08 a5 53 aa bf'))
+                   + b'(.{3})' + re.escape(bytes.fromhex('60 a5 f2 18 65 53 aa bf'))
+                   + b'(.{3})' + b'\x60')
+        bank = span(target, 0x028000, 0x8000)
+        matches = []
+        for match in re.finditer(pattern, bank, re.DOTALL):
+            selector = 0x8000+match.start()
+            caller = b'\x20'+selector.to_bytes(2, 'little')+bytes.fromhex('8d 04 20 9c 05 20')
+            if match[1] != match[2] or caller not in bank:
+                continue
+            if span(target, 0x008bf3, 8) != bytes.fromhex('a5 90 0a 0a 65 90 85 f2'):
+                continue
+            table = int.from_bytes(match[1], 'little')
+            tracks = list(span(target, table, races))
+            if all(0 < track < 255 for track in tracks):
+                matches.append(dict(recognized=True, kind='table', table=f'{table:06x}',
+                                    selector=f'02{selector:04x}', tracks=tracks, events=events))
+        if len(matches) == 1:
+            return matches[0]
+    except ValueError:
+        pass
+    return dict(recognized=False)
+
+
 def probe_fzedit_metadata(target):
     """Decode recognized data consumers; this does not qualify other donor ASM."""
     result = dict(status='unrecognized-loader', executable_compatibility_verified=False,
                   cup_labels_verified=False, intro_font_verified=False)
     try:
+        classic = bytes.fromhex('08 e2 30 a9 0f a6 58 d0 06 a5 90 0a 0a 65 90 '
+                                '18 65 53 aa bf 29 e1 02 8d de 0a 29 0f 8d f5 0c a8')
+        if (span(target, 0x009f08, len(classic)) == classic
+                and span(target, 0x00f7e0, 17) == bytes.fromhex(
+                    '08 e2 30 ae d8 0a bf 71 9e 03 0a 0a 0a 7f 71 9e 03')):
+            result.update(loader_family='legacy-stock',
+                unsupported_reason='This hack uses the older F-Zero course format, which the importer cannot '
+                    'decode yet. Course labels alone cannot resolve it. Original FZEdit projects can be '
+                    'imported if the author has them; otherwise this format needs a new resource decoder.')
+            return result
         selector = span(target, 0x00f7e0, 17)
         order = span(target, 0x10824d, 21)
         if (selector[:9] != bytes.fromhex('08 e2 30 c2 10 ae 59 10 bf')
@@ -399,14 +469,7 @@ def probe_fzedit_metadata(target):
             result['order_note'] = 'Internal resource count does not establish the published GP subset.'
             return result
         music = span(target, music_table, count)
-        standard = bytes.fromhex('a5 46 29 07 c9 06 d0 11 a5 53 a6 58 d0 08 '
-                                 'a5 90 0a 0a 65 90 65 53 18 69 0a 60')
-        msu = span(target, 0x02c26a, len(standard))
-        msu_standard = msu[:24] == standard[:24] and msu[25:] == standard[25:]
-        result['msu_selector'] = dict(recognized=msu_standard,
-            qualification='Other callers and behavior still require review')
-        if msu_standard:
-            result['msu_selector'].update(base_track=msu[24], formula=f'{msu[24]} + 5 * cup + race')
+        result['msu_selector'] = msu = probe_msu_selector(target, races)
         alphabet = dict(zip(ALPHABET, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'))
         alphabet.update(GLYPHS)
         alphabet.update({0x80+i: str(i) for i in range(10)})
@@ -424,8 +487,8 @@ def probe_fzedit_metadata(target):
                     row['name_error'] = f'Unreviewed intro glyph {error.args[0]:02x}'
             if music[slot] <= 81 and music[slot] % 9 == 0:
                 row.update(spc_index=music[slot]//9, stock_spc_theme=SONGS[music[slot]//9])
-            if msu_standard:
-                row['msu_track'] = msu[24]+position
+            if msu['recognized']:
+                row['msu_track'] = msu['tracks'][position]
             tracks.append(row)
         result.update(status='recognized-resource-metadata', internal_resource_count=count,
             published_course_count=races,
@@ -655,6 +718,8 @@ def convert_inferred(source, out, target, stock, report, probe, exporter, inspec
         layout['msu_source'] = [identity]
         layout['msu'] = [f'{row["slot"]}|{row["msu_track"]}' for row in probe['tracks']]
         data['soundtrack_prefix'] = [PurePosixPath(report.get('donor_member',report['input_name'])).stem]
+        data['menu_music'] = [f'{cue}|music/menu-{number}.pcm'
+                             for cue, number in probe['msu_selector'].get('events', {}).items()]
     report.update(inferred_layout=layout, inference=evidence, review=form, required_mechanics=required,
                   gameplay_qualification='Course data only; vehicles/global donor code excluded; full races not certified',
                   cup_labels='User labels and confirmed assignments; not claimed as authored donor menu labels',
@@ -901,6 +966,8 @@ def convert(source, out, *, stock=None, exporter=None, inspector=None, patch_mem
                 detected += f' and {recordings} PCM recordings'
             report['reason'] = (detected+'. The resource layout needs a supported decoder. '
                                 'No courses or recordings were installed; your original files are unchanged.')
+            if probe.get('unsupported_reason'):
+                report['reason'] = probe['unsupported_reason'] + ' No courses or recordings were installed.'
             if probe['status'] == 'recognized-resource-metadata' and stock_data is not None:
                 # Bad/stale form values are input errors, not failed extraction.
                 if answers is not None:

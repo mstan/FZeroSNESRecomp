@@ -106,6 +106,50 @@ def inferable_donor():
 
 
 class ConversionBoundaries(unittest.TestCase):
+    def test_explicit_other_game_readme_explains_rejection(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); source = root/'other-game.zip'
+            source.write_bytes(archive_bytes([('hack.sfc', bytes(0x8000)), ('readme.txt',
+                b'Apply the IPS patch to an unmodified copy of the US/EU Maximum Velocity rom.')]))
+            target, report = converter.read_submission(source)
+            self.assertIsNone(target)
+            self.assertIn('Game Boy Advance', report['reason'])
+            self.assertEqual(report['declared_patch_target']['evidence_member'], 'readme.txt')
+
+    def test_legacy_loader_reports_decoder_requirement(self):
+        rom = bytearray(0x100000)
+        classic = bytes.fromhex('08 e2 30 a9 0f a6 58 d0 06 a5 90 0a 0a 65 90 '
+                                '18 65 53 aa bf 29 e1 02 8d de 0a 29 0f 8d f5 0c a8')
+        rom[0x1f08:0x1f08+len(classic)] = classic
+        rom[0x77e0:0x77f1] = bytes.fromhex('08 e2 30 ae d8 0a bf 71 9e 03 0a 0a 0a 7f 71 9e 03')
+        result = converter.probe_fzedit_metadata(rom)
+        self.assertEqual(result['loader_family'], 'legacy-stock')
+        self.assertIn('new resource decoder', result['unsupported_reason'])
+        self.assertNotEqual(result['status'], 'recognized-resource-metadata')
+
+    def test_table_msu_selector_follows_gp_order_and_events(self):
+        rom = bytearray(metadata_donor())
+        def put(address, data):
+            offset = ((address & 0x7f0000) >> 1) | (address & 0x7fff)
+            rom[offset:offset+len(data)] = data
+        put(0x02c26a, bytes(26))
+        selector = bytes.fromhex('a5 46 29 0f c9 06 f0 01 60 a5 58 f0 08 a5 53 aa bf '
+                                 'd0 c2 02 60 a5 f2 18 65 53 aa bf d0 c2 02 60')
+        put(0x02c2a9, selector)
+        put(0x02c23b, bytes.fromhex('20 a9 c2 8d 04 20 9c 05 20'))
+        put(0x008bf3, bytes.fromhex('a5 90 0a 0a 65 90 85 f2'))
+        put(0x02c2d0, bytes([17, 11]))  # Not arithmetic or resource-slot order.
+        probe = converter.probe_fzedit_metadata(rom)
+        self.assertEqual([row['msu_track'] for row in probe['tracks']], [17, 11])
+        self.assertEqual(probe['msu_selector']['events']['title'], 4)
+        self.assertEqual(probe['msu_selector']['events']['lost-life'], 3)
+        for address, bad in ((0x02c23b, b'\xea'), (0x008bf3, b'\xea'),
+                             (0x02c2a9+28, b'\xd1'), (0x02c2d0, b'\xff')):
+            offset = ((address & 0x7f0000) >> 1) | (address & 0x7fff)
+            old = rom[offset]; put(address, bad)
+            self.assertFalse(converter.probe_msu_selector(rom, 2)['recognized'])
+            put(address, bytes([old]))
+
     def test_ips_bps_equivalence_and_zip_pair_selection(self):
         source, target = bytes(0x8000), b'A'+bytes(0x7fff)
         ips, bps = make_ips(source, target), bps_literal(source, target)
@@ -182,7 +226,7 @@ class ConversionBoundaries(unittest.TestCase):
             self.assertTrue(report['audio_inventory']['members'][0]['header_valid'])
             self.assertEqual(report['ignored_members'], ['tools/optional.asm', 'INSTRUCTIONS.txt'])
             self.assertNotIn('tools/optional.asm', opened)
-            self.assertNotIn('INSTRUCTIONS.txt', opened)
+            self.assertIn('INSTRUCTIONS.txt', opened)  # Bounded platform hints only.
 
     def test_ambiguous_zip_publishes_report_and_member_resolves(self):
         with tempfile.TemporaryDirectory() as temp:
