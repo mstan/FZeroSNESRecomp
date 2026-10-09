@@ -1,5 +1,10 @@
 # HD Mode 7 performance
 
+The [2026-10-09 efficiency assessment](HD_MODE7_EFFICIENCY_ASSESSMENT.md)
+examines the remaining single-threaded architecture, measures an isolated
+multicore prototype, and describes the affected-machine profiling bundle.
+Its experimental renderer is not included in normal builds.
+
 ## Forever follow-up (2026-09-30)
 
 Against Forever 0.7.2 (`ac92240`), the HD sampler now precomputes subpixel

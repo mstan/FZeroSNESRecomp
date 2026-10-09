@@ -17,6 +17,36 @@ information, shader preset name, active settings and periodic timing summaries.
 They do not include ROM contents, saves, personal file paths, or player names.
 An unwritable diagnostics folder does not stop the game.
 
+## One-click Mode 7 profiler
+
+The one-off Windows profiling bundle includes **Profile Mode 7.cmd**. Extract
+the whole bundle, run that file, keep your usual graphics settings, and play
+the slow course for at least 30 seconds. Quit normally. The script creates a
+small `profile-results/mode7-profile-*.zip` and selects it in Explorer. Send
+that report back with a description of where the slowdown occurred.
+
+The report includes the raw timing log, a readable summary, and selected CPU,
+memory and graphics-driver fields. It excludes ROMs, recordings, saves and
+configuration files. Nothing is uploaded. This bundle retains the current
+serial renderer; the parallel rendering experiment is not included.
+
+To compare HD sampling costs, make separate recordings with HD off, 2x and
+4x, keeping the same course, aspect, shader and Presentation FPS. The summary
+separates whole-session measurements from intervals ending in active racing,
+groups different graphics configurations, and weights stage means by their
+call counts. Two-second intervals can include scene transitions; the raw log
+retains the timing and scene information for closer analysis.
+
+The launcher invokes `FZeroSNESRecomp --profile-mode7 --launcher`. The flag
+enables diagnostics for that session without saving the Diagnostics mod as on.
+It also works with an explicit ROM path for automated validation. Normal
+launches continue to honor the existing default-off Diagnostics setting.
+
+Packaging uses `tools/stage_mode7_profiler.py` with a reviewed, music-free
+player bundle and the profiling executable. It refuses private files and
+existing output directories. The scripts require only Windows PowerShell;
+players do not need Python or development tools.
+
 ## Reading a report
 
 - `session` identifies the build, backend and allocated texture scale. OpenGL

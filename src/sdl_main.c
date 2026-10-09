@@ -1523,12 +1523,13 @@ int main(int argc, char **argv) {
    * Resolve an explicit ROM against the caller's cwd before changing it. */
   char command_line_rom[1024];
   const char *explicit_rom = NULL;
-  bool force_launcher = false, positional_only = false;
+  bool force_launcher = false, positional_only = false, profile_mode7 = false;
   for (int i = 1; i < argc; ++i) {
     if (!positional_only && !strcmp(argv[i], "--")) { positional_only = true; continue; }
     if (!positional_only && !strcmp(argv[i], "--launcher")) { force_launcher = true; continue; }
+    if (!positional_only && !strcmp(argv[i], "--profile-mode7")) { profile_mode7 = true; continue; }
     if (explicit_rom || (!positional_only && argv[i][0] == '-')) {
-      fprintf(stderr, "usage: FZeroSNESRecomp [--launcher] [path-to-rom.sfc]\n");
+      fprintf(stderr, "usage: FZeroSNESRecomp [--launcher] [--profile-mode7] [path-to-rom.sfc]\n");
       return 2;
     }
     explicit_rom = argv[i];
@@ -1815,7 +1816,9 @@ int main(int argc, char **argv) {
   FzeroClock clock;
   double actual_refresh = display_refresh(window);
   double hz = g_video.fps_enabled ? FzeroPresentationHz(g_video.fps, actual_refresh) : FZERO_SIMULATION_HZ;
-  if (g_video.diagnostics) {
+  /* Profiling is session-only: do not persist it as a player's Mods setting. */
+  const bool diagnostics_enabled = g_video.diagnostics || profile_mode7;
+  if (diagnostics_enabled) {
     FzeroDiagnosticSession session = {
       .version = kBuildVersion, .revision = FZERO_SOURCE_REVISION,
       .framework_revision = FZERO_FRAMEWORK_REVISION, .ui_revision = FZERO_UI_REVISION,
@@ -1853,6 +1856,7 @@ int main(int argc, char **argv) {
     if (!snesrecomp_exe_dir_path("diagnostics", directory, sizeof(directory)))
       snprintf(directory, sizeof(directory), "diagnostics");
     FzeroDiagnosticsStart(true, directory, &session);
+    if (profile_mode7) FzeroDiagnosticsEvent("mode7_profile", 1);
   }
   FzeroClockReset(&clock, monotonic_seconds(), hz);
   bool suspended = false;
@@ -1879,7 +1883,7 @@ int main(int argc, char **argv) {
   FzeroDiagnosticFrame diagnostic_frame = {0};
 
   while (running) {
-    if (g_video.diagnostics) {
+    if (diagnostics_enabled) {
       diagnostic_frame = (FzeroDiagnosticFrame){
         .simulation = (uint64_t)frames, .presentations = presentations,
         .missed = missed_presentations + clock.missed_presentations,
@@ -2157,7 +2161,7 @@ int main(int argc, char **argv) {
       FzeroDiagnosticsEnd(FZERO_DIAG_WAIT, diagnostic_start);
     }
   }
-  if (g_video.diagnostics) {
+  if (diagnostics_enabled) {
     diagnostic_frame.simulation = (uint64_t)frames;
     diagnostic_frame.presentations = presentations;
     diagnostic_frame.missed = missed_presentations + clock.missed_presentations;
