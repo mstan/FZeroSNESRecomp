@@ -146,6 +146,25 @@ def older_metadata_donor(inline=False):
 
 
 class ConversionBoundaries(unittest.TestCase):
+    def test_native_terrain_keeps_repair_jumps_and_boundaries_without_mine_bitmap(self):
+        # The caller verifies the private USA stock digest. These ROM-free
+        # buffers exercise preservation and rejection of altered consumers.
+        stock = bytes(0x80000)
+        properties = converter.native_terrain_properties(stock, stock)
+        self.assertEqual(properties[0x200+0xb9], 16)  # Repair strip.
+        self.assertEqual(properties[0x100+0xba], 64)  # Jump pad.
+        self.assertEqual(properties[0x100+0xc3], 16)  # Dash plate.
+        self.assertEqual(properties[0x300+0x20], 16)  # Barrier.
+        self.assertEqual(properties[0x300+0x69], 32)  # Wall/main path.
+        self.assertEqual(properties[0x300+0xd0], 128)  # Off-course void.
+        self.assertEqual(properties[0x100+0xa6], 8)  # Native down-pull magnet.
+        self.assertEqual(properties[0x300+0x90], 0)  # Safe road.
+        for address in (0x008e36, 0x039187, 0x009c9a, 0x00eb90):
+            changed = bytearray(stock)
+            changed[((address & 0x7f0000) >> 1) | (address & 0x7fff)] = 1
+            with self.subTest(address=address), self.assertRaisesRegex(ValueError, 'terrain classifier'):
+                converter.native_terrain_properties(changed, stock)
+
     def test_explicit_other_game_readme_explains_rejection(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); source = root/'other-game.zip'

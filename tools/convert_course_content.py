@@ -67,6 +67,35 @@ See CONVERSION.md and mods/PARSE_MANIFEST.md. Keep patched ROMs private.
 """
 
 
+def native_terrain_properties(target, stock):
+    """Translate the verified USA tile classifier to FZEdit properties.
+
+    Skipping the separate mine-location bitmap does not disable terrain. Older
+    projects still use $00:8E36 and $03:9187 to classify each sampled tile.
+    Require the donor's classifiers, landing and recovery checks to be stock;
+    custom classifiers need their own decoder rather than a guessed mapping.
+    """
+    for address, size in ((0x008e36, 0x98), (0x039187, 0x84),
+                          (0x009c9a, 0x27), (0x00eb90, 0x1d)):
+        if span(target, address, size) != span(stock, address, size):
+            raise ValueError('Unsupported native terrain classifier')
+    terrain = bytearray(0x400)
+    for tile in range(256):
+        # Native ground-height classes; the low flag bits also mark barriers.
+        terrain[0x300+tile] = (16 if tile < 0x69 else 32 if tile < 0x82 or tile == 0xa5
+                              else 128 if tile >= 0xd0 else 0)
+        terrain[tile] = (128 if tile in (0x69, 0xc0) else 64 if tile in (0xa5, 0xc1) else 0)
+        terrain[0x100+tile] = (128 if 0xa7 <= tile < 0xb0 or 0xcc <= tile < 0xd0
+                              else 64 if 0xba <= tile < 0xc0
+                              else 32 if 0xc8 <= tile < 0xcc
+                              else 16 if 0xc3 <= tile < 0xc8
+                              else 8 if tile == 0xa6
+                              else 4 if tile in (0x9e, 0xa1, 0xa2) else 0)
+        terrain[0x200+tile] = (128 if 0xb0 <= tile < 0xb9 else 16 if tile == 0xb9
+                              else 64 if tile == 0xa0 else 32 if tile == 0x9c else 0)
+    return bytes(terrain)
+
+
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -772,7 +801,8 @@ def infer_fzedit_layout(target, stock, probe):
         for row in probe['tracks']:
             if not int.from_bytes(span(target,flags+(row['order_table_position']//5)*2,2),'little'):
                 raise ValueError('Mixed native/extended terrain needs another decoder')
-        address=synthesize('_terrain_data',bytes(0x400),'Donor explicitly skips native mine bitmap loading')
+        address=synthesize('_terrain_data',native_terrain_properties(target,stock),
+                           'Verified donor native tile classifiers translated to FZEdit properties; mine bitmap bypass is separate')
         layout.pop('_terrain_data')
         synthesize('terrain',address.to_bytes(3,'little')*count,'Recognized per-cup native terrain bypass')
     pointer('gradients', 'ae 59 10 bf', '85 9c 5c 22 a1 00')

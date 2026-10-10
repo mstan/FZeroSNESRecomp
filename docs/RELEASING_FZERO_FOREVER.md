@@ -29,12 +29,12 @@ Use the plain version without a `fzero-55-preview` label.
 
 ## Current release
 
-The current local tester bundles are **0.8.1**: the Custom Content importer,
-refined imported music/source-name handling and persistent HD rendering
-workers from upstream snesrecomp. Both variants retain per-pack music and
-prebuilt portable course caches.
-Prior bundles remain unchanged. Next fixes are 0.8.2; new features are 0.9.0.
-Tracked by `beads-8wg.5.92` and framework issue `beads-8wg.2.114`.
+The current local tester bundles are **0.8.3**: older FZEdit imports and
+preservation of verified native terrain, with driving checks across Maximum
+Velocity, Hybrid and ReFractured. Both variants retain per-pack music,
+prebuilt portable course caches and the shared rendering workers.
+Prior bundles remain unchanged. Next fixes are 0.8.4; new features are 0.9.0.
+Tracked by `beads-8wg.5.94`; import/driving work is `beads-8wg.5.93`.
 
 ## Preparing a release
 

@@ -1,5 +1,14 @@
 ﻿# Changelog
 
+## 0.8.3 - Native terrain preservation
+
+- Preserve Maximum Velocity's original repair strips, jump pads, dash plates
+  and boundaries when converting its older FZEdit courses. Its disabled mine
+  bitmap loader no longer produces an empty terrain-property table.
+- Add repeatable driving and controller fuzz checks for imported courses,
+  using real terrain approaches and game physics alongside records checks.
+- Packs imported from Maximum Velocity with 0.8.2 need removal and reimport.
+
 ## 0.8.2 - Older course-pack imports
 
 - Import older FZEdit layouts used by the SNES Maximum Velocity hack, Hybrid

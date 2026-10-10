@@ -62,6 +62,15 @@ compressed skies where retained. SNES music choices come from the donor's
 venue/variant selector or its per-course table. They are never inferred from
 course names. These downloads are optional imports, not included packs.
 
+The native terrain rules used by older projects are preserved as tile
+properties when the original classifiers can be verified. A missing mine
+bitmap does not mean there are no repair strips, jumps or boundaries. If you
+imported Maximum Velocity with 0.8.2, remove and reimport that pack with 0.8.3
+or later; updating the game does not replace an already imported project.
+Maintainers should also run `tests/validate_course_driving.py` alongside
+course, music and records validation. The repository's
+`docs/IMPORTED_COURSE_DRIVING.md` explains the checks and their limits.
+
 PCM numbering is also read from recognized donor MSU selectors. For example,
 the supplied FZero55 patch explicitly selects **11–20** for its ten courses;
 the first course does not select 10. Hybrid reuses five course recordings

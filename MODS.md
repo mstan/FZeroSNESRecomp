@@ -25,6 +25,12 @@ Community Grand Prix, Astra Front, Bower League and MAX League appear as
 their gameplay switches remain in Mods. Huckmine is one of CGP's courses, not a
 separate default pack. New imports are separate from the included collection.
 
+If you imported the SNES **Maximum Velocity** hack with 0.8.2, remove that
+imported pack and import its patch again with 0.8.3 or later. The earlier
+conversion lost its repair, jump and boundary rules. Updating the game alone
+does not rebuild an already imported project. Hybrid and ReFractured do not
+need reimporting for this fix.
+
 Course music still lives in each pack's `music` folder and matches the course
 source filename. ZIPs containing a supported patch or ROM plus recordings can
 import both together. If a song's destination is uncertain, valid courses still
