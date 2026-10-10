@@ -41,12 +41,22 @@ def source_map(path):
         def read(key):
             return z.read((base/props[key].replace('\\', '/')).as_posix())
         track = ET.fromstring(read('TrackFile'))
-        layer = track.find('layer')
-        assert layer.find('data').get('encoding') == 'csv', 'Expected FZEdit CSV map'
-        width, height = int(layer.get('width')), int(layer.get('height'))
+        layers = track.findall('layer')
+        assert layers, 'Missing FZEdit map layer'
+        width, height = int(layers[0].get('width')), int(layers[0].get('height'))
         first = int(track.find('tileset').get('firstgid'))
-        tiles = bytes(int(v.strip())-first for row in csv.reader(io.StringIO(layer.find('data').text)) for v in row if v.strip())
-        assert len(tiles) == width*height
+        values = [0]*(width*height)
+        # The runtime composes every CSV layer in order. Zero is transparent,
+        # and editor visibility does not suppress an authored background.
+        for layer in layers:
+            assert (int(layer.get('width')),int(layer.get('height'))) == (width,height)
+            assert layer.find('data').get('encoding') == 'csv', 'Expected FZEdit CSV map'
+            overlay = [int(v.strip()) for row in csv.reader(io.StringIO(layer.find('data').text)) for v in row if v.strip()]
+            assert len(overlay) == len(values)
+            for index,value in enumerate(overlay):
+                if value:
+                    values[index] = value
+        tiles = bytes(value-first if value else 0 for value in values)
         tsx = ET.fromstring(read('TilesetTSX'))
         terrain = {int(t.get('id')): {p.get('name'): int(p.get('value')) for p in t.findall('properties/property')} for t in tsx.findall('tile')}
     # FZEdit displays a 16-pixel tile; the race engine uses eight world units.
@@ -67,9 +77,24 @@ def terrain_approach(kind, width, height, tiles, terrain, rng, expected_heading=
     classes=tiles.translate(bytes(2 if i in wanted else 1 if i in approach_safe else 0 for i in range(256)))
     candidates=[]
     if target_index is not None:
+        # A dash plate spans several graphic tiles. Its safe entry in the
+        # native travel direction can be on the other edge of that plate.
+        # Stay within the same bounded connected surface when retrying.
+        connected={target_index}
+        pending=[target_index]
+        while pending and len(connected)<256:
+            current=pending.pop()
+            x,y=current%width,current//width
+            for nx,ny in ((x-1,y),(x+1,y),(x,y-1),(x,y+1)):
+                if not (0<=nx<width and 0<=ny<height):
+                    continue
+                neighbor=ny*width+nx
+                if neighbor not in connected and tiles[neighbor] in wanted:
+                    connected.add(neighbor)
+                    pending.append(neighbor)
         directions=[(0,-1,0),(1,0,0x3000),(0,1,0x6000),(-1,0,0x9000),
                     (1,-1,0x1800),(1,1,0x4800),(-1,1,0x7800),(-1,-1,0xa800)]
-        candidates=[(target_index,dx,dy,heading) for dx,dy,heading in directions]
+        candidates=[(index,dx,dy,heading) for index in sorted(connected) for dx,dy,heading in directions]
     else:
         for pattern,delta,dx,dy,heading in ((b'\1\1\1\2',3,1,0,0x3000),(b'\2\1\1\1',0,-1,0,0x9000)):
             for match in re.finditer(pattern,classes):

@@ -73,3 +73,28 @@ problems. This does not establish full-lap or every-terrain qualification.
 Local evidence is under `captures/driving-three-20261010/qualification.json`,
 with per-frame traces, controller scripts and snapshots in its referenced run
 directories. Those private files are excluded from commits and player bundles.
+
+## Cross-pack spot checks
+
+The follow-up audit checked all 75 bundled courses: 55 CGP, 10 Astra Front,
+five Bower and five MAX League. Every compiled terrain table is populated,
+matches the editor's tile properties, and retains its reviewed course-record
+hash. Reconstructed projects also retain their companion's terrain bytes.
+Huckmine's raw editor project uses the editor properties directly.
+
+Live checks cover Marine City I, U Zero I, Mute City V, Metal Forest, Huckmine
+and Rainbow Road. Twenty-four suitable interactions pass, including repairs,
+boundary damage, jumps, dash activation, driving fuzz and off-course behavior;
+twelve absent or unsuitable surface cases are skipped. Rainbow Road's course
+rules remain active; it does not use the ordinary barrier/repair arrangement.
+No recurrence of the Maximum Velocity terrain-loss regression was found.
+
+The harness now composes Tiled layers as the runtime does, including Huckmine's
+background beneath its transparent track layer. A dash retry can approach the
+opposite edge of the same connected plate in its native travel direction;
+retries do not change sampled terrain or the resulting boost state.
+
+Local evidence is under `captures/terrain-other-packs-20261010/`: `audit.json`
+checks all bundled records, while `driving`, `astra-aligned` and `special-cgp`
+contain the spot checks. These checks do not qualify every third-party pack or
+every interaction on every bundled course.
